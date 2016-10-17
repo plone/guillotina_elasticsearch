@@ -1,0 +1,11 @@
+{
+  "factory": "pserver.elasticsearch.utility.ElasticSearchUtility",
+  "provides": "pserver.elasticsearch.utility.IElasticSearchUtility",
+  "settings": {
+    "connection_settings": {
+      "endpoints": ["localhost:9200"],
+      "sniffer_timeout": 0.5
+    },
+    "bulk_size": 50
+  }
+}

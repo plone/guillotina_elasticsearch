@@ -1,0 +1,11 @@
+<configure xmlns="http://namespaces.zope.org/zope"
+           xmlns:plone="http://namespaces.plone.org/plone">
+
+  <include package="plone.server" file="meta.zcml" />
+
+  <plone:addon
+  		name="elasticsearch"
+  		title="ElasticSearch Catalog"
+  		handler="pserver.elasticsearch.install.ElasticSearchAddon" />
+
+</configure>

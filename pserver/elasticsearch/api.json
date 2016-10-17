@@ -1,0 +1,20 @@
+{
+	"contenttypes": {
+		"plone.server.interfaces.IPloneSite": {
+            "endpoints": {
+                "@setMapping": {
+                	"POST": {
+                        "factory": "pserver.elasticsearch.mapping.setMapping",
+                        "permission": "plone.ManageSite"
+                    }
+                },
+                "@getMapping": {
+                    "GET": {
+                        "factory": "pserver.elasticsearch.mapping.getMapping",
+                        "permission": "plone.ManageSite"
+                    }
+                }
+            }
+        }
+	}
+}
