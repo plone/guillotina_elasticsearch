@@ -11,13 +11,13 @@ class ElasticSearchAddon(Addon):
     @classmethod
     def install(self, request):
         registry = request.site_settings
-        registry.forInterface(ILayers).active_layers.append(
+        registry.forInterface(ILayers).active_layers |= {
             ELASTICSEARCH_LAYER
-        )
+        }
 
     @classmethod
     def uninstall(self, request):
         registry = request.site_settings
-        registry.forInterface(ILayers).active_layers.remove(
+        registry.forInterface(ILayers).active_layers -= {
             ELASTICSEARCH_LAYER
-        )
+        }
