@@ -33,7 +33,8 @@ CATALOG_TYPES = {
     'int': {'type': 'integer'},
     'date': {'type': 'date'},
     'boolean': {'type': 'boolean'},
-    'binary': {'type': 'binary'}
+    'binary': {'type': 'binary'},
+    'float': {'type': 'float'}
 }
 
 INDEX_TYPES = {
