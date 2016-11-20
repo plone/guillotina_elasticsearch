@@ -4,42 +4,33 @@ from aioes.exception import ConnectionError
 from aioes.exception import RequestError
 from aioes.exception import TransportError
 from plone.server.catalog.catalog import DefaultSearchUtility
-from plone.dexterity.utils import iterSchemata
-from plone.supermodel.interfaces import FIELDSETS_KEY
-from plone.supermodel.interfaces import CATALOG_KEY
-from plone.supermodel.interfaces import INDEX_KEY
-from plone.supermodel.utils import mergedTaggedValueDict
-from zope.component import getUtilitiesFor
-from plone.dexterity.fti import IDexterityFTI
 from plone.server.interfaces import IDataBase
-from plone.dexterity.utils import iterSchemataForType
-from zope.schema import getFields
+from pserver.elasticsearch.schema import get_mappings
 from plone.server.transactions import get_current_request
 from plone.server.catalog.interfaces import ICatalogDataAdapter
-from plone.dexterity.interfaces import IDexterityContent
-from plone.uuid.interfaces import IUUID
+from plone.server.interfaces import IResource
 from plone.server.traversal import do_traverse
 from plone.server.interfaces import IAbsoluteURL
+from concurrent.futures import ThreadPoolExecutor
 import asyncio
 
 import logging
 
 
 logger = logging.getLogger(__name__)
-
-
-CATALOG_TYPES = {
-    'text': {'type': 'string'},
-    'int': {'type': 'integer'},
-    'date': {'type': 'date'},
-    'boolean': {'type': 'boolean'},
-    'binary': {'type': 'binary'},
-    'float': {'type': 'float'}
-}
-
-INDEX_TYPES = {
-    'analyzed': {'index': 'analyzed'},
-    'non_analyzed': {'index': 'not_analyzed'}
+DEFAULT_SETTINGS = {
+    "analysis": {
+        "analyzer": {
+            "path_analyzer": {
+                "tokenizer": "path_tokenizer"
+            }
+        },
+        "tokenizer": {
+            "path_tokenizer": {
+                "type": "path_hierarchy",
+            }
+        }
+    }
 }
 
 
@@ -47,6 +38,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     bulk_size = 50
     initialized = False
+    executor = ThreadPoolExecutor(max_workers=1)
 
     def __init__(self, settings):
         self.settings = settings
@@ -59,12 +51,19 @@ class ElasticSearchUtility(DefaultSearchUtility):
         self.app = app
         self.conn = self.get_connection()
         # For each site create the index
+        self.mappings = get_mappings()
+        self.settings = DEFAULT_SETTINGS
         for db_name, db in self.app:
             if not IDataBase.providedBy(db):
                 continue
             for site_name, site in db:
                 try:
                     await self.conn.indices.create(site_name)
+                    await self.conn.indices.close(site_name)
+                    await self.conn.indices.put_settings(self.settings, site_name)
+                    for key, value in self.mappings.items():
+                        await self.conn.indices.put_mapping(site_name, key, value)
+                    await self.conn.indices.open(site_name)
                 except TransportError:
                     pass
                 except ConnectionError:
@@ -73,62 +72,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 except RequestError:
                     return
 
-        # Mapping calculated from schemas
-        for name, schema in getUtilitiesFor(IDexterityFTI):
-            # For each type
-            mappings = {}
-            for schema in iterSchemataForType(name):
-                # create mapping for content type
-                catalog = mergedTaggedValueDict(schema, CATALOG_KEY)
-                index = mergedTaggedValueDict(schema, INDEX_KEY)
-                for field_name, field in getFields(schema).items():
-                    kind_index = index.get(field_name, False)
-                    kind_catalog = catalog.get(field_name, False)
-                    field_mapping = {}
-                    if kind_catalog:
-                        if kind_catalog == 'object':
-                            # Especial case that is an object
-                            # TODO
-                            pass
-                        field_mapping.update(CATALOG_TYPES[kind_catalog])
-                        if kind_index:
-                            field_mapping.update(INDEX_TYPES[kind_index])
-
-                        field_name = schema.getName() + '-' + field_name
-                        mappings[field_name] = field_mapping
-            mappings['accessRoles'] = {
-                'type': 'string',
-                'index': 'not_analyzed'
-            }
-            mappings['accessUsers'] = {
-                'type': 'string',
-                'index': 'not_analyzed'
-            }
-            mappings['path'] = {
-                'type': 'string'
-            }
-            mappings['uuid'] = {
-                'type': 'string',
-                'index': 'not_analyzed'
-            }
-            try:
-                await self.conn.indices.put_mapping(
-                    "_all", name, body={'properties': mappings})
-            except:  # noqa
-                logger.warn('elasticsearch not installed', exc_info=True)
-
         self.initialized = True
 
     def get_connection(self):
         return Elasticsearch(**self.settings['connection_settings'])
 
     def reindexContentAndSubcontent(self, obj, loads):
-        loads[(IUUID(obj), obj.portal_type)] = ICatalogDataAdapter(obj)()
+        loads[(obj.uuid, obj.portal_type)] = ICatalogDataAdapter(obj)()
         if len(loads) == self.bulk_size:
             yield loads
             loads.clear()
         for key, value in obj.items():
-            if IDexterityContent.providedBy(value):
+            if IResource.providedBy(value):
                 yield from self.reindexContentAndSubcontent(value, loads)
 
     async def reindexAllContent(self, obj):
@@ -144,7 +99,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         request = get_current_request()
         if site_id is None:
-            site_id = request._site_id            
+            site_id = request._site_id
 
         q = {
             'index': site_id,
@@ -161,7 +116,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
                           if value])
             if hasattr(request, '_cache_groups'):
                 for group in user.principal._groups:
-                    roles.extend([key for key, value in request._cache_groups[group]._roles.items() if value])
+                    roles.extend([
+                        key for key, value in
+                        request._cache_groups[group]._roles.items() if value])
 
         if 'filter' in query:
             if 'terms' not in query:
@@ -238,9 +195,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return await self.searchByType(doc_type, site_id, query=query)
 
     async def index(self, datas, site_id):
-        """
-        {uid: <dict>}
-        """
         while not self.initialized:
             await asyncio.sleep(1.0)
 
@@ -267,9 +221,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     body=bulk_data)
 
     async def remove(self, uids, site_id):
-        """
-        list of UIDs to remove from index
-        """
+        """List of UIDs to remove from index."""
         if len(uids) > 0:
             bulk_data = []
             for uid in uids:
@@ -285,6 +237,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def create_index(self, site_id):
         try:
             await self.conn.indices.create(site_id)
+            await self.set_mappings(site_id)
         except TransportError:
             pass
         except ConnectionError:
