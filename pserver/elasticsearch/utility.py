@@ -114,7 +114,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             users.append(user.principal.id)
             roles.extend([key for key, value in user.principal._roles.items()
                           if value])
-            if hasattr(request, '_cache_groups'):
+            if (hasattr(request, '_cache_groups') and
+                    hasattr(user.principal, '_groups')):
                 for group in user.principal._groups:
                     roles.extend([
                         key for key, value in
