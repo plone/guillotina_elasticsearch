@@ -238,7 +238,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def create_index(self, site_id):
         try:
             await self.conn.indices.create(site_id)
-            await self.set_mappings(site_id)
+            await self.conn.indices.close(site_id)
+            await self.conn.indices.put_settings(self.settings, site_id)
+            for key, value in self.mappings.items():
+                await self.conn.indices.put_mapping(site_id, key, value)
+            await self.conn.indices.open(site_id)
         except TransportError:
             pass
         except ConnectionError:
@@ -249,6 +253,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def remove_index(self, site_id):
         try:
+            await self.conn.indices.close(site_id)
             await self.conn.indices.delete(site_id)
         except TransportError:
             pass
