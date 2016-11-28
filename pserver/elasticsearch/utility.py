@@ -225,11 +225,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
         """List of UIDs to remove from index."""
         if len(uids) > 0:
             bulk_data = []
-            for uid in uids:
+            for uid, portal_type in uids:
                 bulk_data.append({
                     'delete': {
                         '_index': site_id,
-                        '_id': uid
+                        '_id': uid,
+                        '_type': portal_type
                     }
                 })
             await self.conn.bulk(
