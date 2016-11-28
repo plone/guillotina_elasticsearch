@@ -161,14 +161,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
         query.update(permission_query)
 
         q['body'] = query
-
+        logger.warn(q)
         result = await self.conn.search(**q)
         items = []
         site_url = IAbsoluteURL(request.site, request)()
         for item in result['hits']['hits']:
             data = item['_source']
             data.update({
-                '@id': site_url + data.get('path', ''),
+                '@absolute_url': site_url + data.get('path', ''),
                 '@type': data.get('portal_type'),
             })
             items.append(data)
