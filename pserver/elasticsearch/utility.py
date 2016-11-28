@@ -78,13 +78,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return Elasticsearch(**self.settings['connection_settings'])
 
     def reindexContentAndSubcontent(self, obj, loads):
-        loads[(obj.uuid, obj.portal_type)] = ICatalogDataAdapter(obj)()
+        loads[obj.uuid] = ICatalogDataAdapter(obj)()
         if len(loads) == self.bulk_size:
             yield loads
             loads.clear()
         for key, value in obj.items():
             if IResource.providedBy(value):
-                yield from self.reindexContentAndSubcontent(value, loads)
+                self.reindexContentAndSubcontent(value, loads)
 
     async def reindexAllContent(self, obj):
         loads = {}
