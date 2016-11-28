@@ -206,8 +206,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 bulk_data.extend([{
                     'index': {
                         '_index': site_id,
-                        '_type': ident[1],
-                        '_id': ident[0]
+                        '_type': data['portal_type'],
+                        '_id': ident
                     }
                 }, data])
                 if len(bulk_data) % self.bulk_size == 0:
