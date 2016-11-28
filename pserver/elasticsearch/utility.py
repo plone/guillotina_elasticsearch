@@ -117,18 +117,48 @@ class ElasticSearchUtility(DefaultSearchUtility):
             if (hasattr(request, '_cache_groups') and
                     hasattr(user.principal, '_groups')):
                 for group in user.principal._groups:
+                    users.append(group)
                     roles.extend([
                         key for key, value in
                         request._cache_groups[group]._roles.items() if value])
 
-        if 'filter' in query:
-            if 'terms' not in query:
-                query['filter']['terms'] = {}
-        else:
-            if 'terms' not in query:
-                query['filter'] = {'terms': {}}
-        query['filter']['terms']['accessRoles'] = roles
-        # query['filter']['terms']['accessUsers'] = users
+        # We got all users and roles
+        # roles: the roles we have global (for the groups and user own)
+        # users: users and groups
+
+        permission_query = {
+            'query': {
+                'bool': {
+                    'minimum_number_should_match': 1,
+                    'should': [
+                        {
+                            'terms': {
+                                'accessRoles': roles
+                            }
+                        },
+                        {
+                            'terms': {
+                                'accessUsers': users
+                            }
+                        }
+                    ],
+                    'must_not': [
+                        {
+                            'terms': {
+                                'denyedRoles': roles
+                            }
+                        },
+                        {
+                            'terms': {
+                                'denyedUsers': users
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+        query.update(permission_query)
 
         q['body'] = query
 
