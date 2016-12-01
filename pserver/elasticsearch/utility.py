@@ -82,9 +82,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if len(loads) == self.bulk_size:
             yield loads
             loads.clear()
-        for key, value in obj.items():
+
+        try:
+            items = obj.items()
+        except AttributeError:
+            return
+        for key, value in items:
             if IResource.providedBy(value):
-                self.reindexContentAndSubcontent(value, loads)
+                yield from self.reindexContentAndSubcontent(value, loads)
 
     async def reindexAllContent(self, obj):
         loads = {}
@@ -242,13 +247,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 }, data])
                 if len(bulk_data) % self.bulk_size == 0:
                     await self.conn.bulk(
-                        index=site_id, doc_type=ident[1],
+                        index=site_id, doc_type=None,
                         body=bulk_data)
                     bulk_data = []
 
             if len(bulk_data) > 0:
                 await self.conn.bulk(
-                    index=site_id, doc_type=ident[1],
+                    index=site_id, doc_type=None,
                     body=bulk_data)
 
     async def remove(self, uids, site_id):
