@@ -50,6 +50,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         # No asyncio loop to run
         self.app = app
         self.conn = self.get_connection()
+
         # For each site create the index
         self.mappings = get_mappings()
         self.settings = DEFAULT_SETTINGS
@@ -71,7 +72,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     return
                 except RequestError:
                     return
-
+        logger.info('Connected to elastic')
         self.initialized = True
 
     def get_connection(self):
@@ -234,8 +235,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return await self.searchByType(doc_type, site_id, query=query)
 
     async def index(self, datas, site_id):
+        count = 0
         while not self.initialized:
             await asyncio.sleep(1.0)
+            count += 1
+            if count > 10:
+                raise ConnectionError('No good inatilization of elasticsearc')
 
         if len(datas) > 0:
             bulk_data = []
