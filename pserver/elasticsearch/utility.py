@@ -177,7 +177,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             # delete denyedRoles and denyedUsers in original query
             rule_terms = mustnot_rule.get('terms', {})
             if rule_terms.get('denyedRoles') or rule_terms.get('denyedUsers'):
-                query_should.remove(should_rule)
+                query_mustnot.remove(mustnot_rule)
         query_mustnot.extend(perm_bool['must_not'])
 
     async def search(self, query, site_id=None, doc_type=None):
