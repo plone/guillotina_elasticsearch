@@ -99,21 +99,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             await self.index(bunk, request._site_id)
         await self.index(loads, request._site_id)
 
-    async def search(self, query, site_id=None, doc_type=None):
-        if query is None:
-            query = {}
-
-        request = get_current_request()
-        if site_id is None:
-            site_id = request._site_id
-
-        q = {
-            'index': site_id,
-        }
-
-        if doc_type is not None:
-            q['doc_type'] = doc_type
-
+    def add_permission_query(self, query, request):
+        """Modififies `query` to add permission search parameters"""
         users = []
         roles = []
         for user in request.security.participations:
@@ -167,7 +154,49 @@ class ElasticSearchUtility(DefaultSearchUtility):
             }
         }
 
-        query.update(permission_query)
+        # merge to original query
+        query_query = query.setdefault('query', {})
+        query_bool = query_query.setdefault('bool', {})
+        perm_bool = permission_query['query']['bool']
+
+        # add minimum
+        min_field = 'minimum_number_should_match'
+        query_bool[min_field] = perm_bool[min_field]
+
+        # merge should rules
+        query_should = query_bool.setdefault('should', [])
+        for should_rule in query_should:
+            # delete accessRoles and accessUsers in original query
+            rule_terms = should_rule.get('terms', {})
+            if rule_terms.get('accessRoles') or rule_terms.get('accessUsers'):
+                query_should.remove(should_rule)
+        query_should.extend(perm_bool['should'])
+
+        # merge must_not rules
+        query_mustnot = query_bool.setdefault('must_not', [])
+        for mustnot_rule in query_mustnot:
+            # delete denyedRoles and denyedUsers in original query
+            rule_terms = mustnot_rule.get('terms', {})
+            if rule_terms.get('denyedRoles') or rule_terms.get('denyedUsers'):
+                query_mustnot.remove(mustnot_rule)
+        query_mustnot.extend(perm_bool['must_not'])
+
+    async def search(self, query, site_id=None, doc_type=None):
+        if query is None:
+            query = {}
+
+        request = get_current_request()
+        if site_id is None:
+            site_id = request._site_id
+
+        q = {
+            'index': site_id,
+        }
+
+        if doc_type is not None:
+            q['doc_type'] = doc_type
+
+        self.add_permission_query(query, request)  # check security to search
 
         q['body'] = query
         logger.warn(q)
