@@ -3,16 +3,14 @@ from aioes import Elasticsearch
 from aioes.exception import ConnectionError
 from aioes.exception import RequestError
 from aioes.exception import TransportError
+from plone.server import app_settings
 from plone.server.catalog.catalog import DefaultSearchUtility
-from plone.server.interfaces import IDataBase
-from pserver.elasticsearch.schema import get_mappings
-from plone.server.transactions import get_current_request
-from plone.server.catalog.interfaces import ICatalogDataAdapter
-from plone.server.interfaces import IResource
-from plone.server.traversal import do_traverse
+from plone.server.interfaces import ICatalogDataAdapter
 from plone.server.interfaces import IAbsoluteURL
-from concurrent.futures import ThreadPoolExecutor
-import asyncio
+from plone.server.interfaces import IResource
+from plone.server.transactions import get_current_request
+from plone.server.traversal import do_traverse
+from pserver.elasticsearch.schema import get_mappings
 
 import logging
 
@@ -37,48 +35,37 @@ DEFAULT_SETTINGS = {
 class ElasticSearchUtility(DefaultSearchUtility):
 
     bulk_size = 50
-    initialized = False
-    executor = ThreadPoolExecutor(max_workers=1)
 
     def __init__(self, settings):
-        self.settings = settings
-        # self.index_index = settings['index_name']
-        # self.doc_type = settings['doc_type']
-        self.bulk_size = settings.get('bulk_size', 50)
+        self._conn = None
 
-    async def initialize(self, app=None):
-        # No asyncio loop to run
+    @property
+    def bulk_size(self):
+        return self.settings.get('bulk_size', 50)
+
+    @property
+    def settings(self):
+        return app_settings['elasticsearch']
+
+    @property
+    def conn(self):
+        if self._conn is None:
+            self._conn = Elasticsearch(**self.settings['connection_settings'])
+        return self._conn
+
+    async def initialize(self, app):
         self.app = app
-        self.conn = self.get_connection()
 
-        # For each site create the index
-        self.mappings = get_mappings()
-        self.settings = DEFAULT_SETTINGS
-        for db_name, db in self.app:
-            if not IDataBase.providedBy(db):
-                continue
-            for site_name, site in db:
-                try:
-                    await self.conn.indices.create(site_name)
-                    await self.conn.indices.close(site_name)
-                    await self.conn.indices.put_settings(self.settings, site_name)
-                    for key, value in self.mappings.items():
-                        await self.conn.indices.put_mapping(site_name, key, value)
-                    await self.conn.indices.open(site_name)
-                except TransportError:
-                    pass
-                except ConnectionError:
-                    logger.warn('elasticsearch not installed', exc_info=True)
-                    return
-                except RequestError:
-                    return
-        logger.info('Connected to elastic')
-        self.initialized = True
+    def get_index_name(self, site):
+        try:
+            return site['_registry']['el_index_name']
+        except KeyError:
+            return app_settings['elasticsearch'].get('index_name_prefix', 'plone-') + site.id
 
-    def get_connection(self):
-        return Elasticsearch(**self.settings['connection_settings'])
+    def set_index_name(self, site, name):
+        site['_registry']['el_index_name'] = name
 
-    def reindexContentAndSubcontent(self, obj, loads):
+    def reindex_recursive(self, obj, loads):
         loads[obj.uuid] = ICatalogDataAdapter(obj)()
         if len(loads) == self.bulk_size:
             yield loads
@@ -90,19 +77,38 @@ class ElasticSearchUtility(DefaultSearchUtility):
             return
         for key, value in items:
             if IResource.providedBy(value):
-                yield from self.reindexContentAndSubcontent(value, loads)
+                yield from self.reindex_recursive(value, loads)
 
-    async def reindexAllContent(self, obj):
+    async def reindex_all_content(self, site):
         loads = {}
-        request = get_current_request()
-        for bunk in self.reindexContentAndSubcontent(obj, loads):
-            await self.index(bunk, request._site_id)
-        await self.index(loads, request._site_id)
+        for bunk in self.reindex_recursive(site, loads):
+            await self.index(site, bunk)
+        await self.index(site, loads)
 
-    def add_permission_query(self, query, request):
-        """Modififies `query` to add permission search parameters"""
+    async def search(self, site, query):
+        """
+        XXX transform into el query
+        """
+        pass
+
+    async def query(self, site, query, doc_type=None):
+        """
+        transform into query...
+        right now, it's just passing through into elasticsearch
+        """
+        if query is None:
+            query = {}
+
+        q = {
+            'index': self.get_index_name(site)
+        }
+
+        if doc_type is not None:
+            q['doc_type'] = doc_type
+
         users = []
         roles = []
+        request = get_current_request()
         for user in request.security.participations:
             users.append(user.principal.id)
             roles.extend([key for key, value in user.principal._roles.items()
@@ -154,55 +160,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
             }
         }
 
-        # merge to original query
-        query_query = query.setdefault('query', {})
-        query_bool = query_query.setdefault('bool', {})
-        perm_bool = permission_query['query']['bool']
-
-        # add minimum
-        min_field = 'minimum_number_should_match'
-        query_bool[min_field] = perm_bool[min_field]
-
-        # merge should rules
-        query_should = query_bool.setdefault('should', [])
-        for should_rule in query_should:
-            # delete accessRoles and accessUsers in original query
-            rule_terms = should_rule.get('terms', {})
-            if rule_terms.get('accessRoles') or rule_terms.get('accessUsers'):
-                query_should.remove(should_rule)
-        query_should.extend(perm_bool['should'])
-
-        # merge must_not rules
-        query_mustnot = query_bool.setdefault('must_not', [])
-        for mustnot_rule in query_mustnot:
-            # delete denyedRoles and denyedUsers in original query
-            rule_terms = mustnot_rule.get('terms', {})
-            if rule_terms.get('denyedRoles') or rule_terms.get('denyedUsers'):
-                query_mustnot.remove(mustnot_rule)
-        query_mustnot.extend(perm_bool['must_not'])
-
-    async def search(self, query, site_id=None, doc_type=None):
-        if query is None:
-            query = {}
-
-        request = get_current_request()
-        if site_id is None:
-            site_id = request._site_id
-
-        q = {
-            'index': site_id,
-        }
-
-        if doc_type is not None:
-            q['doc_type'] = doc_type
-
-        self.add_permission_query(query, request)  # check security to search
+        query.update(permission_query)
 
         q['body'] = query
         logger.warn(q)
         result = await self.conn.search(**q)
         items = []
-        site_url = IAbsoluteURL(request.site, request)()
+        site_url = IAbsoluteURL(site, request)()
         for item in result['hits']['hits']:
             data = item['_source']
             data.update({
@@ -215,7 +179,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             'member': items
         }
 
-    async def getByUUID(self, uuid, site_id):
+    async def get_by_uuid(self, site, uuid):
         query = {
             'filter': {
                 'term': {
@@ -223,30 +187,29 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 }
             }
         }
-        return await self.search(query, site_id)
+        return await self.query(site, query)
 
-    async def getObjectByUUID(self, uuid, site_id):
-        result = await self.getByUUID(uuid, site_id)
+    async def get_object_by_uuid(self, site, uuid):
+        result = await self.get_by_uuid(site, uuid)
         if result['items_count'] == 0 or result['items_count'] > 1:
             raise AttributeError('Not found a unique object')
 
         path = result['members'][0]['path']
-        request = get_current_request()
-        obj = do_traverse(request.site, path)
+        obj = do_traverse(site, path)
         return obj
 
-    async def getByType(self, doc_type, site_id, query={}):
-        return await self.search(query, site_id, doc_type=doc_type)
+    async def get_by_type(self, site, doc_type, query={}):
+        return await self.query(site, query, doc_type=doc_type)
 
-    async def getByPath(self, path, depth, site_id, doc_type=None):
+    async def get_by_path(self, site, path, depth, doc_type=None):
         query = {
             'match': {
                 'path': path
             }
         }
-        return await self.searchByType(doc_type, site_id, query=query)
+        return await self.query(site, query, doc_type)
 
-    async def getFolderContents(self, parent_uuid, site_id, doc_type=None):
+    async def get_folder_contents(self, site, parent_uuid, doc_type=None):
         query = {
             'query': {
                 'filtered': {
@@ -261,61 +224,62 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 }
             }
         }
-        return await self.searchByType(doc_type, site_id, query=query)
+        return await self.query(site, query, doc_type)
 
-    async def index(self, datas, site_id):
-        count = 0
-        while not self.initialized:
-            await asyncio.sleep(1.0)
-            count += 1
-            if count > 10:
-                raise ConnectionError('No good inatilization of elasticsearc')
+    async def index(self, site, datas):
 
         if len(datas) > 0:
             bulk_data = []
+            index_name = self.get_index_name(site)
 
             for ident, data in datas.items():
                 bulk_data.extend([{
                     'index': {
-                        '_index': site_id,
+                        '_index': index_name,
                         '_type': data['portal_type'],
                         '_id': ident
                     }
                 }, data])
                 if len(bulk_data) % self.bulk_size == 0:
                     await self.conn.bulk(
-                        index=site_id, doc_type=None,
+                        index=index_name, doc_type=None,
                         body=bulk_data)
                     bulk_data = []
 
             if len(bulk_data) > 0:
                 await self.conn.bulk(
-                    index=site_id, doc_type=None,
+                    index=index_name, doc_type=None,
                     body=bulk_data)
 
-    async def remove(self, uids, site_id):
+    async def remove(self, site, uids):
         """List of UIDs to remove from index."""
         if len(uids) > 0:
+            index_name = self.get_index_name(site)
             bulk_data = []
             for uid, portal_type in uids:
                 bulk_data.append({
                     'delete': {
-                        '_index': site_id,
+                        '_index': index_name,
                         '_id': uid,
                         '_type': portal_type
                     }
                 })
-            await self.conn.bulk(
-                index=site_id, body=bulk_data)
+            await self.conn.bulk(index=index_name, body=bulk_data)
 
-    async def create_index(self, site_id):
+    async def initialize_catalog(self, site):
+        mappings = get_mappings()
+        index_name = self.get_index_name(site)
+        index_settings = DEFAULT_SETTINGS.copy()
+        index_settings.update(app_settings.get('index', {}))
+
         try:
-            await self.conn.indices.create(site_id)
-            await self.conn.indices.close(site_id)
-            await self.conn.indices.put_settings(self.settings, site_id)
-            for key, value in self.mappings.items():
-                await self.conn.indices.put_mapping(site_id, key, value)
-            await self.conn.indices.open(site_id)
+            await self.conn.indices.create(index_name)
+            await self.conn.indices.close(index_name)
+            await self.conn.indices.put_settings(index_settings, index_name)
+            for key, value in mappings.items():
+                await self.conn.indices.put_mapping(index_name, key, value)
+            await self.conn.indices.open(index_name)
+            self.set_index_name(site, index_name)
         except TransportError:
             pass
         except ConnectionError:
@@ -324,10 +288,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
         except RequestError:
             return
 
-    async def remove_index(self, site_id):
+    async def remove_catalog(self, site):
+        index_name = self.get_index_name(site)
         try:
-            await self.conn.indices.close(site_id)
-            await self.conn.indices.delete(site_id)
+            await self.conn.indices.close(index_name)
+            await self.conn.indices.delete(index_name)
         except TransportError:
             pass
         except ConnectionError:
