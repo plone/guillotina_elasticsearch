@@ -1,36 +1,21 @@
 .. contents::
 
-PLONE.SERVER.GOOGLEOAUTH
-========================
-
-A call to plone.server using header : 
-
-AUTHORIZATION: bearer GOOGLE_TOKEN
-
-authorizes the user to the one in google with that token
-
-Features
---------
-
- * There is no persistence information about the user
-
- * The configuration is global for all application
+PSERVER.ELASTICSEARCH
+=====================
 
 
 Configuration
 -------------
 
-Generic global configuration on plone.server utilities section: 
+config.json can include elasticsearch section::
 
-{
-    "provides": "plone.server.googleoauth.oauth.IOAuth",
-    "factory": "plone.server.googleoauth.oauth.OAuth",
-    "settings": {
-        "oauth_json": "PATH_TO_JSON_CREDENTIALS_FROM_GOOGLE",
-        "credentials": "CREDENTIALS_STORAGE",
-        "client": "plone"
+    "elasticsearch": {
+        "index_name_prefix": "plone-",
+        "connection_settings": {
+            "endpoints": ["localhost:9200"],
+            "sniffer_timeout": 0.5
+        }
     }
-}
 
 
 Installation on a site
@@ -40,23 +25,27 @@ POST SITE_URL/@install
 
 {
 	'pluggins': [
-		'plone.server.googleoauth'
+		'pserver.elasticsearch'
 	]
 }
 
+
+POST SITE_URL/@catalog
+
+{}
+
 Uninstall on a site
 -------------------
+
+DELETE SITE_URL/@catalog
+
+{}
+
 
 POST SITE_URL/@uninstall
 
 {
 	'pluggins': [
-		'plone.server.googleoauth'
+		'pserver.elasticsearch'
 	]
 }
-
-
-Events
-------
-
-plone.server.auth.events.NewUserLogin
