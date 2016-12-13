@@ -23,5 +23,5 @@ utility_config = {
 }
 
 
-# def includeme(root):
-#     root.add_async_utility(utility_config)
+def includeme(root):
+    root.add_async_utility(utility_config)
