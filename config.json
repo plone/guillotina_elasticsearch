@@ -1,5 +1,5 @@
 {
-  "applications": ["elasticsearch"],
+  "applications": ["pserver.elasticsearch"],
   "elasticsearch": {
       "bulk_size": 50,
       "index_name_prefix": "plone-",
