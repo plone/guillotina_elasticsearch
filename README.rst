@@ -21,15 +21,6 @@ config.json can include elasticsearch section::
 Installation on a site
 ----------------------
 
-POST SITE_URL/@install
-
-{
-	'pluggins': [
-		'pserver.elasticsearch'
-	]
-}
-
-
 POST SITE_URL/@catalog
 
 {}
@@ -40,12 +31,3 @@ Uninstall on a site
 DELETE SITE_URL/@catalog
 
 {}
-
-
-POST SITE_URL/@uninstall
-
-{
-	'pluggins': [
-		'pserver.elasticsearch'
-	]
-}
