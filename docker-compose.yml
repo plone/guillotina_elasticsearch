@@ -20,7 +20,7 @@ services:
     volumes:
       - esdata1:/usr/share/elasticsearch/data
     ports:
-      - 9200:9200
+      - 127.0.0.1:9200:9200
 volumes:
   esdata1:
     driver: local
