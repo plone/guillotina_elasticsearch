@@ -17,7 +17,7 @@ install:
 - sleep 15
 script:
 - bin/py.test -s --cov=pserver.elasticsearch -v --cov-report term-missing pserver 
-# - bin/code-analysis
+- bin/code-analysis
 after_success:
 - coveralls
 - cat .coverage
