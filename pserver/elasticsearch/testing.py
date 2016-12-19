@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 
 from plone.server.testing import PloneBaseLayer, TESTING_SETTINGS
+from plone.server.content import load_cached_schema
+from plone.server.interfaces import ICatalogUtility
+from zope.component import getUtility
+import requests
 
 import unittest
 
@@ -11,7 +15,7 @@ TESTING_SETTINGS['elasticsearch'] = {
     "bulk_size": 50,
     "index_name_prefix": "plone-",
     "connection_settings": {
-        "endpoints": ["elastic:9200"],
+        "endpoints": ["localhost:9200"],
         "sniffer_timeout": 0.5
     },
     "index": {},
@@ -41,7 +45,7 @@ class ElasticSearchLayer(PloneBaseLayer):
 
     @classmethod
     def testTearDown(cls):
-        pass
+        requests.delete('http://localhost:9200/plone-plone')
 
     @classmethod
     def tearDown(cls):

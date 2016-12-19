@@ -8,9 +8,9 @@ cache:
   directories:
   - eggs
 before_install:
-- docker-compose start
+- docker-compose up -d
 install:
-- python bootstrap-buildout.py
+- python bootstrap-buildout.py --setuptools-version=32.1.0
 - bin/buildout -t 3
 - pip install flake8
 - pip install coverage==4.0.3

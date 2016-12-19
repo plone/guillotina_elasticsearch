@@ -11,6 +11,7 @@ from plone.server.interfaces import IResource
 from plone.server.transactions import get_current_request
 from plone.server.traversal import do_traverse
 from pserver.elasticsearch.schema import get_mappings
+from plone.server.metaconfigure import rec_merge
 
 import logging
 
@@ -135,33 +136,32 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     'should': [
                         {
                             'terms': {
-                                'accessRoles': roles
+                                'access_roles': roles
                             }
                         },
                         {
                             'terms': {
-                                'accessUsers': users
+                                'access_users': users
                             }
                         }
                     ],
                     'must_not': [
                         {
                             'terms': {
-                                'denyedRoles': roles
+                                'denyed_roles': roles
                             }
                         },
                         {
                             'terms': {
-                                'denyedUsers': users
+                                'denyed_users': users
                             }
                         }
                     ]
                 }
             }
         }
-
-        query.update(permission_query)
-
+        query = rec_merge(query, permission_query)
+        # query.update(permission_query)
         q['body'] = query
         logger.warn(q)
         result = await self.conn.search(**q)
@@ -227,7 +227,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return await self.query(site, query, doc_type)
 
     async def index(self, site, datas):
-
         if len(datas) > 0:
             bulk_data = []
             index_name = self.get_index_name(site)

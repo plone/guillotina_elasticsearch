@@ -21,6 +21,7 @@ CATALOG_TYPES = {
     'boolean': {'type': 'boolean'},
     'binary': {'type': 'binary'},
     'float': {'type': 'float'},
+    'nested': {'type': 'nested'},
     'path': {
         "type": "text",
         "analyzer": "path_analyzer"
