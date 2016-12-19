@@ -16,8 +16,8 @@ install:
 - pip install coverage==4.0.3
 - sleep 15
 script:
-- bin/py.test -s --cov=pserver.elasticsearch -v --cov-report term-missing src 
-- bin/code-analysis
+- bin/py.test -s --cov=pserver.elasticsearch -v --cov-report term-missing pserver 
+# - bin/code-analysis
 after_success:
 - coveralls
 - cat .coverage
