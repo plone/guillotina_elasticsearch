@@ -6,15 +6,15 @@ from zope.component import getUtilitiesFor
 CATALOG_TYPES = {
     'searchabletext': {
         'type': 'text',
-        'index': 'analyzed'
+        'index': True
     },
     'text': {
         'type': 'text',
-        'index': 'not_analyzed'
+        'index': False
     },
     'keyword': {
         'type': 'keyword',
-        'index': 'not_analyzed'
+        'index': False
     },
     'int': {'type': 'integer'},
     'date': {'type': 'date'},
