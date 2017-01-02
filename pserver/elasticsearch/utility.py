@@ -203,8 +203,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def get_by_path(self, site, path, depth, doc_type=None):
         query = {
-            'match': {
-                'path': path
+            'query': {
+                'match': {
+                    'path': path
+                }
             }
         }
         return await self.query(site, query, doc_type)
@@ -215,7 +217,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 'filtered': {
                     'filter': {
                         'term': {
-                            'parent': parent_uuid
+                            'parent_uuid': parent_uuid
                         }
                     },
                     'query': {
