@@ -130,34 +130,17 @@ class ElasticSearchUtility(DefaultSearchUtility):
         # roles: the roles we have global (for the groups and user own)
         # users: users and groups
 
+        should_list = [{'match': {'access_roles': x}} for x in roles]
+        should_list.extend([{'match': {'access_users': x}} for x in users])
+        mustnot_list = [{'match': {'denyed_roles': x}} for x in roles]
+        mustnot_list.extend([{'match': {'denyed_users': x}} for x in users])
+
         permission_query = {
             'query': {
                 'bool': {
                     'minimum_number_should_match': 1,
-                    'should': [
-                        {
-                            'terms': {
-                                'access_roles': roles
-                            }
-                        },
-                        {
-                            'terms': {
-                                'access_users': users
-                            }
-                        }
-                    ],
-                    'must_not': [
-                        {
-                            'terms': {
-                                'denyed_roles': roles
-                            }
-                        },
-                        {
-                            'terms': {
-                                'denyed_users': users
-                            }
-                        }
-                    ]
+                    'should': should_list,
+                    'must_not': mustnot_list
                 }
             }
         }
@@ -175,10 +158,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 '@type': data.get('portal_type'),
             })
             items.append(data)
-        return {
+        final = {
             'items_count': result['hits']['total'],
             'member': items
         }
+        if 'aggregations' in result:
+            final['aggregations'] = result['aggregations']
+        return final
 
     async def get_by_uuid(self, site, uuid):
         query = {
@@ -281,7 +267,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_name = self.get_index_name(site)
         index_settings = DEFAULT_SETTINGS.copy()
         index_settings.update(app_settings.get('index', {}))
-
         try:
             await self.conn.indices.create(index_name)
             await self.conn.indices.close(index_name)

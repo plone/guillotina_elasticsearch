@@ -22,11 +22,12 @@ CATALOG_TYPES = {
     'date': {'type': 'date'},
     'boolean': {'type': 'boolean'},
     'binary': {'type': 'binary'},
+    'long': {'type': 'long'},
     'float': {'type': 'float'},
     'nested': {'type': 'nested'},
     'path': {
-        "type": "text",
-        "analyzer": "path_analyzer"
+        'type': 'text',
+        'analyzer': 'path_analyzer'
     }
 }
 
