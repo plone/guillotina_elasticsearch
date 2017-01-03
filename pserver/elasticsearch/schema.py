@@ -10,11 +10,13 @@ CATALOG_TYPES = {
     },
     'text': {
         'type': 'text',
-        'index': False
+        'index': True,
+        'analyzer': 'keyword'
+
     },
     'keyword': {
         'type': 'keyword',
-        'index': False
+        'index': True
     },
     'int': {'type': 'integer'},
     'date': {'type': 'date'},
@@ -49,4 +51,5 @@ def get_mappings():
         global_mappings[name] = {
             'properties': mappings
         }
+    import pdb; pdb.set_trace()
     return global_mappings

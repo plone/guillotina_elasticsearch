@@ -201,14 +201,21 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def get_by_type(self, site, doc_type, query={}):
         return await self.query(site, query, doc_type=doc_type)
 
-    async def get_by_path(self, site, path, depth, doc_type=None):
-        query = {
-            'query': {
-                'match': {
-                    'path': path
+    async def get_by_path(self, site, path, depth=-1, query={}, doc_type=None):
+        if path is not None and path != '/':
+            path_query = {
+                'query': {
+                    'bool': {
+                        'must': [
+                            {
+                                'terms':
+                                    {'path': [path]}
+                            }
+                        ]
+                    }
                 }
             }
-        }
+            query = rec_merge(query, path_query)
         return await self.query(site, query, doc_type)
 
     async def get_folder_contents(self, site, parent_uuid, doc_type=None):
