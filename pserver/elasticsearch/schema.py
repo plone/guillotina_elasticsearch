@@ -51,5 +51,4 @@ def get_mappings():
         global_mappings[name] = {
             'properties': mappings
         }
-    import pdb; pdb.set_trace()
     return global_mappings
