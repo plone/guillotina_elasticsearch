@@ -27,6 +27,7 @@ DEFAULT_SETTINGS = {
         "tokenizer": {
             "path_tokenizer": {
                 "type": "path_hierarchy",
+                "delimiter": "/"
             }
         }
     }
@@ -208,8 +209,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     'bool': {
                         'must': [
                             {
-                                'terms':
-                                    {'path': [path]}
+                                'match':
+                                    {'path': path}
                             }
                         ]
                     }
@@ -236,6 +237,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return await self.query(site, query, doc_type)
 
     async def index(self, site, datas):
+        print("Indexing %d" % len(datas))
         if len(datas) > 0:
             bulk_data = []
             index_name = self.get_index_name(site)
