@@ -12,11 +12,14 @@ from plone.server.transactions import get_current_request
 from plone.server.traversal import do_traverse
 from pserver.elasticsearch.schema import get_mappings
 from plone.server.metaconfigure import rec_merge
+from plone.server.events import notify
+from pserver.elasticsearch.events import SearchDoneEvent
 
 import logging
 
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger('plone.server')
+
 DEFAULT_SETTINGS = {
     "analysis": {
         "analyzer": {
@@ -164,6 +167,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         }
         if 'aggregations' in result:
             final['aggregations'] = result['aggregations']
+        await notify(SearchDoneEvent(
+            users, query, result['hits']['total'], request))
         return final
 
     async def get_by_uuid(self, site, uuid):
@@ -275,8 +280,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 await self.conn.indices.put_mapping(index_name, key, value)
             await self.conn.indices.open(index_name)
             self.set_index_name(site, index_name)
-        except TransportError:
-            pass
+        except TransportError as e:
+            logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
             logger.warn('elasticsearch not installed', exc_info=True)
             return
@@ -289,7 +294,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             await self.conn.indices.close(index_name)
             await self.conn.indices.delete(index_name)
         except TransportError:
-            pass
+            logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
             logger.warn('elasticsearch not installed', exc_info=True)
             return
