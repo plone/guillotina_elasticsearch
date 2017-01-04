@@ -167,6 +167,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         }
         if 'aggregations' in result:
             final['aggregations'] = result['aggregations']
+        if 'suggest' in result:
+            final['suggest'] = result['suggest']
         await notify(SearchDoneEvent(
             users, query, result['hits']['total'], request))
         return final
