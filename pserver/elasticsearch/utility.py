@@ -299,7 +299,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         try:
             await self.conn.indices.close(index_name)
             await self.conn.indices.delete(index_name)
-        except TransportError:
+        except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
             logger.warn('elasticsearch not installed', exc_info=True)
