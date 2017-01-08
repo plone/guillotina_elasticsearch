@@ -16,6 +16,7 @@ from plone.server.events import notify
 from pserver.elasticsearch.events import SearchDoneEvent
 
 import logging
+import json
 
 
 logger = logging.getLogger('plone.server')
@@ -244,15 +245,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     }
                 }, data])
                 if len(bulk_data) % self.bulk_size == 0:
-                    await self.conn.bulk(
+                    result = await self.conn.bulk(
                         index=index_name, doc_type=None,
                         body=bulk_data)
                     bulk_data = []
 
             if len(bulk_data) > 0:
-                await self.conn.bulk(
+                result = await self.conn.bulk(
                     index=index_name, doc_type=None,
                     body=bulk_data)
+            if 'errors' in result and result['errors']:
+                logger.error(json.dumps(result['items']))
+            return result
 
     async def remove(self, site, uids):
         """List of UIDs to remove from index."""

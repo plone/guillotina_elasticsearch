@@ -25,6 +25,8 @@ CATALOG_TYPES = {
     'long': {'type': 'long'},
     'float': {'type': 'float'},
     'nested': {'type': 'nested'},
+    'object': {'type': 'object'},
+    'completion': {'type': 'completion'},
     'path': {
         'type': 'text',
         'analyzer': 'path_analyzer'
