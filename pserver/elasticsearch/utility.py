@@ -97,7 +97,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         """
         pass
 
-    async def query(self, site, query, doc_type=None):
+    async def query(self, site, query, doc_type=None, size=10):
         """
         transform into query...
         right now, it's just passing through into elasticsearch
@@ -151,6 +151,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         query = rec_merge(query, permission_query)
         # query.update(permission_query)
         q['body'] = query
+        q['size'] = size
         logger.warn(q)
         result = await self.conn.search(**q)
         items = []
@@ -196,7 +197,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def get_by_type(self, site, doc_type, query={}):
         return await self.query(site, query, doc_type=doc_type)
 
-    async def get_by_path(self, site, path, depth=-1, query={}, doc_type=None):
+    async def get_by_path(
+            self, site, path, depth=-1, query={}, doc_type=None, size=10):
         if path is not None and path != '/':
             path_query = {
                 'query': {
@@ -211,7 +213,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 }
             }
             query = rec_merge(query, path_query)
-        return await self.query(site, query, doc_type)
+        return await self.query(site, query, doc_type, size=size)
 
     async def get_folder_contents(self, site, parent_uuid, doc_type=None):
         query = {
