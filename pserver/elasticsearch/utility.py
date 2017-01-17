@@ -242,6 +242,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         try:
             print("Indexing %d" % len(idents))
             print(" Size %d" % len(json.dumps(bulk_data)))
+            if len(json.dumps(bulk_data)) > 1000000:
+                import pdb; pdb.set_trace()
             result = await self.conn.bulk(
                 index=index_name, doc_type=None,
                 body=bulk_data)
@@ -250,7 +252,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             if count > MAX_RETRIES_ON_REINDEX:
                 logger.error('Could not index ' + ' '.join(idents))
             await asyncio.sleep(1.0)
-            result = await bulk_insert(index_name, buld_data, idents, count)
+            result = await self.bulk_insert(index_name, bulk_data, idents, count)
         return result
 
     async def index(self, site, datas):
@@ -258,6 +260,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if len(datas) > 0:
             bulk_data = []
             idents = []
+            result = {}
             index_name = self.get_index_name(site)
             for ident, data in datas.items():
                 bulk_data.extend([{
@@ -274,7 +277,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     bulk_data = []
 
             if len(bulk_data) > 0:
-                await self.bulk_insert(index_name, bulk_data, idents)
+                result = await self.bulk_insert(index_name, bulk_data, idents)
             if 'errors' in result and result['errors']:
                 logger.error(json.dumps(result['items']))
             return result
