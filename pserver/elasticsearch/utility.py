@@ -17,6 +17,7 @@ from pserver.elasticsearch.events import SearchDoneEvent
 
 import logging
 import asyncio
+import aiohttp
 import json
 
 
