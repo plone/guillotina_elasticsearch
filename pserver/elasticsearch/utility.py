@@ -16,10 +16,13 @@ from plone.server.events import notify
 from pserver.elasticsearch.events import SearchDoneEvent
 
 import logging
+import asyncio
 import json
 
 
-logger = logging.getLogger('plone.server')
+logger = logging.getLogger('pserver.elasticsearch')
+
+MAX_RETRIES_ON_REINDEX = 5
 
 DEFAULT_SETTINGS = {
     "analysis": {
@@ -89,6 +92,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         loads = {}
         for bunk in self.reindex_recursive(site, loads):
             await self.index(site, bunk)
+
         await self.index(site, loads)
 
     async def search(self, site, query):
@@ -232,12 +236,26 @@ class ElasticSearchUtility(DefaultSearchUtility):
         }
         return await self.query(site, query, doc_type)
 
+    async def bulk_insert(index_name, bulk_data, idents, count=0):
+        try:
+            print("Indexing %d" % len(idents))
+            print(" Size %d" % len(json.dumps(bulk_data)))
+            result = await self.conn.bulk(
+                index=index_name, doc_type=None,
+                body=bulk_data)
+        except aiohttp.errors.ClientResponseError:
+            count += 1
+            if count > MAX_RETRIES_ON_REINDEX:
+                logger.error('Could not index ' + ' '.join(idents))
+            await asyncio.sleep(1.0)
+            bulk_insert(index_name, buld_data, idents, count)
+
     async def index(self, site, datas):
-        print("Indexing %d" % len(datas))
+
         if len(datas) > 0:
             bulk_data = []
+            idents = []
             index_name = self.get_index_name(site)
-
             for ident, data in datas.items():
                 bulk_data.extend([{
                     'index': {
@@ -246,16 +264,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
                         '_id': ident
                     }
                 }, data])
-                if len(bulk_data) % self.bulk_size == 0:
-                    result = await self.conn.bulk(
-                        index=index_name, doc_type=None,
-                        body=bulk_data)
+                idents.append(ident)
+                if len(bulk_data) % (self.bulk_size * 2) == 0:
+                    await self.bulk_insert(index_name, bulk_data, idents)
+                    idents = []
                     bulk_data = []
 
             if len(bulk_data) > 0:
-                result = await self.conn.bulk(
-                    index=index_name, doc_type=None,
-                    body=bulk_data)
+                await self.bulk_insert(index_name, bulk_data, idents)
             if 'errors' in result and result['errors']:
                 logger.error(json.dumps(result['items']))
             return result
