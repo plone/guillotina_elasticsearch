@@ -237,7 +237,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         }
         return await self.query(site, query, doc_type)
 
-    async def bulk_insert(index_name, bulk_data, idents, count=0):
+    async def bulk_insert(self, index_name, bulk_data, idents, count=0):
         try:
             print("Indexing %d" % len(idents))
             print(" Size %d" % len(json.dumps(bulk_data)))
