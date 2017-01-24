@@ -300,10 +300,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def initialize_catalog(self, site):
         mappings = get_mappings()
         index_name = self.get_index_name(site)
+        version = self.get_version(site)
+        real_index_name = index_name + '_' + str(version)
         index_settings = DEFAULT_SETTINGS.copy()
         index_settings.update(app_settings.get('index', {}))
         try:
-            await self.conn.indices.create(index_name)
+            await self.conn.indices.create(real_index_name)
+            await self.conn.indices.put_alias(index_name, real_index_name)
             await self.conn.indices.close(index_name)
             await self.conn.indices.put_settings(index_settings, index_name)
             for key, value in mappings.items():
@@ -320,9 +323,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def remove_catalog(self, site):
         index_name = self.get_index_name(site)
+        version = self.get_version(site)
+        real_index_name = index_name + '_' + str(version)
         try:
-            await self.conn.indices.close(index_name)
-            await self.conn.indices.delete(index_name)
+            await self.conn.indices.close(real_index_name)
+            await self.conn.indices.delete_alias(real_index_name, index_name)
+            await self.conn.indices.delete(real_index_name)
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
@@ -330,3 +336,71 @@ class ElasticSearchUtility(DefaultSearchUtility):
             return
         except RequestError:
             return
+
+    def get_version(self, site):
+        try:
+            version = site['_registry']['el_index_version']
+        except KeyError:
+            version = 1
+        return version
+
+    def set_version(self, site, version):
+        site['_registry']['el_index_version'] = version
+
+    async def stats(self, site):
+        index_name = self.get_index_name(site)
+        self.conn.indices.stats(index_name)
+
+    async def migrate_index(self, site):
+        index_name = self.get_index_name(site)
+        version = self.get_version(site)
+        mappings = get_mappings()
+        index_settings = DEFAULT_SETTINGS.copy()
+        index_settings.update(app_settings.get('index', {}))
+        next_version = version + 1
+        real_index_name = index_name + '_' + str(version)
+        real_index_name_next_version = index_name + '_' + str(next_version)
+
+        # Create and setup the new index
+        await self.conn.indices.create(real_index_name_next_version)
+        await self.conn.indices.close(real_index_name_next_version)
+        await self.conn.indices.put_settings(
+            index_settings, real_index_name_next_version)
+        for key, value in mappings.items():
+            await self.conn.indices.put_mapping(
+                real_index_name_next_version, key, value)
+        await self.conn.indices.open(real_index_name_next_version)
+
+        # Reindex
+        body = {
+          "source": {
+            "index": real_index_name
+          },
+          "dest": {
+            "index": real_index_name_next_version
+          }
+        }
+        yield from self.conn.indices.transport.perform_request(
+            'POST', '/_reindex',
+            params={},
+            body=body
+        )
+
+        # Move aliases
+        body = {
+            "actions": [
+                {"remove": {
+                    "alias": index_name,
+                    "index": real_index_name
+                }},
+                {"add": {
+                    "alias": index_name,
+                    "index": real_index_name_next_version
+                }}
+            ]
+        }
+        await self.conn.indices.update_aliases(body)
+
+        # Delete old index
+        await self.conn.indices.close(real_index_name)
+        await self.conn.indices.delete(real_index_name)
