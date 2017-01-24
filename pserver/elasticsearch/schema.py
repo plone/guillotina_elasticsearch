@@ -12,11 +12,19 @@ CATALOG_TYPES = {
         'type': 'text',
         'index': True,
         'analyzer': 'keyword'
-
     },
     'keyword': {
         'type': 'keyword',
         'index': True
+    },
+    'textkeyword': {
+        'type': 'text',
+        'fields': {
+            'keyword':  {
+                'type': 'keyword',
+                'ignore_above': 256
+            }
+        }
     },
     'int': {'type': 'integer'},
     'date': {'type': 'date'},
@@ -47,7 +55,9 @@ def get_mappings():
         type_overrides.update(mapping_overrides.get(name, {}))
         for field_name, catalog_info in get_index_fields(name).items():
             catalog_type = catalog_info.get('type', 'text')
-            field_mapping = CATALOG_TYPES[catalog_type]
+            field_mapping = catalog_info.get('field_mapping', None)
+            if field_mapping is None:
+                field_mapping = CATALOG_TYPES[catalog_type]
             if field_name in type_overrides:
                 field_mapping = type_overrides[field_name]
             mappings[field_name] = field_mapping

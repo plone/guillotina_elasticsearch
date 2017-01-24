@@ -70,7 +70,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         try:
             return site['_registry']['el_index_name']
         except KeyError:
-            return app_settings['elasticsearch'].get('index_name_prefix', 'plone-') + site.id
+            return app_settings['elasticsearch'].get(
+                'index_name_prefix', 'plone-') + site.id
 
     def set_index_name(self, site, name):
         site['_registry']['el_index_name'] = name
@@ -380,7 +381,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             "index": real_index_name_next_version
           }
         }
-        yield from self.conn.indices.transport.perform_request(
+        await self.conn.indices.transport.perform_request(
             'POST', '/_reindex',
             params={},
             body=body
