@@ -37,6 +37,8 @@ DEFAULT_SETTINGS = {
                 "type": "path_hierarchy",
                 "delimiter": "/"
             }
+        },
+        "filter": {
         }
     }
 }
