@@ -25,3 +25,4 @@ utility_config = {
 
 def includeme(root):
     root.add_async_utility(utility_config)
+    import pserver.elasticsearch.api  # noqa
