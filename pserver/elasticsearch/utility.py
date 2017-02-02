@@ -150,9 +150,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
         permission_query = {
             'query': {
                 'bool': {
-                    'minimum_number_should_match': 1,
-                    'should': should_list,
-                    'must_not': mustnot_list
+                    'filter': {
+                        'bool': {
+                            'should': should_list,
+                            'must_not': mustnot_list
+                        },
+                        'minimum_number_should_match': 1
+                    }
                 }
             }
         }
@@ -221,6 +225,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 }
             }
             query = rec_merge(query, path_query)
+            # We need the local roles
+
         return await self.query(site, query, doc_type, size=size)
 
     async def get_folder_contents(self, site, parent_uuid, doc_type=None):
@@ -245,8 +251,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         try:
             print("Indexing %d" % len(idents))
             print(" Size %d" % len(json.dumps(bulk_data)))
-            if len(json.dumps(bulk_data)) > 1000000:
-                import pdb; pdb.set_trace()
             result = await self.conn.bulk(
                 index=index_name, doc_type=None,
                 body=bulk_data)
@@ -265,6 +269,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             idents = []
             result = {}
             index_name = self.get_index_name(site)
+            version = self.get_version(site)
+            real_index_name = index_name + '_' + str(version)
             for ident, data in datas.items():
                 bulk_data.extend([{
                     'index': {
@@ -275,12 +281,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 }, data])
                 idents.append(ident)
                 if len(bulk_data) % (self.bulk_size * 2) == 0:
-                    result = await self.bulk_insert(index_name, bulk_data, idents)
+                    result = await self.bulk_insert(real_index_name, bulk_data, idents)
                     idents = []
                     bulk_data = []
 
             if len(bulk_data) > 0:
-                result = await self.bulk_insert(index_name, bulk_data, idents)
+                result = await self.bulk_insert(real_index_name, bulk_data, idents)
             if 'errors' in result and result['errors']:
                 logger.error(json.dumps(result['items']))
             return result
@@ -289,11 +295,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
         """List of UIDs to remove from index."""
         if len(uids) > 0:
             index_name = self.get_index_name(site)
+            version = self.get_version(site)
+            real_index_name = index_name + '_' + str(version)
             bulk_data = []
             for uid, portal_type in uids:
                 bulk_data.append({
                     'delete': {
-                        '_index': index_name,
+                        '_index': real_index_name,
                         '_id': uid,
                         '_type': portal_type
                     }
@@ -301,6 +309,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             await self.conn.bulk(index=index_name, body=bulk_data)
 
     async def initialize_catalog(self, site):
+        await self.remove_catalog(site)
         mappings = get_mappings()
         index_name = self.get_index_name(site)
         version = self.get_version(site)
@@ -309,8 +318,35 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_settings.update(app_settings.get('index', {}))
         try:
             await self.conn.indices.create(real_index_name)
+        except TransportError as e:
+            logger.warn('Transport Error', exc_info=e)
+        except ConnectionError:
+            logger.warn('elasticsearch not installed', exc_info=True)
+            pass
+        except RequestError:
+            pass
+
+        try:
             await self.conn.indices.put_alias(index_name, real_index_name)
+        except TransportError as e:
+            logger.warn('Transport Error', exc_info=e)
+        except ConnectionError:
+            logger.warn('elasticsearch not installed', exc_info=True)
+            pass
+        except RequestError:
+            pass
+
+        try:
             await self.conn.indices.close(index_name)
+        except TransportError as e:
+            logger.warn('Transport Error', exc_info=e)
+        except ConnectionError:
+            logger.warn('elasticsearch not installed', exc_info=True)
+            pass
+        except RequestError:
+            pass
+
+        try:
             await self.conn.indices.put_settings(index_settings, index_name)
             for key, value in mappings.items():
                 await self.conn.indices.put_mapping(index_name, key, value)
@@ -330,15 +366,43 @@ class ElasticSearchUtility(DefaultSearchUtility):
         real_index_name = index_name + '_' + str(version)
         try:
             await self.conn.indices.close(real_index_name)
+        except TransportError as e:
+            logger.warn('Transport Error', exc_info=e)
+        except ConnectionError:
+            logger.warn('elasticsearch not installed', exc_info=True)
+            pass
+        except RequestError:
+            pass
+        
+        try:
             await self.conn.indices.delete_alias(real_index_name, index_name)
+        except TransportError as e:
+            logger.warn('Transport Error', exc_info=e)
+        except ConnectionError:
+            logger.warn('elasticsearch not installed', exc_info=True)
+            pass
+        except RequestError:
+            pass
+
+        try:
             await self.conn.indices.delete(real_index_name)
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
             logger.warn('elasticsearch not installed', exc_info=True)
-            return
+            pass
         except RequestError:
-            return
+            pass
+
+        try:
+            await self.conn.indices.delete(index_name)
+        except TransportError as e:
+            logger.warn('Transport Error', exc_info=e)
+        except ConnectionError:
+            logger.warn('elasticsearch not installed', exc_info=True)
+            pass
+        except RequestError:
+            pass
 
     def get_version(self, site):
         try:
