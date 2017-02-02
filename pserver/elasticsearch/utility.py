@@ -14,6 +14,10 @@ from pserver.elasticsearch.schema import get_mappings
 from plone.server.metaconfigure import rec_merge
 from plone.server.events import notify
 from pserver.elasticsearch.events import SearchDoneEvent
+from plone.server.utils import get_content_path
+from zope.security.interfaces import IInteraction
+from plone.server.interfaces import IGroups
+from zope.component import getUtility
 
 import logging
 import asyncio
@@ -105,7 +109,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         """
         pass
 
-    async def query(self, site, query, doc_type=None, size=10):
+    async def query(self, site, query, doc_type=None, size=10, context=None):
         """
         transform into query...
         right now, it's just passing through into elasticsearch
@@ -123,23 +127,43 @@ class ElasticSearchUtility(DefaultSearchUtility):
         users = []
         roles = []
         request = get_current_request()
-        for user in request.security.participations:
+        interaction = IInteraction(request)
+        for user in interaction.participations:
             users.append(user.principal.id)
-            roles.extend([key for key, value in user.principal.roles.items()
+            roles_dict = {}
+
+            # Global Roles User
+            groles_user = interaction._globalRolesFor(user.principal.id)
+
+            # Local Roles User
+            if context:
+                r = interaction.cached_principal_roles(
+                    context, user.principal.id, 'o')
+                roles_dict.update(r)
+
+            roles_dict.update(groles_user)
+
+            # Local Roles Groups
+            groups = getUtility(IGroups)
+            for group in user.principal.groups:
+                group_obj = groups.getPrincipal(group)
+                users.append(group)
+                # Global Roles Group
+                roles_dict.update(group_obj.roles)
+
+                # Local Roles Group
+                if context:
+                    r = interaction.cached_principal_roles(
+                        context, group, 'o')
+                    roles_dict.update(r)
+
+                
+
+            # Merge Role
+            roles.extend([key for key, value in roles_dict.items()
                           if value])
 
-            user_groups = getattr(user.principal, '_groups',
-                                  getattr(user.principal, 'groups', [])
-                                  )
-            if hasattr(request, '_cache_groups'):
-                for group in user_groups:
-                    users.append(group)
-                    roles.extend([
-                        key for key, value in
-                        request._cache_groups[group].roles.items() if value])
-
         # We got all users and roles
-        # roles: the roles we have global (for the groups and user own)
         # users: users and groups
 
         should_list = [{'match': {'access_roles': x}} for x in roles]
@@ -211,6 +235,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def get_by_path(
             self, site, path, depth=-1, query={}, doc_type=None, size=10):
+        if type(path) is not str:
+            context = path
+            path = get_content_path(path)
+        else:
+            context = None
         if path is not None and path != '/':
             path_query = {
                 'query': {
@@ -227,7 +256,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             query = rec_merge(query, path_query)
             # We need the local roles
 
-        return await self.query(site, query, doc_type, size=size)
+        return await self.query(site, query, doc_type, size=size, context=context)
 
     async def get_folder_contents(self, site, parent_uuid, doc_type=None):
         query = {
