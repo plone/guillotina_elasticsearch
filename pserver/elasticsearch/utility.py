@@ -125,7 +125,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         request = get_current_request()
         for user in request.security.participations:
             users.append(user.principal.id)
-            roles.extend([key for key, value in user.principal._roles.items()
+            roles.extend([key for key, value in user.principal.roles.items()
                           if value])
 
             user_groups = getattr(user.principal, '_groups',
@@ -136,7 +136,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     users.append(group)
                     roles.extend([
                         key for key, value in
-                        request._cache_groups[group]._roles.items() if value])
+                        request._cache_groups[group].roles.items() if value])
 
         # We got all users and roles
         # roles: the roles we have global (for the groups and user own)
@@ -153,9 +153,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     'filter': {
                         'bool': {
                             'should': should_list,
-                            'must_not': mustnot_list
-                        },
-                        'minimum_number_should_match': 1
+                            'must_not': mustnot_list,
+                            'minimum_number_should_match': 1
+                        }
                     }
                 }
             }
