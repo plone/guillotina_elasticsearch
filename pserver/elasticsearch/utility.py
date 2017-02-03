@@ -130,36 +130,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         interaction = IInteraction(request)
         for user in interaction.participations:
             users.append(user.principal.id)
-            roles_dict = {}
-
-            # Global Roles User
-            groles_user = interaction._globalRolesFor(user.principal.id)
-
-            # Local Roles User
-            if context:
-                r = interaction.cached_principal_roles(
-                    context, user.principal.id, 'o')
-                roles_dict.update(r)
-
-            roles_dict.update(groles_user)
-
-            # Local Roles Groups
-            groups = getUtility(IGroups)
-            for group in user.principal.groups:
-                group_obj = groups.getPrincipal(group)
-                users.append(group)
-                # Global Roles Group
-                roles_dict.update(group_obj.roles)
-
-                # Local Roles Group
-                if context:
-                    r = interaction.cached_principal_roles(
-                        context, group, 'o')
-                    roles_dict.update(r)
-
-                
-
-            # Merge Role
+            roles_dict = interaction.cached_principal_roles(
+                context, user.principal.id,
+                user.principal.groups, 'o')
             roles.extend([key for key, value in roles_dict.items()
                           if value])
 
