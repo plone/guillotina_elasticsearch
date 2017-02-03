@@ -96,9 +96,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
             if IResource.providedBy(value):
                 yield from self.reindex_recursive(value, loads)
 
-    async def reindex_all_content(self, site):
+    async def reindex_all_content(self, obj):
         loads = {}
-        for bunk in self.reindex_recursive(site, loads):
+        site = get_current_request().site
+        for bunk in self.reindex_recursive(obj, loads):
             await self.index(site, bunk)
 
         await self.index(site, loads)
@@ -265,7 +266,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return result
 
     async def index(self, site, datas):
-
+        """ If there is request we get the site from there """
         if len(datas) > 0:
             bulk_data = []
             idents = []
