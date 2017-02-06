@@ -72,7 +72,6 @@ class ElasticSearchUtility(ElasticSearchManager):
             self,
             site,
             query,
-            context,
             doc_type=None,
             size=10,
             request=None):
@@ -97,9 +96,10 @@ class ElasticSearchUtility(ElasticSearchManager):
 
         for user in interaction.participations:
             users.append(user.principal.id)
-            roles_dict = interaction.cached_principal_roles(
-                context, user.principal.id,
-                user.principal.groups, 'o')
+            users.extend(user.principal.groups)
+            roles_dict = interaction.global_principal_roles(
+                user.principal.id,
+                user.principal.groups)
             roles.extend([key for key, value in roles_dict.items()
                           if value])
         # We got all users and roles
@@ -128,7 +128,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         return q
 
     async def query(
-            self, site, query, context,
+            self, site, query,
             doc_type=None, size=10, request=None):
         """
         transform into query...
@@ -138,7 +138,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         if request is None:
             request = get_current_request()
         q = await self._build_security_query(
-            site, query, context, doc_type, size, context, request)
+            site, query, doc_type, size, request)
         result = await self.conn.search(**q)
         items = []
         site_url = IAbsoluteURL(site, request)()
@@ -188,10 +188,8 @@ class ElasticSearchUtility(ElasticSearchManager):
     async def get_by_path(
             self, site, path, depth=-1, query={}, doc_type=None, size=10):
         if type(path) is not str:
-            context = path
             path = get_content_path(path)
-        else:
-            context = None
+
         if path is not None and path != '/':
             path_query = {
                 'query': {
@@ -213,7 +211,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             query = rec_merge(query, path_query)
             # We need the local roles
 
-        return await self.query(site, query, doc_type, size=size, context=context)
+        return await self.query(site, query, doc_type, size=size)
 
     async def unindex_all_childs(self, resource):
         if type(resource) is str:
@@ -281,7 +279,6 @@ class ElasticSearchUtility(ElasticSearchManager):
             await asyncio.sleep(1.0)
             result = await self.bulk_insert(index_name, bulk_data, idents, count)
         return result
-
 
     async def index(self, site, datas):
         """ If there is request we get the site from there """

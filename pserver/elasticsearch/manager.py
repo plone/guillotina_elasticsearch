@@ -105,8 +105,6 @@ class ElasticSearchManager(DefaultSearchUtility):
             await self.conn.indices.put_settings(index_settings, index_name)
             for key, value in mappings.items():
                 await self.conn.indices.put_mapping(index_name, key, value)
-            await self.conn.indices.open(index_name)
-            self.set_index_name(site, index_name)
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
@@ -114,6 +112,9 @@ class ElasticSearchManager(DefaultSearchUtility):
             return
         except RequestError:
             return
+        await self.conn.indices.open(index_name)
+        await self.conn.cluster.health(wait_for_status='yellow')
+        self.set_index_name(site, index_name)
 
     async def remove_catalog(self, site):
         index_name = self.get_index_name(site)
