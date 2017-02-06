@@ -157,10 +157,10 @@ class ElasticSearchUtility(ElasticSearchManager):
             final['aggregations'] = result['aggregations']
         if 'suggest' in result:
             final['suggest'] = result['suggest']
-        await notify(SearchDoneEvent(
-            query, result['hits']['total'], request))
         tdif = t1 - time.time()
         print('Time ELASTIC %f' % tdif)
+        await notify(SearchDoneEvent(
+            query, result['hits']['total'], request, tdif))
         return final
 
     async def get_by_uuid(self, site, uuid):
