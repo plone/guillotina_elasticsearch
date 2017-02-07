@@ -228,7 +228,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 'bool': {
                     'must': [
                         {
-                            'match':
+                            'term':
                                 {'path': path}
                         },
                         {
@@ -245,7 +245,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                     data=json.dumps(path_query)
                 ) as resp:
             result = await resp.json()
-            logger.info('Deleted %d childs' % result['deleted'])
+            logger.warn('Deleted %d childs' % result['deleted'])
 
     async def get_folder_contents(self, site, parent_uuid, doc_type=None):
         query = {
