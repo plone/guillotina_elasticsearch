@@ -12,6 +12,8 @@ from zope.security.interfaces import IInteraction
 from plone.server.utils import get_content_depth
 from pserver.elasticsearch.manager import ElasticSearchManager
 from plone.server.interfaces import ISecurityInfo
+from zope.component import getUtility
+from plone.server.interfaces import IApplication
 
 import logging
 import asyncio
@@ -36,27 +38,39 @@ class ElasticSearchUtility(ElasticSearchManager):
             await self.index(site, bunk)
 
     async def add_object(self, obj, site, loads, security=False):
-        if security:
-            serialization = ISecurityInfo(obj)()
-        else:
-            serialization = ICatalogDataAdapter(obj)()
-        loads[obj.uuid] = serialization
+        serialization = None
+        try:
+            if security:
+                serialization = ISecurityInfo(obj)()
+            else:
+                serialization = ICatalogDataAdapter(obj)()
+            loads[obj.uuid] = serialization
+        except TypeError:
+            pass
+        
         if len(loads) == self.bulk_size:
-            await self.reindex_bunk(site, loads, update=security)
+            await self.reindex_bunk(site, loads.copy(), update=security)
             loads.clear()
 
-    async def reindex_recursive(self, obj, site, loads, security=False, loop=None):
+    async def walk_brothers(self, bucket, loop, executor):
+        for item in await loop.run_in_executor(executor, bucket.values):
+            yield item
+
+    async def reindex_recursive(self, obj, site, loads, security=False, loop=None, executor=None):
+        if not hasattr(obj, '_Folder__data'):
+            return
         folder = obj._Folder__data
         bucket = folder._firstbucket
         if not bucket:
-            return []
+            return
 
         tasks = []
         while bucket:
-            items = await loop.run_in_executor(None, bucket.values)
-            for item in items:
+            async for item in self.walk_brothers(bucket, loop, executor):
                 await self.add_object(item, site, loads, security)
-                tasks.append(self.reindex_recursive(item, site, loads, security, loop))
+                await asyncio.sleep(0)
+                if len(item):
+                    tasks.append(self.reindex_recursive(item, site, loads, security, loop))
             bucket = bucket._next
 
         await asyncio.gather(*tasks)
@@ -67,9 +81,11 @@ class ElasticSearchUtility(ElasticSearchManager):
         loads = {}
         if loop is None:
             loop = asyncio.get_event_loop()
-        site = get_current_request().site
+        request = get_current_request()
+        executor = getUtility(IApplication, name='root').executor
+        site = request.site
         await self.add_object(obj, site, loads, security)
-        await self.reindex_recursive(obj, site, loads, security, loop)
+        await self.reindex_recursive(obj, site, loads, security, loop, executor)
         if len(loads):
             await self.reindex_bunk(site, loads)
 
