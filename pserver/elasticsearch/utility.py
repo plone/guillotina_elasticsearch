@@ -29,38 +29,49 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     bulk_size = 50
 
-    def reindex_recursive(self, obj, loads, security=False):
-        if security:
-            loads[obj.uuid] = ISecurityInfo(obj)()
+    async def reindex_bunk(self, site, bunk, update=False):
+        if update:
+            await self.update(site, bunk)
         else:
-            loads[obj.uuid] = ICatalogDataAdapter(obj)()
+            await self.index(site, bunk)
+
+    async def add_object(self, obj, site, loads, security=False):
+        if security:
+            serialization = ISecurityInfo(obj)()
+        else:
+            serialization = ICatalogDataAdapter(obj)()
+        loads[obj.uuid] = serialization
         if len(loads) == self.bulk_size:
-            yield loads
+            await self.reindex_bunk(site, loads, update=security)
             loads.clear()
 
-        try:
-            items = obj.items()
-        except AttributeError:
-            return
-        for key, value in items:
-            if IResource.providedBy(value):
-                yield from self.reindex_recursive(value, loads, security)
+    async def reindex_recursive(self, obj, site, loads, security=False, loop=None):
+        folder = obj._Folder__data
+        bucket = folder._firstbucket
+        if not bucket:
+            return []
 
-    async def reindex_all_content(self, obj, security=False):
+        tasks = []
+        while bucket:
+            items = await loop.run_in_executor(None, bucket.values)
+            for item in items:
+                await self.add_object(item, site, loads, security)
+                tasks.append(self.reindex_recursive(item, site, loads, security, loop))
+            bucket = bucket._next
+
+        await asyncio.gather(*tasks)
+
+    async def reindex_all_content(self, obj, security=False, loop=None):
         if security is False:
             await self.unindex_all_childs(obj)
         loads = {}
+        if loop is None:
+            loop = asyncio.get_event_loop()
         site = get_current_request().site
-        for bunk in self.reindex_recursive(obj, loads, security):
-            if security:
-                await self.updata(site, bunk)
-            else:
-                await self.index(site, bunk)
-
-        if security:
-            await self.update(site, loads)
-        else:
-            await self.index(site, loads)
+        await self.add_object(obj, site, loads, security)
+        await self.reindex_recursive(obj, site, loads, security, loop)
+        if len(loads):
+            await self.reindex_bunk(site, loads)
 
     async def search(self, site, query):
         """
