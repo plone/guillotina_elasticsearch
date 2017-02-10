@@ -87,7 +87,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         await self.add_object(obj, site, loads, security)
         await self.reindex_recursive(obj, site, loads, security, loop, executor)
         if len(loads):
-            await self.reindex_bunk(site, loads)
+            await self.reindex_bunk(site, loads, security)
 
     async def search(self, site, query):
         """
@@ -272,7 +272,10 @@ class ElasticSearchUtility(ElasticSearchManager):
                     data=json.dumps(path_query)
                 ) as resp:
             result = await resp.json()
-            logger.warn('Deleted %d childs' % result['deleted'])
+            if 'deleted' in result:
+                logger.warn('Deleted %d childs' % result['deleted'])
+            else:
+                logger.warn('Wrong deletion of childs' + json.dumps(result))
 
     async def get_folder_contents(self, site, parent_uuid, doc_type=None):
         query = {
@@ -299,12 +302,21 @@ class ElasticSearchUtility(ElasticSearchManager):
             result = await self.conn.bulk(
                 index=index_name, doc_type=None,
                 body=bulk_data)
-        except aiohttp.errors.ClientResponseError:
+        except aiohttp.errors.ClientResponseError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
-                logger.error('Could not index ' + ' '.join(idents))
-            await asyncio.sleep(1.0)
-            result = await self.bulk_insert(index_name, bulk_data, idents, count)
+                logger.error('Could not index ' + ' '.join(idents) + ' ' + str(e))
+            else:
+                await asyncio.sleep(1.0)
+                result = await self.bulk_insert(index_name, bulk_data, idents, count)
+        except aiohttp.errors.ClientOSError as e:
+            count += 1
+            if count > MAX_RETRIES_ON_REINDEX:
+                logger.error('Could not index ' + ' '.join(idents) + ' ' + str(e))
+            else:
+                await asyncio.sleep(1.0)
+                result = await self.bulk_insert(index_name, bulk_data, idents, count)
+
         return result
 
     async def index(self, site, datas):
