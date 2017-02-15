@@ -76,8 +76,12 @@ class ElasticSearchUtility(ElasticSearchManager):
         await asyncio.gather(*tasks)
 
     async def reindex_all_content(self, obj, security=False, loop=None):
+        """ We can reindex content or security for an object or
+        a specific query
+        """
         if security is False:
             await self.unindex_all_childs(obj)
+        # count_objects = await self.count_operation(obj)
         loads = {}
         if loop is None:
             loop = asyncio.get_event_loop()
@@ -88,6 +92,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         await self.reindex_recursive(obj, site, loads, security, loop, executor)
         if len(loads):
             await self.reindex_bunk(site, loads, security)
+
 
     async def search(self, site, query):
         """
@@ -153,6 +158,43 @@ class ElasticSearchUtility(ElasticSearchManager):
         q['size'] = size
         logger.warn(q)
         return q
+
+    async def add_security_query(self, query, request=None):
+        users = []
+        roles = []
+        if request is None:
+            request = get_current_request()
+        interaction = IInteraction(request)
+
+        for user in interaction.participations:
+            users.append(user.principal.id)
+            users.extend(user.principal.groups)
+            roles_dict = interaction.global_principal_roles(
+                user.principal.id,
+                user.principal.groups)
+            roles.extend([key for key, value in roles_dict.items()
+                          if value])
+        # We got all users and roles
+        # users: users and groups
+
+        should_list = [{'match': {'access_roles': x}} for x in roles]
+        should_list.extend([{'match': {'access_users': x}} for x in users])
+
+        if 'query' not in query:
+            query['query'] = {}
+        if 'bool' not in query['query']:
+            query['query']['bool'] = {}
+        if 'filter' not in query['query']['bool']:
+            query['query']['bool']['filter'] = {}
+
+        query['query']['bool']['filter'] = {
+            'bool': {
+                'should': should_list,
+                'minimum_number_should_match': 1
+            }
+        }
+                
+        return query
 
     async def query(
             self, site, query,

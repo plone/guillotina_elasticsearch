@@ -53,14 +53,21 @@ class ElasticSearchManager(DefaultSearchUtility):
     async def initialize(self, app):
         self.app = app
 
-    def get_index_name(self, site):
+    def get_index_name(self, site, request=None):
+        if request is not None and hasattr(request, '_cache_index_name'):
+            return request._cache_index_name
         try:
-            return site['_registry']['el_index_name']
+            result = site['_registry']['el_index_name']
         except KeyError:
-            return app_settings['elasticsearch'].get(
+            result = app_settings['elasticsearch'].get(
                 'index_name_prefix', 'plone-') + site.id
+        if request is not None:
+            request._cache_index_name = result
+        return result
 
-    def set_index_name(self, site, name):
+    def set_index_name(self, site, name, request=None):
+        if hasattr(request, '_cache_index_name'):
+            request._cache_index_name = name
         site['_registry']['el_index_name'] = name
 
     async def initialize_catalog(self, site):

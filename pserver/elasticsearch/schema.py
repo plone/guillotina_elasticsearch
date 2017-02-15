@@ -10,8 +10,7 @@ CATALOG_TYPES = {
     },
     'text': {
         'type': 'text',
-        'index': True,
-        'analyzer': 'keyword'
+        'index': True
     },
     'keyword': {
         'type': 'keyword',
