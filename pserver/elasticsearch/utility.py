@@ -1,24 +1,24 @@
 # -*- coding: utf-8 -*-
-from plone.server.interfaces import ICatalogDataAdapter
+from plone.server.events import notify
 from plone.server.interfaces import IAbsoluteURL
-from plone.server.interfaces import IResource
+from plone.server.interfaces import IApplication
+from plone.server.interfaces import ICatalogDataAdapter
+from plone.server.interfaces import IContainer
+from plone.server.interfaces import ISecurityInfo
+from plone.server.metaconfigure import rec_merge
 from plone.server.transactions import get_current_request
 from plone.server.traversal import do_traverse
-from plone.server.metaconfigure import rec_merge
-from plone.server.events import notify
-from pserver.elasticsearch.events import SearchDoneEvent
-from plone.server.utils import get_content_path
-from zope.security.interfaces import IInteraction
 from plone.server.utils import get_content_depth
+from plone.server.utils import get_content_path
+from pserver.elasticsearch.events import SearchDoneEvent
 from pserver.elasticsearch.manager import ElasticSearchManager
-from plone.server.interfaces import ISecurityInfo
 from zope.component import getUtility
-from plone.server.interfaces import IApplication
+from zope.security.interfaces import IInteraction
 
-import logging
-import asyncio
 import aiohttp
+import asyncio
 import json
+import logging
 import time
 
 
@@ -47,7 +47,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             loads[obj.uuid] = serialization
         except TypeError:
             pass
-        
+
         if len(loads) == self.bulk_size:
             await self.reindex_bunk(site, loads.copy(), update=security)
             loads.clear()
@@ -69,7 +69,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             async for item in self.walk_brothers(bucket, loop, executor):
                 await self.add_object(item, site, loads, security)
                 await asyncio.sleep(0)
-                if len(item):
+                if IContainer.providedBy(item) and len(item):
                     tasks.append(self.reindex_recursive(item, site, loads, security, loop))
             bucket = bucket._next
 
