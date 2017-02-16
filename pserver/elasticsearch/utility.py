@@ -242,6 +242,16 @@ class ElasticSearchUtility(ElasticSearchManager):
         }
         return await self.query(site, query, site)
 
+    async def get_by_uuids(self, site, uuids):
+        query = {
+            'query': {
+                'terms': {
+                    'uuid': uuids
+                }
+            }
+        }
+        return await self.query(site, query, site)
+
     async def get_object_by_uuid(self, site, uuid):
         result = await self.get_by_uuid(site, uuid)
         if result['items_count'] == 0 or result['items_count'] > 1:
