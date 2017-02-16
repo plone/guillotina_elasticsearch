@@ -193,7 +193,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 'minimum_number_should_match': 1
             }
         }
-                
+
         return query
 
     async def query(
@@ -242,15 +242,18 @@ class ElasticSearchUtility(ElasticSearchManager):
         }
         return await self.query(site, query, site)
 
-    async def get_by_uuids(self, site, uuids):
+    async def get_by_uuids(self, site, uuids, doc_type=None):
         query = {
-            'query': {
-                'terms': {
-                    'uuid': uuids
+            "query": {
+                "bool": {
+                    "must": [{
+                        "terms":
+                            {"uuid": uuids}
+                    }]
                 }
             }
         }
-        return await self.query(site, query, site)
+        return await self.query(site, query, doc_type)
 
     async def get_object_by_uuid(self, site, uuid):
         result = await self.get_by_uuid(site, uuid)
