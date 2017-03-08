@@ -20,6 +20,7 @@ import asyncio
 import json
 import logging
 import time
+import uuid
 
 
 logger = logging.getLogger('pserver.elasticsearch')
@@ -295,6 +296,18 @@ class ElasticSearchUtility(ElasticSearchManager):
 
         return await self.query(site, query, doc_type, size=size)
 
+    async def call_unindex_all_childs(self, index_name, path_query):
+        conn_es = await self.conn.transport.get_connection()
+        async with conn_es._session.post(
+                    conn_es._base_url + index_name + '/_delete_by_query',
+                    data=json.dumps(path_query)
+                ) as resp:
+            result = await resp.json()
+            if 'deleted' in result:
+                logger.warn('Deleted %d childs' % result['deleted'])
+            else:
+                logger.warn('Wrong deletion of childs' + json.dumps(result))
+
     async def unindex_all_childs(self, resource):
         if type(resource) is str:
             path = resource
@@ -321,16 +334,9 @@ class ElasticSearchUtility(ElasticSearchManager):
                 }
             }
         }
-        conn_es = await self.conn.transport.get_connection()
-        async with conn_es._session.post(
-                    conn_es._base_url + index_name + '/_delete_by_query',
-                    data=json.dumps(path_query)
-                ) as resp:
-            result = await resp.json()
-            if 'deleted' in result:
-                logger.warn('Deleted %d childs' % result['deleted'])
-            else:
-                logger.warn('Wrong deletion of childs' + json.dumps(result))
+        _id = 'unindex_all_childs-' + uuid.uuid4().hex
+        request._futures.update({_id: self.call_unindex_all_childs(index_name, path_query)})
+
 
     async def get_folder_contents(self, site, parent_uuid, doc_type=None):
         query = {
