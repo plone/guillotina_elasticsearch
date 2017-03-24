@@ -27,7 +27,8 @@ DEFAULT_SETTINGS = {
         },
         "filter": {
         }
-    }
+    },
+    'index.mapper.dynamic': False
 }
 
 
