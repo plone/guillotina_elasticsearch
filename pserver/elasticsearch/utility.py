@@ -147,7 +147,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                     'filter': {
                         'bool': {
                             'should': should_list,
-                            'minimum_number_should_match': 1
+                            'minimum_should_match': 1
                         }
                     }
                 }
@@ -191,7 +191,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         query['query']['bool']['filter'] = {
             'bool': {
                 'should': should_list,
-                'minimum_number_should_match': 1
+                'minimum_should_match': 1
             }
         }
 

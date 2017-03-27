@@ -248,7 +248,8 @@ class ElasticSearchManager(DefaultSearchUtility):
         conn_es = await self.conn.transport.get_connection()
         async with conn_es._session.post(
                     conn_es._base_url + '_aliases',
-                    data=json.dumps(body)
+                    data=json.dumps(body),
+                    timeout=1000000
                 ) as resp:
             pass
         logger.warn('Updated aliases')
