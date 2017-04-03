@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-from plone.server import configure
+from guillotina import configure
+
 
 app_settings = {
     "elasticsearch": {
@@ -17,13 +18,5 @@ app_settings = {
 }
 
 
-utility_config = {
-    "provides": "plone.server.interfaces.ICatalogUtility",
-    "factory": "pserver.elasticsearch.utility.ElasticSearchUtility",
-    "settings": {}  # all settings are on the global object
-}
-
-
 def includeme(root):
-    root.add_async_utility(utility_config)
-    configure.scan('pserver.elasticsearch.api')
+    configure.scan('guillotina_elasticsearch.api')

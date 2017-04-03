@@ -1,15 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from plone.server.testing import PloneBaseLayer, TESTING_SETTINGS
-from plone.server.content import load_cached_schema
-from plone.server.interfaces import ICatalogUtility
-from zope.component import getUtility
-import requests
+from guillotina.testing import PloneBaseLayer
+from guillotina.testing import TESTING_SETTINGS
 
+import requests
 import unittest
 
 
-TESTING_SETTINGS['applications'] = ['pserver.elasticsearch']
+TESTING_SETTINGS['applications'] = ['guillotina_elasticsearch']
 
 TESTING_SETTINGS['elasticsearch'] = {
     "bulk_size": 50,

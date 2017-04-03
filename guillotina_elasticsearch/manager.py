@@ -3,14 +3,15 @@ from aioes import Elasticsearch
 from aioes.exception import ConnectionError
 from aioes.exception import RequestError
 from aioes.exception import TransportError
-from plone.server import app_settings
-from plone.server.catalog.catalog import DefaultSearchUtility
-from pserver.elasticsearch.schema import get_mappings
+from guillotina import app_settings
+from guillotina.catalog.catalog import DefaultSearchUtility
+from guillotina_elasticsearch.schema import get_mappings
 
-import logging
 import json
+import logging
 
-logger = logging.getLogger('pserver.elasticsearch')
+
+logger = logging.getLogger('guillotina_elasticsearch')
 
 DEFAULT_SETTINGS = {
     "analysis": {
@@ -34,7 +35,8 @@ DEFAULT_SETTINGS = {
 
 class ElasticSearchManager(DefaultSearchUtility):
 
-    def __init__(self, settings):
+    def __init__(self, settings, loop=None):
+        self.loop = loop
         self._conn = None
 
     @property
@@ -137,7 +139,7 @@ class ElasticSearchManager(DefaultSearchUtility):
             pass
         except RequestError:
             pass
-        
+
         try:
             await self.conn.indices.delete_alias(real_index_name, index_name)
         except TransportError as e:
@@ -231,7 +233,7 @@ class ElasticSearchManager(DefaultSearchUtility):
                 ) as resp:
             pass
         logger.warn('Reindexed')
-        
+
         # Move aliases
         body = {
             "actions": [

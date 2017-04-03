@@ -1,7 +1,7 @@
 .. contents::
 
-PSERVER.ELASTICSEARCH
-=====================
+GUILLOTINA_ELASTICSEARCH
+========================
 
 
 Configuration

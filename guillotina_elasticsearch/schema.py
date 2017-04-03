@@ -1,6 +1,6 @@
-from plone.server.catalog.utils import get_index_fields
-from plone.server.content import IResourceFactory
-from zope.component import getUtilitiesFor
+from guillotina.catalog.utils import get_index_fields
+from guillotina.component import getUtilitiesFor
+from guillotina.content import IResourceFactory
 
 
 CATALOG_TYPES = {
@@ -42,7 +42,7 @@ CATALOG_TYPES = {
 
 
 def get_mappings():
-    from plone.server import app_settings
+    from guillotina import app_settings
     mapping_overrides = app_settings.get('elasticsearch', {}).get('mapping_overrides', {})
     # Mapping calculated from schemas
     global_mappings = {}

@@ -19,7 +19,7 @@ install:
 - sleep 15
 - docker-compose logs
 script:
-- bin/py.test -s --cov=pserver.elasticsearch -v --cov-report term-missing pserver 
+- bin/py.test -s --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina 
 - bin/code-analysis
 after_success:
 - coveralls

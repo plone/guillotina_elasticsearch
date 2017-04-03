@@ -1,4 +1,4 @@
-from pserver.elasticsearch.testing import ElasticSearchTestCase
+from guillotina_elasticsearch.testing import ElasticSearchTestCase
 
 import json
 import time

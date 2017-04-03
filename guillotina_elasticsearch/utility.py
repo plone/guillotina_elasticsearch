@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
-from plone.server.events import notify
-from plone.server.interfaces import IAbsoluteURL
-from plone.server.interfaces import IApplication
-from plone.server.interfaces import ICatalogDataAdapter
-from plone.server.interfaces import IContainer
-from plone.server.interfaces import ISecurityInfo
-from plone.server.metaconfigure import rec_merge
-from plone.server.transactions import get_current_request
-from plone.server.traversal import do_traverse
-from plone.server.utils import get_content_depth
-from plone.server.utils import get_content_path
-from pserver.elasticsearch.events import SearchDoneEvent
-from pserver.elasticsearch.manager import ElasticSearchManager
-from zope.component import getUtility
-from zope.security.interfaces import IInteraction
+from guillotina import configure
+from guillotina.component import getUtility
+from guillotina.event import notify
+from guillotina.interfaces import IAbsoluteURL
+from guillotina.interfaces import IApplication
+from guillotina.interfaces import ICatalogDataAdapter
+from guillotina.interfaces import ICatalogUtility
+from guillotina.interfaces import IContainer
+from guillotina.interfaces import IInteraction
+from guillotina.interfaces import ISecurityInfo
+from guillotina.traversal import do_traverse
+from guillotina.utils import get_content_depth
+from guillotina.utils import get_content_path
+from guillotina.utils import get_current_request
+from guillotina.utils import merge_dicts
+from guillotina_elasticsearch.events import SearchDoneEvent
+from guillotina_elasticsearch.manager import ElasticSearchManager
 
 import aiohttp
 import asyncio
@@ -23,12 +25,13 @@ import time
 import uuid
 
 
-logger = logging.getLogger('pserver.elasticsearch')
+logger = logging.getLogger('guillotina_elasticsearch')
 
 MAX_RETRIES_ON_REINDEX = 5
 REINDEX_LOCK = False
 
 
+@configure.utility(provides=ICatalogUtility)
 class ElasticSearchUtility(ElasticSearchManager):
 
     bulk_size = 50
@@ -199,7 +202,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 }
             }
         }
-        query = rec_merge(query, permission_query)
+        query = merge_dicts(query, permission_query)
         # query.update(permission_query)
         q['body'] = query
         q['size'] = size
@@ -337,7 +340,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                     'range':
                         {'depth': {'gte': depth}}
                 })
-            query = rec_merge(query, path_query)
+            query = merge_dicts(query, path_query)
             # We need the local roles
 
         return await self.query(site, query, doc_type, size=size)
@@ -390,7 +393,6 @@ class ElasticSearchUtility(ElasticSearchManager):
             request._futures.update({_id: self.call_unindex_all_childs(index_name, path_query)})
         else:
             await self.call_unindex_all_childs(index_name, path_query)
-
 
     async def get_folder_contents(self, site, parent_uuid, doc_type=None):
         query = {
