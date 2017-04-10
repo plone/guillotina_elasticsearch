@@ -83,7 +83,7 @@ class ElasticSearchManager(DefaultSearchUtility):
             result = registry['el_index_name']
         except KeyError:
             result = app_settings['elasticsearch'].get(
-                'index_name_prefix', 'plone-') + container.id
+                'index_name_prefix', 'guillotina-') + container.id
         if request is not None:
             request._cache_index_name = result
         return result

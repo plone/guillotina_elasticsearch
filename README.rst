@@ -10,7 +10,7 @@ Configuration
 config.json can include elasticsearch section::
 
     "elasticsearch": {
-        "index_name_prefix": "plone-",
+        "index_name_prefix": "guillotina-",
         "connection_settings": {
             "endpoints": ["localhost:9200"],
             "sniffer_timeout": 0.5

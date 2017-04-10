@@ -11,7 +11,7 @@ TESTING_SETTINGS['applications'] = ['guillotina_elasticsearch']
 
 TESTING_SETTINGS['elasticsearch'] = {
     "bulk_size": 50,
-    "index_name_prefix": "plone-",
+    "index_name_prefix": "guillotina-",
     "connection_settings": {
         "endpoints": ["localhost:9200"],
         "sniffer_timeout": 0.5
@@ -43,7 +43,7 @@ class ElasticSearchLayer(PloneBaseLayer):
 
     @classmethod
     def testTearDown(cls):
-        requests.delete('http://localhost:9200/plone-plone')
+        requests.delete('http://localhost:9200/guillotina-guillotina')
 
     @classmethod
     def tearDown(cls):
