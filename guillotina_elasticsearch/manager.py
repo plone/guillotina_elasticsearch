@@ -35,7 +35,7 @@ DEFAULT_SETTINGS = {
 
 class ElasticSearchManager(DefaultSearchUtility):
 
-    def __init__(self, settings, loop=None):
+    def __init__(self, settings={}, loop=None):
         self.loop = loop
         self._conn = None
 
