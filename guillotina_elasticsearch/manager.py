@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 from aioes import Elasticsearch
+from guillotina.interfaces import IAnnotations
+from guillotina.registry import REGISTRY_DATA_KEY
 from aioes.exception import ConnectionError
 from aioes.exception import RequestError
 from aioes.exception import TransportError
 from guillotina import app_settings
 from guillotina.catalog.catalog import DefaultSearchUtility
+from guillotina.utils import get_current_request
 from guillotina_elasticsearch.schema import get_mappings
 
 import json
@@ -45,7 +48,7 @@ class ElasticSearchManager(DefaultSearchUtility):
 
     @property
     def settings(self):
-        return app_settings['elasticsearch']
+        return app_settings.get('elasticsearch', {})
 
     @property
     def conn(self):
@@ -53,31 +56,50 @@ class ElasticSearchManager(DefaultSearchUtility):
             self._conn = Elasticsearch(**self.settings['connection_settings'])
         return self._conn
 
+    @property
+    def enabled(self):
+        return len(self.settings.get('connection_settings', {}).get('endpoints', [])) > 0
+
     async def initialize(self, app):
         self.app = app
 
-    def get_index_name(self, site, request=None):
+    async def get_registry(self, container, request):
+        if request is None:
+            request = get_current_request()
+        if hasattr(request, 'container_settings'):
+            return request.container_settings
+        annotations_container = IAnnotations(container)
+        request.container_settings = await annotations_container.async_get(REGISTRY_DATA_KEY)
+        return request.container_settings
+
+    async def get_index_name(self, container, request=None):
         if request is not None and hasattr(request, '_cache_index_name'):
             return request._cache_index_name
+        registry = await self.get_registry(container, request)
+
         try:
-            result = site['_registry']['el_index_name']
+            result = registry['el_index_name']
         except KeyError:
             result = app_settings['elasticsearch'].get(
-                'index_name_prefix', 'plone-') + site.id
+                'index_name_prefix', 'plone-') + container.id
         if request is not None:
             request._cache_index_name = result
         return result
 
-    def set_index_name(self, site, name, request=None):
+    async def set_index_name(self, container, name, request=None):
         if hasattr(request, '_cache_index_name'):
             request._cache_index_name = name
-        site['_registry']['el_index_name'] = name
+        registry = await self.get_registry(container, request)
+        registry['el_index_name'] = name
+        registry._p_register()
 
-    async def initialize_catalog(self, site):
-        await self.remove_catalog(site)
+    async def initialize_catalog(self, container):
+        if not self.enabled:
+            return
+        await self.remove_catalog(container)
         mappings = get_mappings()
-        index_name = self.get_index_name(site)
-        version = self.get_version(site)
+        index_name = await self.get_index_name(container)
+        version = await self.get_version(container)
         real_index_name = index_name + '_' + str(version)
         index_settings = DEFAULT_SETTINGS.copy()
         index_settings.update(app_settings.get('index', {}))
@@ -124,11 +146,13 @@ class ElasticSearchManager(DefaultSearchUtility):
             return
         await self.conn.indices.open(index_name)
         await self.conn.cluster.health(wait_for_status='yellow')
-        self.set_index_name(site, index_name)
+        await self.set_index_name(container, index_name)
 
-    async def remove_catalog(self, site):
-        index_name = self.get_index_name(site)
-        version = self.get_version(site)
+    async def remove_catalog(self, container):
+        if not self.enabled:
+            return
+        index_name = await self.get_index_name(container)
+        version = await self.get_version(container)
         real_index_name = index_name + '_' + str(version)
         try:
             await self.conn.indices.close(real_index_name)
@@ -170,23 +194,26 @@ class ElasticSearchManager(DefaultSearchUtility):
         except RequestError:
             pass
 
-    def get_version(self, site):
+    async def get_version(self, container):
+        registry = await self.get_registry(container, None)
         try:
-            version = site['_registry']['el_index_version']
+            version = registry['el_index_version']
         except KeyError:
             version = 1
         return version
 
-    def set_version(self, site, version):
-        site['_registry']['el_index_version'] = version
+    async def set_version(self, container, version):
+        registry = await self.get_registry(container, None)
+        registry['el_index_version'] = version
+        registry._p_register()
 
-    async def stats(self, site):
-        index_name = self.get_index_name(site)
+    async def stats(self, container):
+        index_name = await self.get_index_name(container)
         self.conn.indices.stats(index_name)
 
-    async def migrate_index(self, site):
-        index_name = self.get_index_name(site)
-        version = self.get_version(site)
+    async def migrate_index(self, container):
+        index_name = await self.get_index_name(container)
+        version = await self.get_version(container)
         mappings = get_mappings()
         index_settings = DEFAULT_SETTINGS.copy()
         index_settings.update(app_settings.get('index', {}))
@@ -255,7 +282,7 @@ class ElasticSearchManager(DefaultSearchUtility):
                 ) as resp:
             pass
         logger.warn('Updated aliases')
-        self.set_version(site, next_version)
+        await self.set_version(container, next_version)
 
         # Reindex
         body = {

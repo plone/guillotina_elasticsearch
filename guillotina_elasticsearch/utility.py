@@ -36,14 +36,16 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     bulk_size = 50
 
-    async def reindex_bunk(self, site, bunk, update=False, response=None):
+    async def reindex_bunk(self, container, bunk, update=False, response=None):
         if update:
-            await self.update(site, bunk)
+            await self.update(container, bunk)
         else:
-            await self.index(site, bunk, response=response)
+            await self.index(container, bunk, response=response)
 
     async def add_object(
-            self, obj, site, loads, security=False, response=None):
+            self, obj, container, loads, security=False, response=None):
+        if not self.enabled:
+            return
         global REINDEX_LOCK
         serialization = None
         while len(loads) > 300:
@@ -69,7 +71,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 response.write(b'Going to reindex\n')
             to_index = loads.copy()
             await self.reindex_bunk(
-                site, to_index, update=security, response=response)
+                container, to_index, update=security, response=response)
             if response is not None:
                 response.write(b'Indexed %d\n' % len(loads))
             for key in to_index.keys():
@@ -81,7 +83,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             yield item
 
     async def reindex_recursive(
-            self, obj, site, loads, security=False, loop=None,
+            self, obj, container, loads, security=False, loop=None,
             executor=None, response=None):
         if not hasattr(obj, '_Folder__data'):
             return
@@ -95,7 +97,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             async for item in self.walk_brothers(bucket, loop, executor):
                 await self.add_object(
                     obj=item,
-                    site=site,
+                    container=container,
                     loads=loads,
                     security=security,
                     response=response)
@@ -103,7 +105,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 if IContainer.providedBy(item) and len(item):
                     tasks.append(self.reindex_recursive(
                         obj=item,
-                        site=site,
+                        container=container,
                         loads=loads,
                         security=security,
                         loop=loop,
@@ -118,6 +120,8 @@ class ElasticSearchUtility(ElasticSearchManager):
         """ We can reindex content or security for an object or
         a specific query
         """
+        if not self.enabled:
+            return
         if security is False:
             await self.unindex_all_childs(obj, response=None, future=False)
         # count_objects = await self.count_operation(obj)
@@ -126,25 +130,25 @@ class ElasticSearchUtility(ElasticSearchManager):
             loop = asyncio.get_event_loop()
         request = get_current_request()
         executor = getUtility(IApplication, name='root').executor
-        site = request.site
+        container = request.contaienr
         await self.add_object(
             obj=obj,
-            site=site,
+            container=container,
             loads=loads,
             security=security,
             response=response)
         await self.reindex_recursive(
             obj=obj,
-            site=site,
+            container=container,
             loads=loads,
             security=security,
             loop=loop,
             executor=executor,
             response=response)
         if len(loads):
-            await self.reindex_bunk(site, loads, security, response=response)
+            await self.reindex_bunk(container, loads, security, response=response)
 
-    async def search(self, site, query):
+    async def search(self, container, query):
         """
         XXX transform into el query
         """
@@ -152,7 +156,7 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def _build_security_query(
             self,
-            site,
+            container,
             query,
             doc_type=None,
             size=10,
@@ -161,7 +165,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             query = {}
 
         q = {
-            'index': self.get_index_name(site)
+            'index': await self.get_index_name(container)
         }
 
         if doc_type is not None:
@@ -247,7 +251,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         return query
 
     async def query(
-            self, site, query,
+            self, container, query,
             doc_type=None, size=10, request=None):
         """
         transform into query...
@@ -257,14 +261,14 @@ class ElasticSearchUtility(ElasticSearchManager):
         if request is None:
             request = get_current_request()
         q = await self._build_security_query(
-            site, query, doc_type, size, request)
+            container, query, doc_type, size, request)
         result = await self.conn.search(**q)
         items = []
-        site_url = IAbsoluteURL(site, request)()
+        container_url = IAbsoluteURL(container, request)()
         for item in result['hits']['hits']:
             data = item['_source']
             data.update({
-                '@absolute_url': site_url + data.get('path', ''),
+                '@absolute_url': container_url + data.get('path', ''),
                 '@type': data.get('portal_type'),
             })
             items.append(data)
@@ -282,7 +286,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             query, result['hits']['total'], request, tdif))
         return final
 
-    async def get_by_uuid(self, site, uuid):
+    async def get_by_uuid(self, container, uuid):
         query = {
             'filter': {
                 'term': {
@@ -290,9 +294,9 @@ class ElasticSearchUtility(ElasticSearchManager):
                 }
             }
         }
-        return await self.query(site, query, site)
+        return await self.query(container, query, container)
 
-    async def get_by_uuids(self, site, uuids, doc_type=None):
+    async def get_by_uuids(self, container, uuids, doc_type=None):
         query = {
             "query": {
                 "bool": {
@@ -303,22 +307,22 @@ class ElasticSearchUtility(ElasticSearchManager):
                 }
             }
         }
-        return await self.query(site, query, doc_type)
+        return await self.query(container, query, doc_type)
 
-    async def get_object_by_uuid(self, site, uuid):
-        result = await self.get_by_uuid(site, uuid)
+    async def get_object_by_uuid(self, container, uuid):
+        result = await self.get_by_uuid(container, uuid)
         if result['items_count'] == 0 or result['items_count'] > 1:
             raise AttributeError('Not found a unique object')
 
         path = result['members'][0]['path']
-        obj = do_traverse(site, path)
+        obj = do_traverse(container, path)
         return obj
 
-    async def get_by_type(self, site, doc_type, query={}):
-        return await self.query(site, query, doc_type=doc_type)
+    async def get_by_type(self, container, doc_type, query={}):
+        return await self.query(container, query, doc_type=doc_type)
 
     async def get_by_path(
-            self, site, path, depth=-1, query={}, doc_type=None, size=10):
+            self, container, path, depth=-1, query={}, doc_type=None, size=10):
         if type(path) is not str:
             path = get_content_path(path)
 
@@ -343,7 +347,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             query = merge_dicts(query, path_query)
             # We need the local roles
 
-        return await self.query(site, query, doc_type, size=size)
+        return await self.query(container, query, doc_type, size=size)
 
     async def call_unindex_all_childs(self, index_name, path_query):
         conn_es = await self.conn.transport.get_connection()
@@ -369,7 +373,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         if response is not None:
             response.write(b'Removing all childs of %s' % path.encode('utf-8'))
         request = get_current_request()
-        index_name = self.get_index_name(request.site)
+        index_name = await self.get_index_name(request.container)
         path_query = {
             'query': {
                 'bool': {
@@ -394,7 +398,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         else:
             await self.call_unindex_all_childs(index_name, path_query)
 
-    async def get_folder_contents(self, site, parent_uuid, doc_type=None):
+    async def get_folder_contents(self, container, parent_uuid, doc_type=None):
         query = {
             'query': {
                 'filtered': {
@@ -409,7 +413,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 }
             }
         }
-        return await self.query(site, query, doc_type)
+        return await self.query(container, query, doc_type)
 
     async def bulk_insert(
             self, index_name, bulk_data, idents, count=0, response=None):
@@ -452,23 +456,29 @@ class ElasticSearchUtility(ElasticSearchManager):
 
         return result
 
-    async def index(self, site, datas, response=None):
-        """ If there is request we get the site from there """
+    async def index(self, container, datas, response=None):
+        """ If there is request we get the container from there """
+        if not self.enabled:
+            return
         if len(datas) > 0:
             bulk_data = []
             idents = []
             result = {}
-            index_name = self.get_index_name(site)
-            version = self.get_version(site)
+            index_name = await self.get_index_name(container)
+            version = await self.get_version(container)
             real_index_name = index_name + '_' + str(version)
             for ident, data in datas.items():
-                bulk_data.extend([{
-                    'index': {
-                        '_index': index_name,
-                        '_type': data['portal_type'],
-                        '_id': ident
-                    }
-                }, data])
+                try:
+                    bulk_data.extend([{
+                        'index': {
+                            '_index': index_name,
+                            '_type': data['portal_type'],
+                            '_id': ident
+                        }
+                    }, data])
+                except:
+                    import pdb; pdb.set_trace()
+                    raise
                 idents.append(ident)
                 if len(bulk_data) % (self.bulk_size * 2) == 0:
                     result = await self.bulk_insert(
@@ -483,14 +493,16 @@ class ElasticSearchUtility(ElasticSearchManager):
                 logger.error(json.dumps(result['items']))
             return result
 
-    async def update(self, site, datas):
-        """ If there is request we get the site from there """
+    async def update(self, container, datas):
+        """ If there is request we get the container from there """
+        if not self.enabled:
+            return
         if len(datas) > 0:
             bulk_data = []
             idents = []
             result = {}
-            index_name = self.get_index_name(site)
-            version = self.get_version(site)
+            index_name = await self.get_index_name(container)
+            version = await self.get_version(container)
             real_index_name = index_name + '_' + str(version)
             for ident, data in datas.items():
                 bulk_data.extend([{
@@ -512,13 +524,15 @@ class ElasticSearchUtility(ElasticSearchManager):
                 logger.error(json.dumps(result['items']))
             return result
 
-    async def remove(self, site, uids):
+    async def remove(self, container, uids):
         """List of UIDs to remove from index.
 
         It will remove all the childs on the index"""
+        if not self.enabled:
+            return
         if len(uids) > 0:
-            index_name = self.get_index_name(site)
-            version = self.get_version(site)
+            index_name = await self.get_index_name(container)
+            version = await self.get_version(container)
             real_index_name = index_name + '_' + str(version)
             bulk_data = []
             for uid, portal_type, content_path in uids:
