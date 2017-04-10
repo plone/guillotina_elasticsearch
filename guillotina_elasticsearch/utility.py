@@ -269,7 +269,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             data = item['_source']
             data.update({
                 '@absolute_url': container_url + data.get('path', ''),
-                '@type': data.get('portal_type'),
+                '@type': data.get('type_name'),
             })
             items.append(data)
         final = {
@@ -468,17 +468,13 @@ class ElasticSearchUtility(ElasticSearchManager):
             version = await self.get_version(container)
             real_index_name = index_name + '_' + str(version)
             for ident, data in datas.items():
-                try:
-                    bulk_data.extend([{
-                        'index': {
-                            '_index': index_name,
-                            '_type': data['portal_type'],
-                            '_id': ident
-                        }
-                    }, data])
-                except:
-                    import pdb; pdb.set_trace()
-                    raise
+                bulk_data.extend([{
+                    'index': {
+                        '_index': index_name,
+                        '_type': data['type_name'],
+                        '_id': ident
+                    }
+                }, data])
                 idents.append(ident)
                 if len(bulk_data) % (self.bulk_size * 2) == 0:
                     result = await self.bulk_insert(
@@ -508,7 +504,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 bulk_data.extend([{
                     'update': {
                         '_index': index_name,
-                        '_type': data['portal_type'],
+                        '_type': data['type_name'],
                         '_id': ident
                     }
                 }, {'doc': data}])
@@ -535,12 +531,12 @@ class ElasticSearchUtility(ElasticSearchManager):
             version = await self.get_version(container)
             real_index_name = index_name + '_' + str(version)
             bulk_data = []
-            for uid, portal_type, content_path in uids:
+            for uid, type_name, content_path in uids:
                 bulk_data.append({
                     'delete': {
                         '_index': real_index_name,
                         '_id': uid,
-                        '_type': portal_type
+                        '_type': type_name
                     }
                 })
                 await self.unindex_all_childs(content_path)
