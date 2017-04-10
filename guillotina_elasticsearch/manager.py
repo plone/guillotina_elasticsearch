@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 from aioes import Elasticsearch
-from guillotina.interfaces import IAnnotations
-from guillotina.registry import REGISTRY_DATA_KEY
 from aioes.exception import ConnectionError
+from aioes.exception import NotFoundError
 from aioes.exception import RequestError
 from aioes.exception import TransportError
 from guillotina import app_settings
 from guillotina.catalog.catalog import DefaultSearchUtility
+from guillotina.interfaces import IAnnotations
+from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.schema import get_mappings
 
@@ -53,7 +54,8 @@ class ElasticSearchManager(DefaultSearchUtility):
     @property
     def conn(self):
         if self._conn is None:
-            self._conn = Elasticsearch(**self.settings['connection_settings'])
+            self._conn = Elasticsearch(
+                loop=self.loop, **self.settings['connection_settings'])
         return self._conn
 
     @property
@@ -156,6 +158,8 @@ class ElasticSearchManager(DefaultSearchUtility):
         real_index_name = index_name + '_' + str(version)
         try:
             await self.conn.indices.close(real_index_name)
+        except NotFoundError:
+            pass
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
@@ -166,6 +170,8 @@ class ElasticSearchManager(DefaultSearchUtility):
 
         try:
             await self.conn.indices.delete_alias(real_index_name, index_name)
+        except NotFoundError:
+            pass
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
@@ -176,6 +182,8 @@ class ElasticSearchManager(DefaultSearchUtility):
 
         try:
             await self.conn.indices.delete(real_index_name)
+        except NotFoundError:
+            pass
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
@@ -186,12 +194,14 @@ class ElasticSearchManager(DefaultSearchUtility):
 
         try:
             await self.conn.indices.delete(index_name)
+        except NotFoundError:
+            pass
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
             logger.warn('elasticsearch not installed', exc_info=True)
             pass
-        except RequestError:
+        except (RequestError, NotFoundError):
             pass
 
     async def get_version(self, container):
@@ -209,7 +219,7 @@ class ElasticSearchManager(DefaultSearchUtility):
 
     async def stats(self, container):
         index_name = await self.get_index_name(container)
-        self.conn.indices.stats(index_name)
+        return await self.conn.indices.stats(index_name)
 
     async def migrate_index(self, container):
         index_name = await self.get_index_name(container)
