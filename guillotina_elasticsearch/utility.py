@@ -130,7 +130,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             loop = asyncio.get_event_loop()
         request = get_current_request()
         executor = getUtility(IApplication, name='root').executor
-        container = request.contaienr
+        container = request.container
         await self.add_object(
             obj=obj,
             container=container,
@@ -352,7 +352,7 @@ class ElasticSearchUtility(ElasticSearchManager):
     async def call_unindex_all_childs(self, index_name, path_query):
         conn_es = await self.conn.transport.get_connection()
         async with conn_es._session.post(
-                    conn_es._base_url + index_name + '/_delete_by_query',
+                    conn_es._base_url.human_repr() + index_name + '/_delete_by_query',
                     data=json.dumps(path_query)
                 ) as resp:
             result = await resp.json()

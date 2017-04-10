@@ -265,7 +265,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         }
         conn_es = await self.conn.transport.get_connection()
         async with conn_es._session.post(
-                    conn_es._base_url + '_reindex',
+                    conn_es._base_url.human_repr() + '_reindex',
                     data=json.dumps(body)
                 ) as resp:
             pass
@@ -286,7 +286,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         }
         conn_es = await self.conn.transport.get_connection()
         async with conn_es._session.post(
-                    conn_es._base_url + '_aliases',
+                    conn_es._base_url.human_repr() + '_aliases',
                     data=json.dumps(body),
                     timeout=1000000
                 ) as resp:
@@ -304,7 +304,7 @@ class ElasticSearchManager(DefaultSearchUtility):
           }
         }
         async with conn_es._session.post(
-                    conn_es._base_url + '_reindex',
+                    conn_es._base_url.human_repr() + '_reindex',
                     data=json.dumps(body)
                 ) as resp:
             pass

@@ -23,7 +23,7 @@ setup(
     install_requires=[
         'setuptools',
         'guillotina',
-        'aioes',
+        'aioes>=0.7.0',
         'ujson',
     ],
     tests_require=[
