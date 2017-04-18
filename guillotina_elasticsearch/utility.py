@@ -60,7 +60,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             if security:
                 serialization = ISecurityInfo(obj)()
             else:
-                serialization = ICatalogDataAdapter(obj)()
+                serialization = await ICatalogDataAdapter(obj)()
             loads[obj.uuid] = serialization
         except TypeError:
             pass
