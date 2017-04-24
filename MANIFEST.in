@@ -1,0 +1,7 @@
+include *.json
+include *.py
+include *.rst
+include *.yml
+include VERSION
+include buildout.cfg
+recursive-include guillotina_elasticsearch *.py
