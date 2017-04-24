@@ -4,6 +4,10 @@ from setuptools import setup
 
 setup(
     name='guillotina_elasticsearch',
+    description='elasticsearch catalog support for guillotina',
+    keywords='search async guillotina elasticsearch',
+    author='Ramon Navarro Bosch & Nathan Van Gheem',
+    author_email='ramon@plone.org',
     version=open('VERSION').read().strip(),
     long_description=(open('README.rst').read() + '\n' +
                       open('CHANGELOG.rst').read()),
