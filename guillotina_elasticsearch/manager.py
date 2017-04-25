@@ -65,6 +65,10 @@ class ElasticSearchManager(DefaultSearchUtility):
     async def initialize(self, app):
         self.app = app
 
+    async def finalize(self, app):
+        if self._conn is not None:
+            self._conn.close()
+
     async def get_registry(self, container, request):
         if request is None:
             request = get_current_request()
@@ -306,7 +310,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         async with conn_es._session.post(
                     conn_es._base_url.human_repr() + '_reindex',
                     data=json.dumps(body)
-                ) as resp:
+                ) as resp:  # noqa
             pass
         logger.warn('Reindexed temp')
 

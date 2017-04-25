@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from guillotina import configure
+from guillotina.async import IAsyncUtility
 from guillotina.component import getUtility
 from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
@@ -31,7 +32,11 @@ MAX_RETRIES_ON_REINDEX = 5
 REINDEX_LOCK = False
 
 
-@configure.utility(provides=ICatalogUtility)
+class IElasticSearchUtility(ICatalogUtility, IAsyncUtility):
+    pass
+
+
+@configure.utility(provides=IElasticSearchUtility)
 class ElasticSearchUtility(ElasticSearchManager):
 
     bulk_size = 50
