@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 from guillotina import configure
 from guillotina.async import IAsyncUtility
-from guillotina.component import getUtility
 from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
-from guillotina.interfaces import IApplication
 from guillotina.interfaces import ICatalogDataAdapter
 from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IFolder
@@ -20,6 +18,8 @@ from guillotina_elasticsearch.manager import ElasticSearchManager
 
 import aiohttp
 import asyncio
+import gc
+import resource
 import json
 import logging
 import time
@@ -29,7 +29,7 @@ import uuid
 logger = logging.getLogger('guillotina_elasticsearch')
 
 MAX_RETRIES_ON_REINDEX = 5
-REINDEX_LOCK = False
+MAX_MEMORY = 0.9
 
 
 class IElasticSearchUtility(ICatalogUtility, IAsyncUtility):
@@ -41,26 +41,21 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     bulk_size = 50
 
-    async def reindex_bunk(self, container, bunk, update=False, response=None):
+    async def reindex_bulk(self, container, bulk, update=False, response=None):
         if update:
-            await self.update(container, bunk)
+            await self.update(container, bulk)
         else:
-            await self.index(container, bunk, response=response)
+            await self.index(container, bulk, response=response)
 
     async def add_object(
             self, obj, container, loads, security=False, response=None):
         if not self.enabled:
             return
-        global REINDEX_LOCK
         serialization = None
-        while len(loads) > 300:
-            if response is not None:
-                response.write(b'Buffer too big waiting\n')
-            await asyncio.sleep(10)
         if response is not None and hasattr(obj, 'id'):
             response.write(
                 b'Object %s Security %r Buffer %d\n' %
-                (obj.id.encode('utf-8'), security, len(loads)))
+                (get_content_path(obj).encode('utf-8'), security, len(loads)))
         try:
             if security:
                 serialization = ISecurityInfo(obj)()
@@ -70,72 +65,78 @@ class ElasticSearchUtility(ElasticSearchManager):
         except TypeError:
             pass
 
-        if len(loads) >= self.bulk_size and REINDEX_LOCK is False:
-            REINDEX_LOCK = True
+        if len(loads) >= self.bulk_size:
             if response is not None:
                 response.write(b'Going to reindex\n')
-            to_index = loads.copy()
-            await self.reindex_bunk(
-                container, to_index, update=security, response=response)
+            await self.reindex_bulk(
+                container, loads, update=security, response=response)
             if response is not None:
                 response.write(b'Indexed %d\n' % len(loads))
-            for key in to_index.keys():
-                del loads[key]
-            REINDEX_LOCK = False
+            loads.clear()
+            num, _, _ = gc.get_count()
+            gc.collect()
+            total_memory = round(
+                resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0/1024.0, 1)
+            if response is not None:
+                response.write(b'GC cleaned %d\n' % num)
+                response.write(b'Memory usage         : % 2.2f MB\n' % total_memory)
 
-    async def reindex_recursive(
-            self, obj, container, loads, security=False, loop=None,
-            executor=None, response=None):
+    async def index_sub_elements(
+            self, obj, container, loads, security=False, response=None):
 
-        async for id_, item in obj.async_items():
+        local_count = 0
+        async for key, item in obj._p_jar.items(obj):
             await self.add_object(
                 obj=item,
                 container=container,
                 loads=loads,
                 security=security,
                 response=response)
+            await asyncio.sleep(0)
+            local_count += 1
             if IFolder.providedBy(item):
-                await self.reindex_recursive(
+                await self.index_sub_elements(
                     obj=item,
                     container=container,
                     loads=loads,
                     security=security,
-                    loop=loop,
-                    executor=executor,
                     response=response)
 
+            del item
+
+        del obj
+
     async def reindex_all_content(
-            self, obj, security=False, loop=None, response=None):
+            self, obj, security=False, response=None, clean=True):
         """ We can reindex content or security for an object or
         a specific query
         """
         if not self.enabled:
             return
-        if security is False:
+        if security is False and clean is True:
             await self.unindex_all_childs(obj, response=None, future=False)
         # count_objects = await self.count_operation(obj)
         loads = {}
-        if loop is None:
-            loop = asyncio.get_event_loop()
         request = get_current_request()
-        executor = getUtility(IApplication, name='root').executor
+        request._db_write_enabled = False
         container = request.container
+
         await self.add_object(
             obj=obj,
             container=container,
             loads=loads,
             security=security,
             response=response)
-        await self.reindex_recursive(
+
+        await self.index_sub_elements(
             obj=obj,
             container=container,
             loads=loads,
             security=security,
-            loop=loop,
-            executor=executor,
             response=response)
+
         if len(loads):
-            await self.reindex_bunk(container, loads, security, response=response)
+            await self.reindex_bulk(container, loads, security, response=response)
 
     async def search(self, container, query):
         """

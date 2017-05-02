@@ -237,12 +237,57 @@ class ElasticSearchManager(DefaultSearchUtility):
         temp_index = index_name + '_' + str(next_version) + '_t'
 
         # Create and setup the new index
+        exists = await self.conn.indices.exists(index_name)
+        if exists:
+            logger.warn('Canonical index exist')
+            await self.conn.indices.delete(index_name)
+
+        # Create and setup the new index
         exists = await self.conn.indices.exists(real_index_name_next_version)
         if exists:
+            logger.warn('New version exist')
             await self.conn.indices.delete(real_index_name_next_version)
 
         exists = await self.conn.indices.exists(temp_index)
+        conn_es = await self.conn.transport.get_connection()
+
         if exists:
+            # There is a temp index so it needs to be reindex to the old one
+            # Its been a failing reindexing
+            logger.warn('Temp index exist')
+            # Move aliases
+            body = {
+                "actions": [
+                    {"remove": {
+                        "alias": index_name,
+                        "index": temp_index
+                    }},
+                    {"add": {
+                        "alias": index_name,
+                        "index": real_index_name
+                    }}
+                ]
+            }
+            conn_es = await self.conn.transport.get_connection()
+            async with conn_es._session.post(
+                        conn_es._base_url + '_aliases',
+                        data=json.dumps(body),
+                        timeout=1000000
+                    ) as resp:
+                pass
+            body = {
+              "source": {
+                "index": temp_index
+              },
+              "dest": {
+                "index": real_index_name
+              }
+            }
+            async with conn_es._session.post(
+                        conn_es._base_url + '_reindex',
+                        data=json.dumps(body)
+                    ) as resp:
+                pass
             await self.conn.indices.delete(temp_index)
 
         await self.conn.indices.create(temp_index)
@@ -256,7 +301,26 @@ class ElasticSearchManager(DefaultSearchUtility):
         await self.conn.indices.open(real_index_name_next_version)
 
         # Start to duplicate aliases
-        await self.conn.indices.put_alias(index_name, temp_index)
+        body = {
+            "actions": [
+                {"remove": {
+                    "alias": index_name,
+                    "index": real_index_name
+                }},
+                {"add": {
+                    "alias": index_name,
+                    "index": temp_index
+                }}
+            ]
+        }
+
+        async with conn_es._session.post(
+                    conn_es._base_url + '_aliases',
+                    data=json.dumps(body),
+                    timeout=1000000
+                ) as resp:
+            pass
+        logger.warn('Updated aliases')
 
         # Reindex
         body = {
@@ -269,8 +333,9 @@ class ElasticSearchManager(DefaultSearchUtility):
         }
         conn_es = await self.conn.transport.get_connection()
         async with conn_es._session.post(
-                    conn_es._base_url.human_repr() + '_reindex',
-                    data=json.dumps(body)
+                    conn_es._base_url + '_reindex',
+                    data=json.dumps(body),
+                    timeout=10000000
                 ) as resp:
             pass
         logger.warn('Reindexed')
@@ -280,7 +345,7 @@ class ElasticSearchManager(DefaultSearchUtility):
             "actions": [
                 {"remove": {
                     "alias": index_name,
-                    "index": real_index_name
+                    "index": temp_index
                 }},
                 {"add": {
                     "alias": index_name,
@@ -290,7 +355,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         }
         conn_es = await self.conn.transport.get_connection()
         async with conn_es._session.post(
-                    conn_es._base_url.human_repr() + '_aliases',
+                    conn_es._base_url + '_aliases',
                     data=json.dumps(body),
                     timeout=1000000
                 ) as resp:
@@ -308,7 +373,7 @@ class ElasticSearchManager(DefaultSearchUtility):
           }
         }
         async with conn_es._session.post(
-                    conn_es._base_url.human_repr() + '_reindex',
+                    conn_es._base_url + '_reindex',
                     data=json.dumps(body)
                 ) as resp:  # noqa
             pass
