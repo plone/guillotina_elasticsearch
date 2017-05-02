@@ -7,7 +7,7 @@ from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import IApplication
 from guillotina.interfaces import ICatalogDataAdapter
 from guillotina.interfaces import ICatalogUtility
-from guillotina.interfaces import IContainer
+from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
 from guillotina.interfaces import ISecurityInfo
 from guillotina.traversal import do_traverse
@@ -83,42 +83,26 @@ class ElasticSearchUtility(ElasticSearchManager):
                 del loads[key]
             REINDEX_LOCK = False
 
-    async def walk_brothers(self, bucket, loop, executor):
-        for item in await loop.run_in_executor(executor, bucket.values):
-            yield item
-
     async def reindex_recursive(
             self, obj, container, loads, security=False, loop=None,
             executor=None, response=None):
-        if not hasattr(obj, '_Folder__data'):
-            return
-        folder = obj._Folder__data
-        bucket = folder._firstbucket
-        if not bucket:
-            return
 
-        tasks = []
-        while bucket:
-            async for item in self.walk_brothers(bucket, loop, executor):
-                await self.add_object(
+        async for id_, item in obj.async_items():
+            await self.add_object(
+                obj=item,
+                container=container,
+                loads=loads,
+                security=security,
+                response=response)
+            if IFolder.providedBy(item):
+                await self.reindex_recursive(
                     obj=item,
                     container=container,
                     loads=loads,
                     security=security,
+                    loop=loop,
+                    executor=executor,
                     response=response)
-                await asyncio.sleep(0)
-                if IContainer.providedBy(item) and len(item):
-                    tasks.append(self.reindex_recursive(
-                        obj=item,
-                        container=container,
-                        loads=loads,
-                        security=security,
-                        loop=loop,
-                        executor=executor,
-                        response=response))
-            bucket = bucket._next
-
-        await asyncio.gather(*tasks)
 
     async def reindex_all_content(
             self, obj, security=False, loop=None, response=None):
