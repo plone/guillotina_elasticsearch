@@ -1,7 +1,8 @@
 1.0.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- optimize reindex more
+  [vangheem]
 
 
 1.0.3 (2017-05-02)
