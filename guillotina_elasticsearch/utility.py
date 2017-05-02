@@ -85,14 +85,15 @@ class ElasticSearchUtility(ElasticSearchManager):
             self, obj, container, loads, security=False, response=None):
 
         local_count = 0
-        async for key, item in obj._p_jar.items(obj):
+        keys = await obj.async_keys()
+        for key in keys:
+            item = await obj.async_get(key)
             await self.add_object(
                 obj=item,
                 container=container,
                 loads=loads,
                 security=security,
                 response=response)
-            await asyncio.sleep(0)
             local_count += 1
             if IFolder.providedBy(item):
                 await self.index_sub_elements(
