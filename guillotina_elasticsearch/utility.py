@@ -7,7 +7,7 @@ from guillotina.interfaces import ICatalogDataAdapter
 from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
-from guillotina.interfaces import ISecurityInfo, IContainer
+from guillotina.interfaces import ISecurityInfo
 from guillotina.traversal import do_traverse
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
@@ -19,65 +19,17 @@ from guillotina_elasticsearch.manager import ElasticSearchManager
 import aiohttp
 import asyncio
 import gc
-import resource
 import json
 import logging
+import resource
 import time
 import uuid
-from guillotina.interfaces import IResource
 
 
 logger = logging.getLogger('guillotina_elasticsearch')
 
 MAX_RETRIES_ON_REINDEX = 5
 MAX_MEMORY = 0.9
-
-
-_CACHE = {}
-_CACHE_SIZE = 300
-PENDING = []
-
-
-async def _get_cached_object(container, oid):
-    if container._p_oid == oid:
-        return container
-    trns = container._p_jar
-    if oid in _CACHE:
-        cache_ob = _CACHE[oid]
-        cache_ob['used'] += 1
-        return cache_ob['object']
-    ob = await trns.get(oid)
-    if len(_CACHE) > _CACHE_SIZE:
-        ordered_cache = sorted([(oid, c['used']) for oid, c in _CACHE.items()], key=lambda x: x[1])
-        for oid in ordered_cache[:-_CACHE_SIZE]:
-            del _CACHE[oid]
-    _CACHE[oid] = {
-        'object': ob,
-        'used': 1
-    }
-    return ob
-
-
-async def _get_pending_object(container, parts):
-    # parts is like a path but with oids instead but the last one is an id instead
-    # of an oid because guillotina doesn't give us the info we need right now
-    ob = await _get_cached_object(container, parts[-1])
-    current_ob = ob
-    for part in parts[:-1]:
-        if current_ob.__parent__ is None:
-            current_ob.__parent__ = await _get_cached_object(container, part)
-        current_ob = current_ob.__parent__
-    return ob
-
-
-def _store_pending_object(container, ob):
-    parts = []
-    while ob.__parent__ is not None:
-        parts = [ob._p_oid] + parts
-        ob = ob.__parent__
-        if IContainer.providedBy(ob):
-            continue
-    PENDING.append(parts)
 
 
 class IElasticSearchUtility(ICatalogUtility, IAsyncUtility):
@@ -87,7 +39,8 @@ class IElasticSearchUtility(ICatalogUtility, IAsyncUtility):
 @configure.utility(provides=IElasticSearchUtility)
 class ElasticSearchUtility(ElasticSearchManager):
 
-    bulk_size = 50
+    bulk_size = 75
+    index_count = 0
 
     async def reindex_bulk(self, container, bulk, update=False, response=None):
         if update:
@@ -99,11 +52,13 @@ class ElasticSearchUtility(ElasticSearchManager):
             self, obj, container, loads, security=False, response=None):
         if not self.enabled:
             return
+        self.index_count += 1
         serialization = None
         if response is not None and hasattr(obj, 'id'):
             response.write(
-                b'Object %s Security %r Buffer %d\n' %
-                (get_content_path(obj).encode('utf-8'), security, len(loads)))
+                b'(%d)Object: %s, Security: %r, Buffer: %d\n' %
+                (self.index_count, get_content_path(obj).encode('utf-8'), security,
+                 len(loads)))
         try:
             if security:
                 serialization = ISecurityInfo(obj)()
@@ -113,6 +68,15 @@ class ElasticSearchUtility(ElasticSearchManager):
         except TypeError:
             pass
 
+        if self.index_count % 500 == 0:
+            num, _, _ = gc.get_count()
+            gc.collect()
+            if response is not None:
+                total_memory = round(
+                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0/1024.0, 1)
+                response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total obs: %d' % (
+                    total_memory, num, len(gc.get_objects())))
+
         if len(loads) >= self.bulk_size:
             if response is not None:
                 response.write(b'Going to reindex\n')
@@ -121,21 +85,12 @@ class ElasticSearchUtility(ElasticSearchManager):
             if response is not None:
                 response.write(b'Indexed %d\n' % len(loads))
             loads.clear()
-            num, _, _ = gc.get_count()
-            gc.collect()
-            if response is not None:
-                total_memory = round(
-                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0/1024.0, 1)
-                response.write(b'GC cleaned %d\n' % num)
-                response.write(b'Memory usage         : % 2.2f MB\n' % total_memory)
 
     async def index_sub_elements(
             self, obj, container, loads, security=False, response=None):
 
         local_count = 0
-        keys = await obj.async_keys()
-        for key in keys:
-            item = await obj._p_jar.get_child(obj, key)
+        async for key, item in obj._p_jar.items(obj):  # avoid event triggering
             await self.add_object(
                 obj=item,
                 container=container,
@@ -144,7 +99,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 response=response)
             local_count += 1
             if IFolder.providedBy(item):
-                _store_pending_object(container, item)
+                await self.index_sub_elements(item, container, loads, security, response)
 
             del item
 
@@ -165,7 +120,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         request._db_write_enabled = False
         container = request.container
 
-        PENDING.clear()
+        self.index_count = 0
 
         await self.add_object(
             obj=obj,
@@ -180,25 +135,6 @@ class ElasticSearchUtility(ElasticSearchManager):
             loads=loads,
             security=security,
             response=response)
-
-        total_elements = 0
-        while len(PENDING) > 0:
-            parts = PENDING.pop()
-            obj = await _get_pending_object(container, parts)
-
-            if obj is not None:
-                total_elements += 1
-                await self.index_sub_elements(
-                    obj=obj,
-                    container=container,
-                    loads=loads,
-                    security=security,
-                    response=response)
-            del obj
-
-            if total_elements > 50:
-                response.write(b'Size pending %d' % PENDING.__sizeof__())
-                total_elements = 0
 
         if len(loads):
             await self.reindex_bulk(container, loads, security, response=response)
