@@ -20,4 +20,5 @@ class printer:
     def write(self, txt):
         print(txt)
 
-await search.reindex_all_content(container, response=printer())
+await search.reindex_all_content(container, response=printer(), clean=False, update=True)
+uids = await search.get_all_uids(container)

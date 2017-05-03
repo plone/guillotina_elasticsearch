@@ -87,7 +87,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             loads.clear()
 
     async def index_sub_elements(
-            self, obj, container, loads, security=False, response=None):
+            self, obj, container, loads, security=False, response=None, skip=[]):
 
         local_count = 0
         # we need to get all the keys because using async_items can cause the cursor
@@ -96,28 +96,30 @@ class ElasticSearchUtility(ElasticSearchManager):
         keys = await obj.async_keys()
         for key in keys:
             item = await obj._p_jar.get_child(obj, key)  # avoid event triggering
-            await self.add_object(
-                obj=item,
-                container=container,
-                loads=loads,
-                security=security,
-                response=response)
+            if item.uuid not in skip:
+                await self.add_object(
+                    obj=item,
+                    container=container,
+                    loads=loads,
+                    security=security,
+                    response=response)
             local_count += 1
             if IFolder.providedBy(item):
-                await self.index_sub_elements(item, container, loads, security, response)
+                await self.index_sub_elements(item, container, loads, security,
+                                              response, skip=skip)
 
             del item
 
         del obj
 
     async def reindex_all_content(
-            self, obj, security=False, response=None, clean=True):
+            self, obj, security=False, response=None, clean=True, update=False):
         """ We can reindex content or security for an object or
         a specific query
         """
         if not self.enabled:
             return
-        if security is False and clean is True:
+        if security is False and clean is True and update is False:
             await self.unindex_all_childs(obj, response=None, future=False)
         # count_objects = await self.count_operation(obj)
         loads = {}
@@ -125,24 +127,57 @@ class ElasticSearchUtility(ElasticSearchManager):
         request._db_write_enabled = False
         container = request.container
 
+        skip = []
+        if update:
+            skip = await self.get_all_uids(obj)
+
         self.index_count = 0
 
-        await self.add_object(
-            obj=obj,
-            container=container,
-            loads=loads,
-            security=security,
-            response=response)
+        if obj.uuid not in skip:
+            await self.add_object(
+                obj=obj,
+                container=container,
+                loads=loads,
+                security=security,
+                response=response)
 
         await self.index_sub_elements(
             obj=obj,
             container=container,
             loads=loads,
             security=security,
-            response=response)
+            response=response,
+            skip=skip)
 
         if len(loads):
             await self.reindex_bulk(container, loads, security, response=response)
+
+    async def get_all_uids(self, container):
+        page_size = 700
+        ids = []
+        index_name = await self.get_index_name(container)
+        result = await self.conn.search(
+            index=index_name,
+            scroll='30s',
+            size=page_size,
+            stored_fields='',
+            body={
+                "query": {
+                    "match_all": {}
+                }
+            })
+        ids.extend([r['_id'] for r in result['hits']['hits']])
+        scroll_id = result['_scroll_id']
+        while scroll_id:
+            result = await self.conn.scroll(
+                scroll_id=scroll_id,
+                scroll='30s'
+            )
+            if len(result['hits']['hits']) == 0:
+                break
+            ids.extend([r['_id'] for r in result['hits']['hits']])
+            scroll_id = result['_scroll_id']
+        return ids
 
     async def search(self, container, query):
         """
@@ -276,7 +311,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             final['aggregations'] = result['aggregations']
         if 'suggest' in result:
             final['suggest'] = result['suggest']
-        tdif = t1 - time.time()
+        tdif = time.time() - t1
         print('Time ELASTIC %f' % tdif)
         await notify(SearchDoneEvent(
             query, result['hits']['total'], request, tdif))
@@ -326,12 +361,9 @@ class ElasticSearchUtility(ElasticSearchManager):
             path_query = {
                 'query': {
                     'bool': {
-                        'must': [
-                            {
-                                'match':
-                                    {'path': path}
-                            }
-                        ]
+                        'must': [{
+                            'match': {'path': path}
+                        }]
                     }
                 }
             }
@@ -482,7 +514,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 result = await self.bulk_insert(
                     real_index_name, bulk_data, idents, response=response)
             if 'errors' in result and result['errors']:
-                logger.error(json.dumps(result['items']))
+                logger.error(json.dumps(result))
             return result
 
     async def update(self, container, datas):
@@ -513,7 +545,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             if len(bulk_data) > 0:
                 result = await self.bulk_insert(real_index_name, bulk_data, idents)
             if 'errors' in result and result['errors']:
-                logger.error(json.dumps(result['items']))
+                logger.error(json.dumps(result))
             return result
 
     async def remove(self, container, uids):
