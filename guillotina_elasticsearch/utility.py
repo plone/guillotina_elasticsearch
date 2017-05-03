@@ -90,7 +90,12 @@ class ElasticSearchUtility(ElasticSearchManager):
             self, obj, container, loads, security=False, response=None):
 
         local_count = 0
-        async for key, item in obj._p_jar.items(obj):  # avoid event triggering
+        # we need to get all the keys because using async_items can cause the cursor
+        # to be open for a long time on large containers. So long in fact, that
+        # it'll timeout and bork the whole thing
+        keys = await obj.async_keys()
+        for key in keys:
+            item = await obj._p_jar.get_child(obj, key)  # avoid event triggering
             await self.add_object(
                 obj=item,
                 container=container,
