@@ -1,4 +1,4 @@
-1.0.5 (unreleased)
+1.0.5 (2017-05-02)
 ------------------
 
 - Need to avoid using long running queries on reindex because they can timeout
