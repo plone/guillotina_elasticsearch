@@ -1,4 +1,4 @@
-1.0.6 (unreleased)
+1.0.6 (2017-05-03)
 ------------------
 
 - Be able to update from an existing reindex
