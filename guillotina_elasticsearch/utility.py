@@ -49,7 +49,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             await self.index(container, bulk, response=response)
 
     async def add_object(
-            self, obj, container, loads, security=False, response=None):
+            self, obj, container, loads, security=False, response=None, update=False):
         if not self.enabled:
             return
         self.index_count += 1
@@ -81,13 +81,13 @@ class ElasticSearchUtility(ElasticSearchManager):
             if response is not None:
                 response.write(b'Going to reindex\n')
             await self.reindex_bulk(
-                container, loads, update=security, response=response)
+                container, loads, update=security or update, response=response)
             if response is not None:
                 response.write(b'Indexed %d\n' % len(loads))
             loads.clear()
 
     async def index_sub_elements(
-            self, obj, container, loads, security=False, response=None, skip=[]):
+            self, obj, container, loads, security=False, response=None, skip=[], update=False):
 
         local_count = 0
         # we need to get all the keys because using async_items can cause the cursor
@@ -102,24 +102,26 @@ class ElasticSearchUtility(ElasticSearchManager):
                     container=container,
                     loads=loads,
                     security=security,
+                    update=update,
                     response=response)
             local_count += 1
             if IFolder.providedBy(item):
                 await self.index_sub_elements(item, container, loads, security,
-                                              response, skip=skip)
+                                              response, skip=skip, update=update)
 
             del item
 
         del obj
 
     async def reindex_all_content(
-            self, obj, security=False, response=None, clean=True, update=False):
+            self, obj, security=False, response=None, clean=True, update=False,
+            update_missing=False):
         """ We can reindex content or security for an object or
         a specific query
         """
         if not self.enabled:
             return
-        if security is False and clean is True and update is False:
+        if security is False and clean is True and update is False and update_missing is False:
             await self.unindex_all_childs(obj, response=None, future=False)
         # count_objects = await self.count_operation(obj)
         loads = {}
@@ -128,7 +130,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         container = request.container
 
         skip = []
-        if update:
+        if update_missing:
             skip = await self.get_all_uids(obj)
 
         self.index_count = 0
@@ -139,6 +141,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 container=container,
                 loads=loads,
                 security=security,
+                update=update,
                 response=response)
 
         await self.index_sub_elements(
@@ -147,10 +150,11 @@ class ElasticSearchUtility(ElasticSearchManager):
             loads=loads,
             security=security,
             response=response,
+            update=update,
             skip=skip)
 
         if len(loads):
-            await self.reindex_bulk(container, loads, security, response=response)
+            await self.reindex_bulk(container, loads, security or update, response=response)
 
     async def get_all_uids(self, container):
         page_size = 700

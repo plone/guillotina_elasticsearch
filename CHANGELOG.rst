@@ -1,7 +1,8 @@
 1.0.7 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- reindex_all_content takes update and update_missing params now
+  [vangheem]
 
 
 1.0.6 (2017-05-03)
