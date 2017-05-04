@@ -1,4 +1,4 @@
-1.0.7 (unreleased)
+1.0.7 (2017-05-04)
 ------------------
 
 - reindex_all_content takes update and update_missing params now
