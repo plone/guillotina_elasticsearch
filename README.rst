@@ -31,3 +31,11 @@ Uninstall on a site
 DELETE SITE_URL/@catalog
 
 {}
+
+
+Commands
+--------
+
+`guillotina_elasticsearch` comes with a `g-reindex-es` guillotina command::
+
+    ./bin/g g-reindex-es

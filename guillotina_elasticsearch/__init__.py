@@ -14,6 +14,9 @@ app_settings = {
         "mapping_overrides": {
             "*": {}
         }
+    },
+    'commands': {
+        'es-reindex': 'guillotina_elasticsearch.commands.reindex.ReindexCommand'
     }
 }
 

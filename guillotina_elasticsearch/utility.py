@@ -43,6 +43,9 @@ class ElasticSearchUtility(ElasticSearchManager):
     index_count = 0
 
     async def reindex_bulk(self, container, bulk, update=False, response=None):
+        if response is not None:
+            response.write(
+                b'bulk indexing (%d), update: %r' % (len(bulk), update))
         if update:
             await self.update(container, bulk)
         else:
