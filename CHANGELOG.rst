@@ -1,4 +1,4 @@
-1.0.8 (unreleased)
+1.0.8 (2017-05-08)
 ------------------
 
 - Improve performance of reindexing of bushy content by using asyncio.gather
