@@ -169,7 +169,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         except ConnectionError:
             logger.warn('elasticsearch not installed', exc_info=True)
             pass
-        except RequestError:
+        except (RequestError, RuntimeError):
             pass
 
         try:
@@ -178,7 +178,7 @@ class ElasticSearchManager(DefaultSearchUtility):
             pass
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
-        except ConnectionError:
+        except (ConnectionError, RuntimeError):
             logger.warn('elasticsearch not installed', exc_info=True)
             pass
         except RequestError:
@@ -190,7 +190,7 @@ class ElasticSearchManager(DefaultSearchUtility):
             pass
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
-        except ConnectionError:
+        except (ConnectionError, RuntimeError):
             logger.warn('elasticsearch not installed', exc_info=True)
             pass
         except RequestError:
@@ -202,7 +202,7 @@ class ElasticSearchManager(DefaultSearchUtility):
             pass
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
-        except ConnectionError:
+        except (ConnectionError, RuntimeError):
             logger.warn('elasticsearch not installed', exc_info=True)
             pass
         except (RequestError, NotFoundError):

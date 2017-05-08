@@ -1,7 +1,12 @@
 1.0.8 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Improve performance of reindexing of bushy content by using asyncio.gather
+  to traverse sub-trees and index at the same time.
+  [vangheem]
+
+- Improve options to reindex command
+  [vangheem]
 
 
 1.0.7 (2017-05-04)

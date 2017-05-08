@@ -3,11 +3,8 @@ from guillotina import configure
 from guillotina.async import IAsyncUtility
 from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
-from guillotina.interfaces import ICatalogDataAdapter
 from guillotina.interfaces import ICatalogUtility
-from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
-from guillotina.interfaces import ISecurityInfo
 from guillotina.traversal import do_traverse
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
@@ -15,13 +12,12 @@ from guillotina.utils import get_current_request
 from guillotina.utils import merge_dicts
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.manager import ElasticSearchManager
+from guillotina_elasticsearch.reindex import Reindexer
 
 import aiohttp
 import asyncio
-import gc
 import json
 import logging
-import resource
 import time
 import uuid
 
@@ -42,149 +38,12 @@ class ElasticSearchUtility(ElasticSearchManager):
     bulk_size = 75
     index_count = 0
 
-    async def reindex_bulk(self, container, bulk, update=False, response=None):
-        if response is not None:
-            response.write(
-                b'bulk indexing (%d), update: %r' % (len(bulk), update))
-        if update:
-            await self.update(container, bulk)
-        else:
-            await self.index(container, bulk, response=response)
-
-    async def add_object(
-            self, obj, container, loads, security=False, response=None, update=False):
-        if not self.enabled:
-            return
-        self.index_count += 1
-        serialization = None
-        if response is not None and hasattr(obj, 'id'):
-            response.write(
-                b'(%d)Object: %s, Security: %r, Buffer: %d\n' %
-                (self.index_count, get_content_path(obj).encode('utf-8'), security,
-                 len(loads)))
-        try:
-            if security:
-                serialization = ISecurityInfo(obj)()
-            else:
-                serialization = await ICatalogDataAdapter(obj)()
-            loads[obj.uuid] = serialization
-        except TypeError:
-            pass
-
-        if self.index_count % 500 == 0:
-            num, _, _ = gc.get_count()
-            gc.collect()
-            if response is not None:
-                total_memory = round(
-                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0/1024.0, 1)
-                response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total obs: %d' % (
-                    total_memory, num, len(gc.get_objects())))
-
-        if len(loads) >= self.bulk_size:
-            if response is not None:
-                response.write(b'Going to reindex\n')
-            await self.reindex_bulk(
-                container, loads, update=security or update, response=response)
-            if response is not None:
-                response.write(b'Indexed %d\n' % len(loads))
-            loads.clear()
-
-    async def index_sub_elements(
-            self, obj, container, loads, security=False, response=None, skip=[], update=False):
-
-        local_count = 0
-        # we need to get all the keys because using async_items can cause the cursor
-        # to be open for a long time on large containers. So long in fact, that
-        # it'll timeout and bork the whole thing
-        keys = await obj.async_keys()
-        for key in keys:
-            item = await obj._p_jar.get_child(obj, key)  # avoid event triggering
-            if item.uuid not in skip:
-                await self.add_object(
-                    obj=item,
-                    container=container,
-                    loads=loads,
-                    security=security,
-                    update=update,
-                    response=response)
-            local_count += 1
-            if IFolder.providedBy(item):
-                await self.index_sub_elements(item, container, loads, security,
-                                              response, skip=skip, update=update)
-
-            del item
-
-        del obj
-
     async def reindex_all_content(
             self, obj, security=False, response=None, clean=True, update=False,
             update_missing=False):
-        """ We can reindex content or security for an object or
-        a specific query
-        """
-        if not self.enabled:
-            return
-        if security is False and clean is True and update is False and update_missing is False:
-            await self.unindex_all_childs(obj, response=None, future=False)
-        # count_objects = await self.count_operation(obj)
-        loads = {}
-        request = get_current_request()
-        request._db_write_enabled = False
-        container = request.container
-
-        skip = []
-        if update_missing:
-            skip = await self.get_all_uids(obj)
-
-        self.index_count = 0
-
-        if obj.uuid not in skip:
-            await self.add_object(
-                obj=obj,
-                container=container,
-                loads=loads,
-                security=security,
-                update=update,
-                response=response)
-
-        await self.index_sub_elements(
-            obj=obj,
-            container=container,
-            loads=loads,
-            security=security,
-            response=response,
-            update=update,
-            skip=skip)
-
-        if len(loads):
-            await self.reindex_bulk(container, loads, security or update, response=response)
-
-    async def get_all_uids(self, container):
-        page_size = 700
-        ids = []
-        index_name = await self.get_index_name(container)
-        result = await self.conn.search(
-            index=index_name,
-            scroll='30s',
-            size=page_size,
-            stored_fields='',
-            body={
-                "query": {
-                    "match_all": {}
-                }
-            })
-        ids.extend([r['_id'] for r in result['hits']['hits']])
-        scroll_id = result['_scroll_id']
-        while scroll_id:
-            result = await self.conn.scroll(
-                scroll_id=scroll_id,
-                scroll='30s'
-            )
-            if len(result['hits']['hits']) == 0:
-                break
-            ids.extend([r['_id'] for r in result['hits']['hits']])
-            scroll_id = result['_scroll_id']
-        return ids
+        reindexer = Reindexer(self, obj, security=security, response=response,
+                              clean=clean, update=update, update_missing=update_missing)
+        await reindexer.all_content()
 
     async def search(self, container, query):
         """
@@ -450,20 +309,15 @@ class ElasticSearchUtility(ElasticSearchManager):
         }
         return await self.query(container, query, doc_type)
 
-    async def bulk_insert(
-            self, index_name, bulk_data, idents, count=0, response=None):
+    async def bulk_insert(self, index_name, bulk_data, idents, count=0,
+                          response=None):
         result = {}
         try:
             if response is not None:
-                response.write(
-                    b'Indexing %d Size %d\n' %
-                    (len(idents), len(json.dumps(bulk_data)))
-                )
+                response.write(b'Indexing %d' % (len(idents),))
             result = await self.conn.bulk(
                 index=index_name, doc_type=None,
                 body=bulk_data)
-            if response is not None:
-                response.write(b'Indexed')
         except aiohttp.errors.ClientResponseError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
@@ -491,7 +345,7 @@ class ElasticSearchUtility(ElasticSearchManager):
 
         return result
 
-    async def index(self, container, datas, response=None):
+    async def index(self, container, datas, response=None, flush_all=False):
         """ If there is request we get the container from there """
         if not self.enabled:
             return
@@ -511,7 +365,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                     }
                 }, data])
                 idents.append(ident)
-                if len(bulk_data) % (self.bulk_size * 2) == 0:
+                if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
                     result = await self.bulk_insert(
                         real_index_name, bulk_data, idents, response=response)
                     idents = []
@@ -524,7 +378,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 logger.error(json.dumps(result))
             return result
 
-    async def update(self, container, datas):
+    async def update(self, container, datas, response=None, flush_all=False):
         """ If there is request we get the container from there """
         if not self.enabled:
             return
@@ -535,6 +389,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             index_name = await self.get_index_name(container)
             version = await self.get_version(container)
             real_index_name = index_name + '_' + str(version)
+
             for ident, data in datas.items():
                 bulk_data.extend([{
                     'update': {
@@ -544,13 +399,15 @@ class ElasticSearchUtility(ElasticSearchManager):
                     }
                 }, {'doc': data}])
                 idents.append(ident)
-                if len(bulk_data) % (self.bulk_size * 2) == 0:
-                    result = await self.bulk_insert(real_index_name, bulk_data, idents)
+                if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
+                    result = await self.bulk_insert(
+                        real_index_name, bulk_data, idents, response=response)
                     idents = []
                     bulk_data = []
 
             if len(bulk_data) > 0:
-                result = await self.bulk_insert(real_index_name, bulk_data, idents)
+                result = await self.bulk_insert(
+                    real_index_name, bulk_data, idents, response=response)
             if 'errors' in result and result['errors']:
                 logger.error(json.dumps(result))
             return result
