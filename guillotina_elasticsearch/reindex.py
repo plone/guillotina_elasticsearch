@@ -90,7 +90,7 @@ class Reindexer:
         page_size = 700
         ids = []
         index_name = await self.utility.get_index_name(self.container)
-        result = await self.conn.search(
+        result = await self.utility.conn.search(
             index=index_name,
             scroll='30s',
             size=page_size,
@@ -103,7 +103,7 @@ class Reindexer:
         ids.extend([r['_id'] for r in result['hits']['hits']])
         scroll_id = result['_scroll_id']
         while scroll_id:
-            result = await self.conn.scroll(
+            result = await self.utility.conn.scroll(
                 scroll_id=scroll_id,
                 scroll='30s'
             )

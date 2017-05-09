@@ -1,7 +1,8 @@
 1.0.10 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix --update-missing argument with `es-reindex` command
+  [vangheem]
 
 
 1.0.9 (2017-05-09)
