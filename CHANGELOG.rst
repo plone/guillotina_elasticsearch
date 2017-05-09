@@ -1,7 +1,8 @@
 1.0.9 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix bug when deleting nodes
+  [bloodbare]
 
 
 1.0.8 (2017-05-08)
