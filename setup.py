@@ -2,6 +2,16 @@
 from setuptools import find_packages
 from setuptools import setup
 
+test_requires = [
+    'pytest',
+    'docker',
+    'backoff',
+    'psycopg2',
+    'pytest-asyncio',
+    'pytest-aiohttp'
+]
+
+
 setup(
     name='guillotina_elasticsearch',
     description='elasticsearch catalog support for guillotina',
@@ -29,7 +39,8 @@ setup(
         'aioes>=0.7.0',
         'ujson',
     ],
-    tests_require=[
-        'pytest',
-    ]
+    tests_require=test_requires,
+    extras_require={
+        'test': test_requires
+    }
 )

@@ -1,16 +1,12 @@
-from guillotina_elasticsearch.testing import ElasticSearchTestCase
-
 import json
 import time
 
 
-class FunctionalTestServer(ElasticSearchTestCase):
-    """Functional testing of the API REST."""
-
-    def test_search(self):
-        resp = self.layer.requester(
+async def test_indexing_and_search(es_requester):
+    async with await es_requester as requester:
+        resp, status = await requester(
             'POST',
-            '/plone/plone/',
+            '/db/guillotina/',
             data=json.dumps({
                 '@type': 'Example',
                 'title': 'Item1',
@@ -24,12 +20,23 @@ class FunctionalTestServer(ElasticSearchTestCase):
                 }]
             })
         )
-        self.assertTrue(resp.status_code == 201)
+        assert status == 201
         time.sleep(1)
-        resp = self.layer.requester(
+        resp, status = await requester(
             'POST',
-            '/plone/plone/@search',
+            '/db/guillotina/@search',
             data=json.dumps({})
         )
-        json_data = json.loads(resp.text)
-        self.assertTrue(json_data['items_count'], 1)
+        assert resp['items_count'] == 1
+        assert resp['member'][0]['path'] == '/item1'
+
+        # try removing now...
+        await requester('DELETE', '/db/guillotina/item1')
+        time.sleep(1)
+
+        resp, status = await requester(
+            'POST',
+            '/db/guillotina/@search',
+            data=json.dumps({})
+        )
+        assert resp['items_count'] == 0

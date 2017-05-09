@@ -1,29 +1,25 @@
+# we want to make sure it is run on trusty where sudo is provided for postgres
 dist: trusty
 language: python
-python:
-- 3.5-dev
+python: 3.6-dev
 sudo: required
+
 services:
-  - docker
+  - postgresql
+# make sure we're on the latest version of postgresql
+addons:
+  postgresql: "9.6"
+before_script:
+  - psql -c 'create database guillotina;' -U postgres
+
 cache:
   directories:
-  - eggs
-before_install:
-- sysctl -w vm.max_map_count=262144
-- docker-compose up -d
+    - eggs
 install:
-- python bootstrap-buildout.py --setuptools-version=32.1.0
-- bin/buildout -t 3
-- pip install flake8
-- pip install coverage==4.0.3
-- sleep 15
-- docker-compose logs
+  - python bootstrap-buildout.py
+  - bin/buildout -t 3
 script:
-- bin/py.test -s --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina 
-- bin/code-analysis
+  - bin/py.test -s --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
 after_success:
-- coveralls
-- cat .coverage
-after_script:
-- docker-compose stop
-- docker-compose rm -f
+  - pip install coveralls
+  - coveralls
