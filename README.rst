@@ -3,6 +3,8 @@
 GUILLOTINA_ELASTICSEARCH
 ========================
 
+Elasticsearch integration for guillotina.
+
 
 Configuration
 -------------
