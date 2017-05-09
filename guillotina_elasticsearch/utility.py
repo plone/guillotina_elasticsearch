@@ -278,7 +278,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         }
         if path != '/':
             path_query['query']['bool']['must'].append({
-                'match':
+                'term':
                     {'path': path}
             })
             path_query['query']['bool']['must'].append({
