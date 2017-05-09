@@ -1,4 +1,4 @@
-1.0.9 (unreleased)
+1.0.9 (2017-05-09)
 ------------------
 
 - Fix bug when deleting nodes
