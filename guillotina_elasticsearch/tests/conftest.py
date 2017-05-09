@@ -6,8 +6,11 @@ from guillotina_elasticsearch.tests.utils import run_elasticsearch_docker
 import os
 import pytest
 
+if 'applications' in TESTING_SETTINGS:
+    TESTING_SETTINGS['applications'].append('guillotina_elasticsearch')
+else:
+    TESTING_SETTINGS['applications'] = ['guillotina_elasticsearch']
 
-TESTING_SETTINGS['applications'] = ['guillotina_elasticsearch']
 TESTING_SETTINGS['elasticsearch'] = {
     "index_name_prefix": "guillotina-",
     "connection_settings": {
