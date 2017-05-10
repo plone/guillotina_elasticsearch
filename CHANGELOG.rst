@@ -1,4 +1,4 @@
-1.0.10 (unreleased)
+1.0.10 (2017-05-09)
 -------------------
 
 - Fix --update-missing argument with `es-reindex` command
