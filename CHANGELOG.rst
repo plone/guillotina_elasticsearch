@@ -1,7 +1,8 @@
 1.0.11 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Option to set the mapping without reindexing in case of mapping mutation
+  [bloodbare]
 
 
 1.0.10 (2017-05-09)
