@@ -1,4 +1,4 @@
-1.0.13 (unreleased)
+1.0.13 (2017-05-11)
 -------------------
 
 - Also set settings on force_mappings
