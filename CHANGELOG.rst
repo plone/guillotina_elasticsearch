@@ -1,7 +1,8 @@
 1.0.13 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Also set settings on force_mappings
+  [bloodare]
 
 
 1.0.12 (2017-05-11)
