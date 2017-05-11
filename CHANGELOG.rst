@@ -1,4 +1,4 @@
-1.0.12 (unreleased)
+1.0.12 (2017-05-11)
 -------------------
 
 - Changing permissions name to guillotina
