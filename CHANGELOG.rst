@@ -1,4 +1,4 @@
-1.0.11 (unreleased)
+1.0.11 (2017-05-11)
 -------------------
 
 - Option to set the mapping without reindexing in case of mapping mutation
