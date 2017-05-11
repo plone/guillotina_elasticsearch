@@ -8,7 +8,7 @@ from guillotina_elasticsearch.manager import get_mappings
 
 @configure.service(
     context=IContainer, name='@update_mapping', method='POST',
-    permission='plone.ManageCatalog')
+    permission='guillotina.ManageCatalog')
 async def update_mapping(context, request):
     util = getUtility(ICatalogUtility)
     await util.migrate_index(context)
@@ -16,7 +16,7 @@ async def update_mapping(context, request):
 
 @configure.service(
     context=IContainer, name='@force_mapping', method='POST',
-    permission='plone.ManageCatalog')
+    permission='guillotina.ManageCatalog')
 async def update_mapping(context, request):
     catalog = queryUtility(ICatalogUtility)
     index_name = await catalog.get_index_name(request.container)

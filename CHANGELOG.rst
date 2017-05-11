@@ -1,7 +1,8 @@
 1.0.12 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Changing permissions name to guillotina
+  [bloodbare]
 
 
 1.0.11 (2017-05-11)
