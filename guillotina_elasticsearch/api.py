@@ -19,7 +19,7 @@ async def update_mapping(context, request):
 @configure.service(
     context=IContainer, name='@force_mapping', method='POST',
     permission='guillotina.ManageCatalog')
-async def update_mapping(context, request):
+async def force_update_mapping(context, request):
     catalog = queryUtility(ICatalogUtility)
     index_name = await catalog.get_index_name(request.container)
     mappings = get_mappings()
