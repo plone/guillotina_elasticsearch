@@ -81,7 +81,8 @@ class Reindexer:
         if self.context.uuid not in skip:
             await self.add_object(obj=self.context)
 
-        await self.index_sub_elements(obj=self.context)
+        if IFolder.providedBy(self.context):
+            await self.index_sub_elements(obj=self.context)
 
         if len(self.batch) > 0:
             await self.reindex_bulk()
