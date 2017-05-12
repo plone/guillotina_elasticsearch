@@ -113,40 +113,23 @@ class Reindexer:
             scroll_id = result['_scroll_id']
         return ids
 
-    async def index_sub_elements(self, obj, skip=[], finish_batch=False):
+    async def index_sub_elements(self, obj, skip=[]):
 
         local_count = 0
         # we need to get all the keys because using async_items can cause the cursor
         # to be open for a long time on large containers. So long in fact, that
         # it'll timeout and bork the whole thing
         keys = await obj.async_keys()
-        batch = []
         for key in keys:
             item = await obj._p_jar.get_child(obj, key)  # avoid event triggering
             if item.uuid not in skip:
                 await self.add_object(obj=item)
             local_count += 1
             if IFolder.providedBy(item):
-                reindexer = self.clone(item)
-                # if we're going to use gather, each needs it's own batch
-                batch.append(
-                    reindexer.index_sub_elements(item, skip=skip, finish_batch=True))
-
-            if len(batch) >= self._sub_item_batch_size:
-                await asyncio.gather(*batch)
-                batch = []
+                await self.index_sub_elements(item, skip=skip)
             del item
-        if len(batch) > 0:
-            await asyncio.gather(*batch)
-            batch = []
 
         del obj
-
-        if self.base_reindexer is not None:
-            # propagate rest up to self.base_reindexer
-            async with self.base_reindexer.lock:
-                self.base_reindexer.batch.update(self.batch)
-            await self.base_reindexer.attempt_flush()
 
     async def add_object(self, obj):
         if not self.utility.enabled:
