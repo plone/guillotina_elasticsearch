@@ -6,6 +6,7 @@ from guillotina.component import queryUtility
 from guillotina_elasticsearch.manager import get_mappings
 from guillotina_elasticsearch.manager import DEFAULT_SETTINGS
 from guillotina import app_settings
+import json
 
 
 @configure.service(
@@ -22,16 +23,25 @@ async def update_mapping(context, request):
 async def force_update_mapping(context, request):
     catalog = queryUtility(ICatalogUtility)
     index_name = await catalog.get_index_name(request.container)
+    version = await catalog.get_version(request.container)
+    real_index_name = index_name + '_' + str(version)
     mappings = get_mappings()
     index_settings = DEFAULT_SETTINGS.copy()
     index_settings.update(app_settings.get('index', {}))
 
-    await catalog.conn.indices.close(index_name)
+    await catalog.conn.indices.close(real_index_name)
     await catalog.conn.indices.put_settings(
-        index_settings, index_name)
-    await catalog.conn.indices.open(index_name)
+        index_settings, real_index_name)
+    await catalog.conn.indices.open(real_index_name)
+    conn_es = await catalog.conn.transport.get_connection()
     for key, value in mappings.items():
-        await catalog.conn.indices.put_mapping(index_name, key, value)
+        async with conn_es._session.put(
+                    str(conn_es._base_url) + '_mapping/' + key + '?update_all_types',
+                    data=json.dumps(value),
+                    timeout=1000000
+                ) as resp:
+            pass
+
     return {
         'status': 'ok'
     }
