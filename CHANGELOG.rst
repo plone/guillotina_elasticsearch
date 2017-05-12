@@ -1,8 +1,8 @@
 1.0.15 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- close and open the indices to define the settings
+  [bloodbare]
 
 1.0.14 (2017-05-12)
 -------------------
