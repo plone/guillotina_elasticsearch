@@ -25,8 +25,11 @@ async def force_update_mapping(context, request):
     mappings = get_mappings()
     index_settings = DEFAULT_SETTINGS.copy()
     index_settings.update(app_settings.get('index', {}))
+
+    await catalog.conn.indices.close(index_name)
     await catalog.conn.indices.put_settings(
         index_settings, index_name)
+    await catalog.conn.indices.open(index_name)
     for key, value in mappings.items():
         await catalog.conn.indices.put_mapping(index_name, key, value)
     return {
