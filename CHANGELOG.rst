@@ -1,7 +1,8 @@
 1.0.16 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Forcing the update of mapping
+  [bloodbare]
 
 
 1.0.15 (2017-05-12)

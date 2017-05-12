@@ -34,14 +34,19 @@ async def force_update_mapping(context, request):
         index_settings, real_index_name)
     await catalog.conn.indices.open(real_index_name)
     conn_es = await catalog.conn.transport.get_connection()
+    response = {
+        'status': 200
+    }
     for key, value in mappings.items():
         async with conn_es._session.put(
                     str(conn_es._base_url) + '_mapping/' + key + '?update_all_types',
                     data=json.dumps(value),
                     timeout=1000000
                 ) as resp:
-            pass
+            if resp.status != 200:
+                response = {
+                    'status': resp.status,
+                    'error': await resp.text()
+                }
 
-    return {
-        'status': 'ok'
-    }
+    return response
