@@ -1,7 +1,8 @@
 1.0.14 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Enabling size on query by type
+  [bloodbare]
 
 
 1.0.13 (2017-05-11)

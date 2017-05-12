@@ -215,8 +215,8 @@ class ElasticSearchUtility(ElasticSearchManager):
         obj = do_traverse(container, path)
         return obj
 
-    async def get_by_type(self, container, doc_type, query={}):
-        return await self.query(container, query, doc_type=doc_type)
+    async def get_by_type(self, container, doc_type, query={}, size=10):
+        return await self.query(container, query, doc_type=doc_type, size=size)
 
     async def get_by_path(
             self, container, path, depth=-1, query={}, doc_type=None, size=10):
