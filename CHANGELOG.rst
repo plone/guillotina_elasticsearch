@@ -1,4 +1,4 @@
-1.0.15 (unreleased)
+1.0.15 (2017-05-12)
 -------------------
 
 - close and open the indices to define the settings
