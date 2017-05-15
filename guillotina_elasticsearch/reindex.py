@@ -1,12 +1,16 @@
 from guillotina.interfaces import ICatalogDataAdapter
+from guillotina.interfaces import IContainer
 from guillotina.interfaces import IFolder
+from guillotina.interfaces import IInteraction
 from guillotina.interfaces import ISecurityInfo
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
+from guillotina_elasticsearch.utility import ElasticSearchUtility
 
 import asyncio
 import gc
 import resource
+import threading
 import time
 
 
@@ -20,8 +24,52 @@ class Counter:
         return self.indexed / (time.time() - self.start_time)
 
 
+BULK_SIZE = 200
+
+
+class ReindexElasticSearchUtility(ElasticSearchUtility):
+
+    bulk_size = BULK_SIZE
+
+    def __init__(self, index_name, version, settings, loop):
+        self._index_name = index_name
+        self._version = version
+        super().__init__(settings, loop)
+
+    async def get_index_name(self, container):
+        return self._index_name
+
+    async def get_version(self, container):
+        return self._version
+
+
+class ElasticThread(threading.Thread):
+    def __init__(self, index_name, version, batch, update=False, response=None):
+        self.index_name = index_name
+        self.version = version
+        self.batch = batch
+        self.update = update
+        self.response = response
+        super().__init__(target=self)
+
+    def __call__(self):
+        self._loop = asyncio.new_event_loop()
+        self._loop.run_until_complete(self._run())
+
+    async def _run(self):
+        utility = ReindexElasticSearchUtility(self.index_name, self.version, {}, self._loop)
+        if self.update:
+            await utility.update(None, self.batch,
+                                 response=self.response, flush_all=True)
+        else:
+            await utility.index(None, self.batch,
+                                response=self.response, flush_all=True)
+        utility._conn.close()
+
+
 class Reindexer:
     _sub_item_batch_size = 5
+    _connection_size = 20
 
     def __init__(self, utility, context, security=False, response=None,
                  clean=True, update=False, update_missing=False,
@@ -52,19 +100,8 @@ class Reindexer:
         else:
             self.counter = counter
 
-    def clone(self, context):
-        reindexer = Reindexer(
-            self.utility, context,
-            security=self.security, response=self.response,
-            clean=self.clean, update=self.update, update_missing=self.update_missing,
-            log_details=self.log_details, memory_tracking=self.memory_tracking,
-            request=self.request, counter=self.counter)
-        if self.base_reindexer is None:
-            # first time splitting, this is the base_reindexer
-            reindexer.base_reindexer = self
-        else:
-            reindexer.base_reindexer = self.base_reindexer
-        return reindexer
+        self.reindex_threads = []
+        self.interaction = IInteraction(self.request)
 
     async def all_content(self):
         if not self.utility.enabled:
@@ -81,10 +118,15 @@ class Reindexer:
         if self.context.uuid not in skip:
             await self.add_object(obj=self.context)
 
-        await self.index_sub_elements(obj=self.context)
+        if IFolder.providedBy(self.context):
+            await self.index_sub_elements(obj=self.context)
 
         if len(self.batch) > 0:
             await self.reindex_bulk()
+
+        for thread in self.reindex_threads:
+            thread.join()
+        self.reindex_threads = []
 
     async def get_all_uids(self):
         page_size = 700
@@ -113,45 +155,32 @@ class Reindexer:
             scroll_id = result['_scroll_id']
         return ids
 
-    async def index_sub_elements(self, obj, skip=[], finish_batch=False):
+    async def index_sub_elements(self, obj, skip=[]):
 
-        local_count = 0
         # we need to get all the keys because using async_items can cause the cursor
         # to be open for a long time on large containers. So long in fact, that
         # it'll timeout and bork the whole thing
         keys = await obj.async_keys()
-        batch = []
+        if len(keys) > 500 and self.response is not None:
+            self.response.write(b'Indexing large folder(%d) %s\n' % (
+                len(keys),
+                get_content_path(obj).encode('utf8')
+            ))
         for key in keys:
             item = await obj._p_jar.get_child(obj, key)  # avoid event triggering
             if item.uuid not in skip:
                 await self.add_object(obj=item)
-            local_count += 1
             if IFolder.providedBy(item):
-                reindexer = self.clone(item)
-                # if we're going to use gather, each needs it's own batch
-                batch.append(
-                    reindexer.index_sub_elements(item, skip=skip, finish_batch=True))
-
-            if len(batch) >= self._sub_item_batch_size:
-                await asyncio.gather(*batch)
-                batch = []
+                await self.index_sub_elements(item, skip=skip)
             del item
-        if len(batch) > 0:
-            await asyncio.gather(*batch)
-            batch = []
 
         del obj
-
-        if self.base_reindexer is not None:
-            # propagate rest up to self.base_reindexer
-            async with self.base_reindexer.lock:
-                self.base_reindexer.batch.update(self.batch)
-            await self.base_reindexer.attempt_flush()
 
     async def add_object(self, obj):
         if not self.utility.enabled:
             return
         self.counter.indexed += 1
+
         serialization = None
         if self.log_details and self.response is not None and hasattr(obj, 'id'):
             self.response.write(
@@ -165,36 +194,60 @@ class Reindexer:
             else:
                 serialization = await ICatalogDataAdapter(obj)()
             self.batch[obj.uuid] = serialization
+            if not IContainer.providedBy(obj):
+                del obj.__annotations__
         except TypeError:
             pass
 
         await self.attempt_flush()
 
     async def attempt_flush(self):
+        if self.counter.indexed > 2400:
+            self.log_details = True
 
-        if self.memory_tracking and self.counter.indexed % 500 == 0:
+        if self.counter.indexed % 500 == 0:
+            self.interaction.invalidate_cache()
             num, _, _ = gc.get_count()
             gc.collect()
+            # import objgraph
+            # objgraph.show_growth(limit=10)
             if self.response is not None:
-                total_memory = round(
-                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0/1024.0, 1)
-                self.response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total obs: %d' % (
-                    total_memory, num, len(gc.get_objects())))
+                if self.memory_tracking:
+                    total_memory = round(
+                        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0, 1)
+                    self.response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (
+                        total_memory, num, len(gc.get_objects())))
+                self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
+                    self.counter.indexed, int(self.counter.per_sec()),
+                ))
 
-        async with self.lock:
-            # we're working on batch, we need to lock it.
-            if len(self.batch) >= self.utility.bulk_size:
-                if self.response is not None:
-                    self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
-                        self.counter.indexed, int(self.counter.per_sec()),
-                    ))
-                await self.reindex_bulk()
-                self.batch.clear()
+        if len(self.batch) >= BULK_SIZE:
+            await self.reindex_bulk()
+            self.batch.clear()
+
+    async def get_index_name(self):
+        if not hasattr(self, '_index_name'):
+            self._index_name = await self.utility.get_index_name(self.container)
+        return self._index_name
+
+    async def get_version(self):
+        if not hasattr(self, '_version'):
+            self._version = await self.utility.get_version(self.container)
+        return self._version
 
     async def reindex_bulk(self):
-        if self.security or self.update:
-            await self.utility.update(self.container, self.batch,
-                                      response=self.response, flush_all=True)
-        else:
-            await self.utility.index(self.container, self.batch,
-                                     response=self.response, flush_all=True)
+        thread = ElasticThread(
+            await self.get_index_name(),
+            await self.get_version(),
+            self.batch.copy(), self.security or self.update,
+            response=self.response
+        )
+        self.reindex_threads.append(thread)
+        thread.start()
+
+        if len(self.reindex_threads) > 7:
+            if self.response is not None:
+                self.response.write(b'Flushing reindex threads\n')
+            for thread in self.reindex_threads:
+                thread.join()
+            self.reindex_threads = []

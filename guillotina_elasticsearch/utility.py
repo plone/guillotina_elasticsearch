@@ -12,7 +12,6 @@ from guillotina.utils import get_current_request
 from guillotina.utils import merge_dicts
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.manager import ElasticSearchManager
-from guillotina_elasticsearch.reindex import Reindexer
 
 import aiohttp
 import asyncio
@@ -41,6 +40,7 @@ class ElasticSearchUtility(ElasticSearchManager):
     async def reindex_all_content(
             self, obj, security=False, response=None, clean=True, update=False,
             update_missing=False):
+        from guillotina_elasticsearch.reindex import Reindexer
         reindexer = Reindexer(self, obj, security=security, response=response,
                               clean=clean, update=update, update_missing=update_missing)
         await reindexer.all_content()

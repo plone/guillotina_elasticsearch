@@ -31,6 +31,7 @@ class ReindexCommand(Command):
         root = getUtility(IApplication, name='root')
         for _id, db in root:
             if IDatabase.providedBy(db):
+                db._db._storage._transaction_strategy = 'none'
                 tm = db.get_transaction_manager()
                 tm.request = self.request
                 await tm.begin(self.request)
