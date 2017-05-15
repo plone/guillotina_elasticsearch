@@ -1,4 +1,4 @@
-1.0.16 (unreleased)
+1.0.16 (2017-05-15)
 -------------------
 
 - Use threads when bulk indexing on elasticsearch to make sure to always
