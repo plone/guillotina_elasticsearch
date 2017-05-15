@@ -24,7 +24,7 @@ class Counter:
         return self.indexed / (time.time() - self.start_time)
 
 
-BULK_SIZE = 200
+BULK_SIZE = 50
 
 
 class ReindexElasticSearchUtility(ElasticSearchUtility):
@@ -44,12 +44,11 @@ class ReindexElasticSearchUtility(ElasticSearchUtility):
 
 
 class ElasticThread(threading.Thread):
-    def __init__(self, index_name, version, batch, update=False, response=None):
+    def __init__(self, index_name, version, batch, update=False):
         self.index_name = index_name
         self.version = version
         self.batch = batch
         self.update = update
-        self.response = response
         super().__init__(target=self)
 
     def __call__(self):
@@ -59,12 +58,12 @@ class ElasticThread(threading.Thread):
     async def _run(self):
         utility = ReindexElasticSearchUtility(self.index_name, self.version, {}, self._loop)
         if self.update:
-            await utility.update(None, self.batch,
-                                 response=self.response, flush_all=True)
+            await utility.update(None, self.batch, flush_all=True)
         else:
-            await utility.index(None, self.batch,
-                                response=self.response, flush_all=True)
+            await utility.index(None, self.batch, flush_all=True)
         utility._conn.close()
+        del utility
+        del self.batch
 
 
 class Reindexer:
@@ -106,6 +105,12 @@ class Reindexer:
     async def all_content(self):
         if not self.utility.enabled:
             return
+
+        # start transaction if not one so we can use cursor
+        # txn = self.context._p_jar
+        # if txn._db_txn is None:
+        #     await txn._manager._storage.start_transaction(txn)
+
         if (self.security is False and self.clean is True and self.update is False
                 and self.update_missing is False):
             await self.utility.unindex_all_childs(self.context, response=self.response,
@@ -155,19 +160,27 @@ class Reindexer:
             scroll_id = result['_scroll_id']
         return ids
 
-    async def index_sub_elements(self, obj, skip=[]):
-
-        # we need to get all the keys because using async_items can cause the cursor
-        # to be open for a long time on large containers. So long in fact, that
-        # it'll timeout and bork the whole thing
-        keys = await obj.async_keys()
-        if len(keys) > 500 and self.response is not None:
-            self.response.write(b'Indexing large folder(%d) %s\n' % (
-                len(keys),
-                get_content_path(obj).encode('utf8')
-            ))
-        for key in keys:
-            item = await obj._p_jar.get_child(obj, key)  # avoid event triggering
+    async def index_sub_elements(self, obj, skip=[], already_visited=[]):
+        # try:
+        #     async for result in obj._p_jar._manager._storage.items(obj._p_jar, obj._p_oid):
+        #         item = reader(result)
+        #         item.__parent__ = obj
+        #         item._p_jar = obj._p_jar
+        #
+        #         already_visited.append(item.id)
+        #
+        #         if item.uuid not in skip:
+        #             await self.add_object(obj=item)
+        #         if IFolder.providedBy(item):
+        #             await self.index_sub_elements(item, skip=skip)
+        #         del item
+        # except asyncpg.exceptions.ConnectionDoesNotExistError:
+        # happens on large cursors, so we'll deal the normal way instead now.
+        # need to re-establish a new transaction to work with....
+        for key in await obj.async_keys():
+            # if key in already_visited:
+            #     continue
+            item = await obj._p_jar.get_child(obj, key)
             if item.uuid not in skip:
                 await self.add_object(obj=item)
             if IFolder.providedBy(item):
@@ -202,15 +215,11 @@ class Reindexer:
         await self.attempt_flush()
 
     async def attempt_flush(self):
-        if self.counter.indexed > 2400:
-            self.log_details = True
 
         if self.counter.indexed % 500 == 0:
             self.interaction.invalidate_cache()
             num, _, _ = gc.get_count()
             gc.collect()
-            # import objgraph
-            # objgraph.show_growth(limit=10)
             if self.response is not None:
                 if self.memory_tracking:
                     total_memory = round(
@@ -239,15 +248,12 @@ class Reindexer:
         thread = ElasticThread(
             await self.get_index_name(),
             await self.get_version(),
-            self.batch.copy(), self.security or self.update,
-            response=self.response
+            self.batch.copy(), self.security or self.update
         )
         self.reindex_threads.append(thread)
         thread.start()
 
         if len(self.reindex_threads) > 7:
-            if self.response is not None:
-                self.response.write(b'Flushing reindex threads\n')
             for thread in self.reindex_threads:
                 thread.join()
             self.reindex_threads = []
