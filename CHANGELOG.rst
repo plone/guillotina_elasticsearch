@@ -1,6 +1,10 @@
 1.0.16 (unreleased)
 -------------------
 
+- Use threads when bulk indexing on elasticsearch to make sure to always
+  keep elasticsearch busy.
+  [vangheem]
+
 - Forcing the update of mapping
   [bloodbare]
 
