@@ -1,4 +1,4 @@
-1.0.18 (unreleased)
+1.0.18 (2017-05-16)
 -------------------
 
 - Use dummy cache on reindex for all request types
