@@ -1,7 +1,8 @@
 1.0.19 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Reindex with clean option should delete, re-create index
+  [vangheem]
 
 
 1.0.18 (2017-05-16)

@@ -109,15 +109,11 @@ class Reindexer:
         if not self.utility.enabled:
             return
 
-        # start transaction if not one so we can use cursor
-        # txn = self.context._p_jar
-        # if txn._db_txn is None:
-        #     await txn._manager._storage.start_transaction(txn)
-
         if (self.security is False and self.clean is True and self.update is False
                 and self.update_missing is False):
-            await self.utility.unindex_all_childs(self.context, response=self.response,
-                                                  future=False)
+            self.request._db_write_enabled = True
+            await self.utility.remove_catalog(self.container)
+            await self.utility.initialize_catalog(self.container)
 
         skip = []
         if self.update_missing:
