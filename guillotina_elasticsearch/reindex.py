@@ -6,6 +6,7 @@ from guillotina.interfaces import ISecurityInfo
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.utility import ElasticSearchUtility
+from guillotina.db.cache.dummy import DummyCache
 
 import asyncio
 import gc
@@ -86,6 +87,8 @@ class Reindexer:
             self.request = get_current_request()
             self.request._db_write_enabled = False
         else:
+            # make sure that we don't cache requests...
+            request._txn._cache = DummyCache(None, None)
             self.request = request
         self.container = self.request.container
         self.batch = {}
