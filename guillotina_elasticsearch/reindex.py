@@ -87,9 +87,9 @@ class Reindexer:
             self.request = get_current_request()
             self.request._db_write_enabled = False
         else:
-            # make sure that we don't cache requests...
-            request._txn._cache = DummyCache(None, None)
             self.request = request
+        # make sure that we don't cache requests...
+        self.request._txn._cache = DummyCache(None, None)
         self.container = self.request.container
         self.batch = {}
         self.log_details = log_details

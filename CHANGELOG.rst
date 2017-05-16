@@ -1,8 +1,8 @@
 1.0.18 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Use dummy cache on reindex for all request types
+  [vangheem]
 
 1.0.17 (2017-05-16)
 -------------------
