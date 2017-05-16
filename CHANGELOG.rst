@@ -1,4 +1,4 @@
-1.0.19 (unreleased)
+1.0.19 (2017-05-16)
 -------------------
 
 - Reindex with clean option should delete, re-create index
