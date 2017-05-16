@@ -1,4 +1,4 @@
-1.0.17 (unreleased)
+1.0.17 (2017-05-16)
 -------------------
 
 - Disable caching when reindexing
