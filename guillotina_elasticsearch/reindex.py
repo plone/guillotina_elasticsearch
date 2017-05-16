@@ -111,6 +111,7 @@ class Reindexer:
 
         if (self.security is False and self.clean is True and self.update is False
                 and self.update_missing is False):
+            self.request._db_write_enabled = True
             await self.utility.remove_catalog(self.container)
             await self.utility.initialize_catalog(self.container)
 
