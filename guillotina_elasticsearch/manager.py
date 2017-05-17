@@ -78,6 +78,11 @@ class ElasticSearchManager(DefaultSearchUtility):
         request.container_settings = await annotations_container.async_get(REGISTRY_DATA_KEY)
         return request.container_settings
 
+    async def get_real_index_name(self, container, request=None):
+        index_name = await self.get_index_name(container, request)
+        version = await self.get_version(container)
+        return index_name + '_' + str(version)
+
     async def get_index_name(self, container, request=None):
         if request is not None and hasattr(request, '_cache_index_name'):
             return request._cache_index_name
@@ -103,12 +108,8 @@ class ElasticSearchManager(DefaultSearchUtility):
         if not self.enabled:
             return
         await self.remove_catalog(container)
-        mappings = get_mappings()
         index_name = await self.get_index_name(container)
-        version = await self.get_version(container)
-        real_index_name = index_name + '_' + str(version)
-        index_settings = DEFAULT_SETTINGS.copy()
-        index_settings.update(app_settings.get('index', {}))
+        real_index_name = await self.get_real_index_name(container)
         try:
             await self.conn.indices.create(real_index_name)
         except TransportError as e:
@@ -140,9 +141,7 @@ class ElasticSearchManager(DefaultSearchUtility):
             pass
 
         try:
-            await self.conn.indices.put_settings(index_settings, index_name)
-            for key, value in mappings.items():
-                await self.conn.indices.put_mapping(index_name, key, value)
+            await self.install_mappings_on_index(index_name)
         except TransportError as e:
             logger.warn('Transport Error', exc_info=e)
         except ConnectionError:
@@ -158,8 +157,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         if not self.enabled:
             return
         index_name = await self.get_index_name(container)
-        version = await self.get_version(container)
-        real_index_name = index_name + '_' + str(version)
+        real_index_name = await self.get_real_index_name(container)
         try:
             await self.conn.indices.close(real_index_name)
         except NotFoundError:
@@ -225,12 +223,35 @@ class ElasticSearchManager(DefaultSearchUtility):
         index_name = await self.get_index_name(container)
         return await self.conn.indices.stats(index_name)
 
-    async def migrate_index(self, container):
-        index_name = await self.get_index_name(container)
-        version = await self.get_version(container)
+    async def install_mappings_on_index(self, index_name):
         mappings = get_mappings()
         index_settings = DEFAULT_SETTINGS.copy()
         index_settings.update(app_settings.get('index', {}))
+        await self.conn.indices.close(index_name)
+        await self.conn.indices.put_settings(index_settings, index_name)
+        for key, value in mappings.items():
+            await self.conn.indices.put_mapping(index_name, key, value)
+        await self.conn.indices.open(index_name)
+
+    async def activate_next_index(self, container, version):
+        '''
+        Next index support designates an index to also push
+        delete and index calls to
+        '''
+        registry = await self.get_registry(container, None)
+        registry['el_next_index_version'] = version
+        registry._p_register()
+
+    async def apply_next_index(self, container):
+        registry = await self.get_registry(container, None)
+        assert registry['el_next_index_version'] is not None
+        await self.set_version(registry['el_next_index_version'])
+        registry['el_next_index_version'] = None
+        registry._p_register()
+
+    async def migrate_index(self, container):
+        index_name = await self.get_index_name(container)
+        version = await self.get_version(container)
         next_version = version + 1
         real_index_name = index_name + '_' + str(version)
         real_index_name_next_version = index_name + '_' + str(next_version)
@@ -292,13 +313,7 @@ class ElasticSearchManager(DefaultSearchUtility):
 
         await self.conn.indices.create(temp_index)
         await self.conn.indices.create(real_index_name_next_version)
-        await self.conn.indices.close(real_index_name_next_version)
-        await self.conn.indices.put_settings(
-            index_settings, real_index_name_next_version)
-        for key, value in mappings.items():
-            await self.conn.indices.put_mapping(
-                real_index_name_next_version, key, value)
-        await self.conn.indices.open(real_index_name_next_version)
+        await self.install_mappings_on_index(real_index_name_next_version)
 
         # Start to duplicate aliases
         body = {

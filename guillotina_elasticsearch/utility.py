@@ -354,8 +354,6 @@ class ElasticSearchUtility(ElasticSearchManager):
             idents = []
             result = {}
             index_name = await self.get_index_name(container)
-            version = await self.get_version(container)
-            real_index_name = index_name + '_' + str(version)
             for ident, data in datas.items():
                 bulk_data.extend([{
                     'index': {
@@ -367,13 +365,13 @@ class ElasticSearchUtility(ElasticSearchManager):
                 idents.append(ident)
                 if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
                     result = await self.bulk_insert(
-                        real_index_name, bulk_data, idents, response=response)
+                        index_name, bulk_data, idents, response=response)
                     idents = []
                     bulk_data = []
 
             if len(bulk_data) > 0:
                 result = await self.bulk_insert(
-                    real_index_name, bulk_data, idents, response=response)
+                    index_name, bulk_data, idents, response=response)
             if 'errors' in result and result['errors']:
                 logger.error(json.dumps(result))
             return result
@@ -387,8 +385,6 @@ class ElasticSearchUtility(ElasticSearchManager):
             idents = []
             result = {}
             index_name = await self.get_index_name(container)
-            version = await self.get_version(container)
-            real_index_name = index_name + '_' + str(version)
 
             for ident, data in datas.items():
                 bulk_data.extend([{
@@ -401,13 +397,13 @@ class ElasticSearchUtility(ElasticSearchManager):
                 idents.append(ident)
                 if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
                     result = await self.bulk_insert(
-                        real_index_name, bulk_data, idents, response=response)
+                        index_name, bulk_data, idents, response=response)
                     idents = []
                     bulk_data = []
 
             if len(bulk_data) > 0:
                 result = await self.bulk_insert(
-                    real_index_name, bulk_data, idents, response=response)
+                    index_name, bulk_data, idents, response=response)
             if 'errors' in result and result['errors']:
                 logger.error(json.dumps(result))
             return result
@@ -420,16 +416,23 @@ class ElasticSearchUtility(ElasticSearchManager):
             return
         if len(uids) > 0:
             index_name = await self.get_index_name(container)
-            version = await self.get_version(container)
-            real_index_name = index_name + '_' + str(version)
             bulk_data = []
             for uid, type_name, content_path in uids:
                 bulk_data.append({
                     'delete': {
-                        '_index': real_index_name,
+                        '_index': index_name,
                         '_id': uid,
                         '_type': type_name
                     }
                 })
                 await self.unindex_all_childs(content_path)
             await self.conn.bulk(index=index_name, body=bulk_data)
+
+    async def get_doc_count(self, container):
+        index_name = await self.get_index_name(container)
+        result = await self.conn.count(index=index_name)
+        return result['count']
+
+    async def refresh(self, container):
+        index_name = await self.get_index_name(container)
+        await self.conn.indices.refresh(index=index_name)

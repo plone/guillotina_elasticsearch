@@ -37,10 +37,10 @@ class ReindexElasticSearchUtility(ElasticSearchUtility):
         self._version = version
         super().__init__(settings, loop)
 
-    async def get_index_name(self, container):
+    async def get_index_name(self, container, request=None):
         return self._index_name
 
-    async def get_version(self, container):
+    async def get_version(self, container, request=None):
         return self._version
 
 
@@ -68,8 +68,8 @@ class ElasticThread(threading.Thread):
 
 
 class Reindexer:
-    _sub_item_batch_size = 5
-    _connection_size = 20
+    '''
+    '''
 
     def __init__(self, utility, context, security=False, response=None,
                  clean=True, update=False, update_missing=False,
@@ -133,18 +133,16 @@ class Reindexer:
         self.reindex_threads = []
 
     async def get_all_uids(self):
-        page_size = 700
+        page_size = 2700
         ids = []
         index_name = await self.utility.get_index_name(self.container)
         result = await self.utility.conn.search(
             index=index_name,
-            scroll='30s',
+            scroll='2m',
             size=page_size,
             stored_fields='',
             body={
-                "query": {
-                    "match_all": {}
-                }
+                "sort": ["_doc"]
             })
         ids.extend([r['_id'] for r in result['hits']['hits']])
         scroll_id = result['_scroll_id']

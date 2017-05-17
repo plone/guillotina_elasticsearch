@@ -44,3 +44,16 @@ Commands
 `guillotina_elasticsearch` comes with a `es-reindex` guillotina command::
 
     ./bin/g es-reindex
+
+
+
+Improvements
+------------
+
+- live reindex
+  - reindex on new index, switch over when done
+- optimized reindex
+  - run updates on diff of indexes that have changed
+- after reindex finishes, identify
+  - orphaned docs
+  - missing docs
