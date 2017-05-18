@@ -21,7 +21,8 @@ class MigrateCommand(Command):
     def get_parser(self):
         parser = super(MigrateCommand, self).get_parser()
         parser.add_argument('--full', help='Do a full reindex', action='store_true')
-        parser.add_argument('--force', help='Override failing if existin migration index exists',
+        parser.add_argument('--force', help='Override failing migration if existing '
+                                            'migration index exists',
                             action='store_true')
         parser.add_argument('--log-details', action='store_true')
         parser.add_argument('--memory-tracking', action='store_true')
@@ -50,6 +51,7 @@ class MigrateCommand(Command):
             seconds = int(time.time() - migrator.start_time)
             print(f'''Finished reindexing:
 Total Seconds: {seconds}
+Processed: {migrator.processed}
 Indexed: {migrator.indexed}
 Objects missing: {len(migrator.missing)}
 Objects orphaned: {len(migrator.orphaned)}

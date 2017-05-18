@@ -169,6 +169,7 @@ class Migrator:
 
         self.batch = []
         self.indexed = 0
+        self.processed = 0
         self.missing = []
         self.orphaned = []
         self.existing = []
@@ -180,7 +181,7 @@ class Migrator:
         self.work_index_name = None
 
     def per_sec(self):
-        return self.indexed / (time.time() - self.start_time)
+        return self.processed / (time.time() - self.start_time)
 
     async def create_next_index(self):
         version = await self.utility.get_version(self.container,
@@ -290,6 +291,7 @@ class Migrator:
         else:
             self.existing.remove(ob.uuid)
         await self.index_object(ob, full=full)
+        self.processed += 1
 
         if IFolder.providedBy(ob):
             await self.process_folder(ob)
@@ -299,6 +301,7 @@ class Migrator:
         del ob
 
     async def index_object(self, ob, full=False):
+
         batch_type = 'update'
         if full or self.full:
             data = await ICatalogDataAdapter(ob)()
@@ -306,6 +309,11 @@ class Migrator:
         else:
             if ob.type_name not in self.mapping_diff:
                 # no fields change, ignore this guy...
+                if self.log_details:
+                    self.response.write(b'(%d %d/sec) (skipped) Object: %s, type: %s, Buffer: %d\n' % (
+                        self.processed, int(self.per_sec()),
+                        get_content_path(ob).encode('utf-8'), batch_type.encode('utf-8'),
+                        len(self.batch)))
                 return
             data = {
                 'type_name': ob.type_name  # always need this one...
@@ -318,8 +326,8 @@ class Migrator:
 
         if self.log_details:
             self.response.write(b'(%d %d/sec) Object: %s, type: %s, Buffer: %d\n' % (
-                self.indexed, int(self.per_sec()), batch_type.encode('utf-8'),
-                get_content_path(ob).encode('utf-8'),
+                self.processed, int(self.per_sec()),
+                get_content_path(ob).encode('utf-8'), batch_type.encode('utf-8'),
                 len(self.batch)))
 
         await self.attempt_flush()
