@@ -426,7 +426,7 @@ class Migrator:
         await asyncio.sleep(1)
 
         if not self.full:
-            # if full, we're reindexing everything no matter what anyways, so skip
+            # if full, we're reindexing everything does not matter what anyways, so skip
             await self.copy_to_next_index()
             await asyncio.sleep(1)
 
@@ -440,6 +440,11 @@ class Migrator:
         await self.flush()
         self.join_threads()
 
+        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+            await self.utility.apply_next_index(self.container, self.request)
+
+        await asyncio.sleep(1)
+
         await self.conn.indices.update_aliases({
             "actions": [
                 {"remove": {
@@ -452,9 +457,7 @@ class Migrator:
                 }}
             ]
         })
-
-        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
-            await self.utility.apply_next_index(self.container, self.request)
+        await asyncio.sleep(1)
 
         await self.conn.indices.close(existing_index)
         await self.conn.indices.delete(existing_index)

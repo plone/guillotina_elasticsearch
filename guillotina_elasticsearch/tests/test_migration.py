@@ -50,6 +50,7 @@ async def test_migrate_get_all_uids(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
 
         search = getUtility(ICatalogUtility)
+        await asyncio.sleep(1)
         await search.refresh(container)
         await asyncio.sleep(1)
 
@@ -82,6 +83,7 @@ async def test_removes_orphans(es_requester):
 
         migrator = Migrator(search, container, force=True)
         await migrator.run_migration()
+        await asyncio.sleep(1)
         await search.refresh(container, index_name)
         await asyncio.sleep(1)
 
@@ -105,6 +107,7 @@ async def test_fixes_missing(es_requester):
             ob._p_oid, ob.type_name, get_content_path(ob)
         )], request=request)
 
+        await asyncio.sleep(1)
         await search.refresh(container)
         await asyncio.sleep(1)
         old_count = await search.get_doc_count(container)
@@ -113,6 +116,7 @@ async def test_fixes_missing(es_requester):
         migrator = Migrator(search, container, force=True, request=request)
         await migrator.run_migration()
 
+        await asyncio.sleep(1)
         await search.refresh(container)
         await asyncio.sleep(1)
         # new index should fix missing one, old index still has it missing
@@ -133,6 +137,7 @@ async def test_new_indexes_are_performed_during_migration(es_requester):
         await migrator.setup_next_index()
         await migrator.copy_to_next_index()
 
+        await asyncio.sleep(1)
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
         await asyncio.sleep(1)
@@ -141,6 +146,7 @@ async def test_new_indexes_are_performed_during_migration(es_requester):
 
         await add_content(requester, base_id='foobar1-')
 
+        await asyncio.sleep(1)
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
         await asyncio.sleep(1)
@@ -158,6 +164,7 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
         await migrator.setup_next_index()
         await migrator.copy_to_next_index()
 
+        await asyncio.sleep(1)
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
         await asyncio.sleep(1)
@@ -171,6 +178,7 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
             ob._p_oid, ob.type_name, get_content_path(ob)
         )], request=request)
 
+        await asyncio.sleep(1)
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
         await asyncio.sleep(1)
@@ -198,6 +206,7 @@ async def test_updates_index_data(es_requester):
         await migrator.flush()
         assert len(migrator.batch) == 0
         migrator.join_threads()
+        await asyncio.sleep(1)
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
         assert await search.get_doc_count(container, new_index_name) == 1
@@ -218,6 +227,7 @@ async def test_updates_index_data(es_requester):
         await migrator.flush()
         assert len(migrator.batch) == 0
         migrator.join_threads()
+        await asyncio.sleep(1)
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
         doc = await search.conn.get(new_index_name, ob._p_oid)
@@ -275,6 +285,7 @@ async def test_moves_docs_over(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
 
+        await asyncio.sleep(1)
         await search.refresh(container)
         await asyncio.sleep(1)
         current_count = await search.get_doc_count(container)
@@ -283,6 +294,7 @@ async def test_moves_docs_over(es_requester):
         await migrator.run_migration()
 
         assert await search.get_real_index_name(container) == migrator.work_index_name
+        await asyncio.sleep(1)
         await search.refresh(container)
         await asyncio.sleep(1)
         # adds container to index(+ 1)
