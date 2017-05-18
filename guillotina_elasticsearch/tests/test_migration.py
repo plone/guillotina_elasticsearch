@@ -165,7 +165,8 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
         await search.refresh(container, migrator.next_index_name)
         await search.refresh(container)
         num_docs = await search.get_doc_count(container, migrator.next_index_name)
-        assert num_docs == await search.get_doc_count(container)
+        current_count = await search.get_doc_count(container)
+        assert num_docs == current_count
 
 
 async def test_updates_index_data(es_requester):
@@ -270,7 +271,8 @@ async def test_moves_docs_over(es_requester):
 
         assert await search.get_real_index_name(container) == migrator.next_index_name
         await search.refresh(container)
-        assert await search.get_doc_count(container) == current_count
+        # adds container to index(+ 1)
+        assert await search.get_doc_count(container) == (current_count + 1)
 
 
 async def test_create_next_index(es_requester):

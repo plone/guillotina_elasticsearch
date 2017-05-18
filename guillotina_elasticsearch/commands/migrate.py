@@ -3,7 +3,9 @@ from guillotina.component import getUtility
 from guillotina.interfaces import IApplication
 from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IDatabase
-from guillotina_elasticsearch.reindex import Reindexer
+from guillotina_elasticsearch.migration import Migrator
+
+import time
 
 
 class printer:
@@ -14,15 +16,13 @@ class printer:
 
 
 class ReindexCommand(Command):
-    description = 'Reindex all containers'
+    description = 'Migrate indexes'
 
     def get_parser(self):
         parser = super(ReindexCommand, self).get_parser()
-        parser.add_argument('--clean', help='Clear ES before indexing',
+        parser.add_argument('--full', help='Do a full reindex', action='store_true')
+        parser.add_argument('--force', help='Override failing if existin migration index exists',
                             action='store_true')
-        parser.add_argument('--security', action='store_true')
-        parser.add_argument('--update', action='store_true')
-        parser.add_argument('--update-missing', action='store_true')
         parser.add_argument('--log-details', action='store_true')
         parser.add_argument('--memory-tracking', action='store_true')
         return parser
@@ -42,12 +42,15 @@ class ReindexCommand(Command):
     async def run(self, arguments, settings, app):
         search = getUtility(ICatalogUtility)
         async for tm, container in self.get_containers():
-            reindexer = Reindexer(
-                search, container, security=arguments.security, response=printer(),
-                clean=arguments.clean, update=arguments.update,
-                update_missing=arguments.update_missing,
-                log_details=arguments.log_details,
+            migrator = Migrator(
+                search, container, response=printer(), full=arguments.full,
+                force=arguments.force, log_details=arguments.log_details,
                 memory_tracking=arguments.memory_tracking)
-            await reindexer.all_content()
-            print('Finished reindexing in {} seconds'.format(
-                int(reindexer.counter.per_sec())))
+            await migrator.run_migration()
+            seconds = int(time.time() - migrator.start_time)
+            print(f'''Finished reindexing:
+Total Seconds: {seconds}
+Indexed: {migrator.indexed}
+Objects missing: {len(migrator.missing)}
+Objects orphaned: {len(migrator.orphaned)}
+''')

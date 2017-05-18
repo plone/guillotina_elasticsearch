@@ -11,7 +11,6 @@ from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.schema import get_mappings
 
-import asyncio
 import logging
 
 

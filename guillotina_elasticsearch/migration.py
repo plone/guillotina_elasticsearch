@@ -12,6 +12,7 @@ from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
 from guillotina.interfaces import IResourceFactory
 from guillotina.transactions import managed_transaction
+from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.utility import ElasticSearchUtility
 from guillotina_elasticsearch.utils import noop_response
@@ -144,12 +145,13 @@ class Migrator:
 
     def __init__(self, utility, context, response=noop_response, force=False,
                  log_details=False, memory_tracking=False, request=None,
-                 bulk_size=40):
+                 bulk_size=40, full=False):
         self.utility = utility
         self.conn = utility.conn
         self.context = context
         self.response = response
         self.force = force
+        self.full = full
         self.log_details = log_details
         self.memory_tracking = memory_tracking
         self.bulk_size = bulk_size
@@ -176,6 +178,9 @@ class Migrator:
         self.reindex_threads = []
 
         self.next_index_name = None
+
+    def per_sec(self):
+        return self.indexed / (time.time() - self.start_time)
 
     async def create_next_index(self):
         version = await self.utility.get_version(self.container,
@@ -295,7 +300,7 @@ class Migrator:
 
     async def index_object(self, ob, full=False):
         batch_type = 'update'
-        if full:
+        if full or self.full:
             data = await ICatalogDataAdapter(ob)()
             batch_type = 'index'
         else:
@@ -310,6 +315,13 @@ class Migrator:
 
         self.indexed += 1
         self.batch.append((ob.uuid, batch_type, data))
+
+        if self.log_details:
+            self.response.write(b'(%d %d/sec)Object: %s, Buffer: %d\n' % (
+                self.indexed, int(self.per_sec()),
+                get_content_path(ob).encode('utf-8'),
+                len(self.batch)))
+
         await self.attempt_flush()
 
     async def attempt_flush(self):
@@ -324,7 +336,7 @@ class Migrator:
                 self.response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (
                     total_memory, num, len(gc.get_objects())))
             self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
-                self.counter.indexed, int(self.counter.per_sec()),
+                self.indexed, int(self.per_sec()),
             ))
 
         if len(self.batch) >= self.bulk_size:
@@ -399,7 +411,9 @@ class Migrator:
                                                                 request=self.request)
 
         await self.setup_next_index()
-        await self.copy_to_next_index()
+        if self.full:
+            # if full, we're reindexing everything no matter what anyways, so skip
+            await self.copy_to_next_index()
 
         self.existing = await self.get_all_uids()
         self.mapping_diff = await self.calculate_mapping_diff()
