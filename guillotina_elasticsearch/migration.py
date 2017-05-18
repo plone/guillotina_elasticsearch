@@ -203,6 +203,9 @@ class Migrator:
                                                             self.request)
         await conn_es._session.post(
             str(conn_es._base_url) + '_reindex',
+            params={
+                'refresh': 'true'
+            },
             data=json.dumps({
               "source": {
                 "index": real_index_name
