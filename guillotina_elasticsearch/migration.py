@@ -423,6 +423,7 @@ class Migrator:
         await self.check_existing()
 
         await self.flush()
+        self.join_threads()
 
         async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
             await self.utility.apply_next_index(self.container, self.request)
