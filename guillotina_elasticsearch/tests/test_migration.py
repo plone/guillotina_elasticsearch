@@ -23,7 +23,7 @@ async def test_migrate_while_content_getting_added(es_requester):
 
         search = getUtility(ICatalogUtility)
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
 
         assert add_count == await search.get_doc_count(container)
 
@@ -34,7 +34,7 @@ async def test_migrate_while_content_getting_added(es_requester):
 
         await asyncio.wait([add_content_task1, reindex_task, add_content_task2])
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
 
         idx_count = await search.get_doc_count(container)
         # +1 here because container ob now indexed and it isn't by default in tests
@@ -51,7 +51,7 @@ async def test_migrate_get_all_uids(es_requester):
 
         search = getUtility(ICatalogUtility)
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
 
         current_count = await search.get_doc_count(container)
 
@@ -83,7 +83,7 @@ async def test_removes_orphans(es_requester):
         migrator = Migrator(search, container, force=True)
         await migrator.run_migration()
         await search.refresh(container, index_name)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
 
         with pytest.raises(aioes.exception.NotFoundError):
             doc = await search.conn.get(index_name, 'foobar')
@@ -106,7 +106,7 @@ async def test_fixes_missing(es_requester):
         )], request=request)
 
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         old_count = await search.get_doc_count(container)
         old_index_name = await search.get_real_index_name(container)
 
@@ -114,7 +114,7 @@ async def test_fixes_missing(es_requester):
         await migrator.run_migration()
 
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         # new index should fix missing one, old index still has it missing
         num_docs = await search.get_doc_count(container, migrator.work_index_name)
         # it's + 2 here because reindexing also adds container object which
@@ -135,7 +135,7 @@ async def test_new_indexes_are_performed_during_migration(es_requester):
 
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         num_docs = await search.get_doc_count(container, migrator.work_index_name)
         assert num_docs == await search.get_doc_count(container)
 
@@ -143,7 +143,7 @@ async def test_new_indexes_are_performed_during_migration(es_requester):
 
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         num_docs = await search.get_doc_count(container, migrator.work_index_name)
         assert num_docs == await search.get_doc_count(container)
 
@@ -160,7 +160,7 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
 
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         num_docs = await search.get_doc_count(container, migrator.work_index_name)
         assert num_docs == await search.get_doc_count(container)
 
@@ -173,7 +173,7 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
 
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         num_docs = await search.get_doc_count(container, migrator.work_index_name)
         current_count = await search.get_doc_count(container)
         assert num_docs == current_count
@@ -199,7 +199,7 @@ async def test_updates_index_data(es_requester):
         assert len(migrator.batch) == 0
         migrator.join_threads()
         await search.refresh(container, new_index_name)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         assert await search.get_doc_count(container, new_index_name) == 1
 
         # test updating doc
@@ -219,7 +219,7 @@ async def test_updates_index_data(es_requester):
         assert len(migrator.batch) == 0
         migrator.join_threads()
         await search.refresh(container, new_index_name)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         doc = await search.conn.get(new_index_name, ob._p_oid)
         assert doc['_source']['title'] == 'foobar-new'
 
@@ -276,7 +276,7 @@ async def test_moves_docs_over(es_requester):
         search = getUtility(ICatalogUtility)
 
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         current_count = await search.get_doc_count(container)
 
         migrator = Migrator(search, container, force=True, request=request)
@@ -284,7 +284,7 @@ async def test_moves_docs_over(es_requester):
 
         assert await search.get_real_index_name(container) == migrator.work_index_name
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(3)
         # adds container to index(+ 1)
         assert await search.get_doc_count(container) == (current_count + 1)
 
