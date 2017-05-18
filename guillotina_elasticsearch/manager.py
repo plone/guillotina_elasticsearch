@@ -238,16 +238,17 @@ class ElasticSearchManager(DefaultSearchUtility):
             await self.conn.indices.put_mapping(index_name, key, value)
         await self.conn.indices.open(index_name)
 
-    async def activate_next_index(self, container, version, request=None):
+    async def activate_next_index(self, container, version, request=None, force=False):
         '''
         Next index support designates an index to also push
         delete and index calls to
         '''
         registry = await self.get_registry(container, request)
-        try:
-            assert registry['el_next_index_version'] is None
-        except KeyError:
-            pass
+        if not force:
+            try:
+                assert registry['el_next_index_version'] is None
+            except KeyError:
+                pass
         registry['el_next_index_version'] = version
         registry._p_register()
 

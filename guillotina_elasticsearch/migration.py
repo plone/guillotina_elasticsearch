@@ -318,7 +318,7 @@ class Migrator:
 
         if self.log_details:
             self.response.write(b'(%d %d/sec) Object: %s, type: %s, Buffer: %d\n' % (
-                self.indexed, int(self.per_sec()), batch_type,
+                self.indexed, int(self.per_sec()), batch_type.encode('utf-8'),
                 get_content_path(ob).encode('utf-8'),
                 len(self.batch)))
 
@@ -402,7 +402,8 @@ class Migrator:
             self.next_index_version, self.work_index_name = await self.create_next_index()
             await self.utility.install_mappings_on_index(self.work_index_name)
             await self.utility.activate_next_index(
-                self.container, self.next_index_version, request=self.request)
+                self.container, self.next_index_version, request=self.request,
+                force=self.force)
 
     async def run_migration(self):
         alias_index_name = await self.utility.get_index_name(self.container,
@@ -411,7 +412,7 @@ class Migrator:
                                                                 request=self.request)
 
         await self.setup_next_index()
-        if self.full:
+        if not self.full:
             # if full, we're reindexing everything no matter what anyways, so skip
             await self.copy_to_next_index()
 
