@@ -245,7 +245,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         '''
         registry = await self.get_registry(container, request)
         try:
-            assert registry['el_next_index_version'] is not None
+            assert registry['el_next_index_version'] is None
         except KeyError:
             pass
         registry['el_next_index_version'] = version
