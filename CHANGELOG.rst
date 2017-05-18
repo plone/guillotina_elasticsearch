@@ -1,5 +1,5 @@
-1.1.0 (unreleased)
-------------------
+1.0.20 (2017-05-18)
+-------------------
 
 - Implement live migration command
   [vangheem]
