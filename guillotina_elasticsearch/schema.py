@@ -56,7 +56,7 @@ def get_mappings():
             catalog_type = catalog_info.get('type', 'text')
             field_mapping = catalog_info.get('field_mapping', None)
             if field_mapping is None:
-                field_mapping = CATALOG_TYPES[catalog_type]
+                field_mapping = CATALOG_TYPES[catalog_type].copy()
             if field_name in type_overrides:
                 field_mapping = type_overrides[field_name]
             mappings[field_name] = field_mapping
