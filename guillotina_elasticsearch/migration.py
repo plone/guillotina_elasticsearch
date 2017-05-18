@@ -1,11 +1,86 @@
+from guillotina import directives
+from guillotina.catalog.catalog import DefaultCatalogDataAdapter
+from guillotina.component import getUtilitiesFor
+from guillotina.content import iter_schemata_for_type
 from guillotina.db.cache.dummy import DummyCache
+from guillotina.directives import merged_tagged_value_dict
+from guillotina.exceptions import NoIndexField
+from guillotina.interfaces import IAsyncBehavior
+from guillotina.interfaces import ICatalogDataAdapter
 from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
+from guillotina.interfaces import IResourceFactory
 from guillotina.transactions import managed_transaction
 from guillotina.utils import get_current_request
+from guillotina_elasticsearch.utility import ElasticSearchUtility
 
+import asyncio
+import gc
 import json
+import resource
+import threading
 import time
+
+
+class Indexer:
+
+    def __init__(self):
+        self.data_adapter = DefaultCatalogDataAdapter(None)
+        self.mappings = {}
+        for type_name, schema in getUtilitiesFor(IResourceFactory):
+            self.mappings[type_name] = {}
+            for schema in iter_schemata_for_type(type_name):
+                for index_name, index_data in merged_tagged_value_dict(
+                        schema, directives.index.key).items():
+                    self.mappings[type_name][index_name] = {
+                        'schema': schema,
+                        'properties': index_data
+                    }
+
+    async def get_value(self, ob, index_name):
+        schema = self.mappings[ob.type_name][index_name]['schema']
+        index_data = self.mappings[ob.type_name][index_name]['properties']
+        behavior = schema(ob)
+        if IAsyncBehavior.implementedBy(behavior.__class__):
+            # providedBy not working here?
+            await behavior.load(create=False)
+        try:
+            if 'accessor' in index_data:
+                return index_data['accessor'](behavior)
+            else:
+                return self.data_adapter.get_data(behavior, schema, index_name)
+        except NoIndexField:
+            pass
+
+
+class ElasticThread(threading.Thread):
+    def __init__(self, index_name, batch):
+        self.index_name = index_name
+        self.batch = batch
+        super().__init__(target=self)
+
+    def __call__(self):
+        self._loop = asyncio.new_event_loop()
+        self._loop.run_until_complete(self._run())
+
+    async def _run(self):
+        utility = ElasticSearchUtility(loop=self._loop)
+        bulk_data = []
+        for uuid, batch_type, data in self.batch:
+            doc_type = data['type_name']
+            if batch_type == 'update':
+                data = {'doc': data}
+            bulk_data.extend([{
+                batch_type: {
+                    '_index': self.index_name,
+                    '_type': doc_type,
+                    '_id': uuid
+                }
+            }, data])
+        await utility.conn.bulk(index=self.index_name, doc_type=None, body=bulk_data)
+        utility.conn.close()
+        del utility
+        del self.batch
 
 
 class Migrator:
@@ -46,10 +121,16 @@ class Migrator:
     10. Refresh db container ob
     11. Point alias at next index
     12. Delete old index
+
+
+    TODO:
+        - optionally fill metadata in indexing
+            - requires more work...
     '''
 
     def __init__(self, utility, context, response=None, force=False,
-                 log_details=False, memory_tracking=False, request=None):
+                 log_details=False, memory_tracking=False, request=None,
+                 bulk_size=40):
         self.utility = utility
         self.conn = utility.conn
         self.context = context
@@ -57,6 +138,7 @@ class Migrator:
         self.force = force
         self.log_details = log_details
         self.memory_tracking = memory_tracking
+        self.bulk_size = bulk_size
 
         if request is None:
             self.request = get_current_request()
@@ -67,8 +149,9 @@ class Migrator:
         self.request._txn._cache = DummyCache(None, None)
         self.container = self.request.container
         self.interaction = IInteraction(self.request)
+        self.indexer = Indexer()
 
-        self.batch = {}
+        self.batch = []
         self.indexed = 0
         self.missing = []
         self.orphaned = []
@@ -84,7 +167,7 @@ class Migrator:
         next_version = version + 1
         index_name = await self.utility.get_index_name(self.container, self.request)
         next_index_name = index_name + '_' + str(next_version)
-        if self.conn.indices.exists(next_index_name):
+        if await self.conn.indices.exists(next_index_name):
             if self.force:
                 # delete and recreate
                 await self.conn.indices.delete(next_index_name)
@@ -132,7 +215,26 @@ class Migrator:
         return ids
 
     async def calculate_mapping_diff(self):
-        pass
+        '''
+        all we care about is new fields...
+        Missing ones are ignored and we don't care about it.
+        '''
+        diffs = {}
+        existing_index_name = await self.utility.get_real_index_name(self.container)
+        for name, schema in getUtilitiesFor(IResourceFactory):
+            new_definitions = {}
+            existing_mapping = await self.conn.indices.get_mapping(existing_index_name, name)
+            next_mapping = await self.conn.indices.get_mapping(self.next_index_name, name)
+            existing_mapping = existing_mapping[existing_index_name]['mappings'][name]['properties']
+            next_mapping = next_mapping[self.next_index_name]['mappings'][name]['properties']
+
+            for field_name, definition in next_mapping.items():
+                if (field_name not in existing_mapping or
+                        definition != existing_mapping[field_name]):
+                    new_definitions[field_name] = definition
+            if len(new_definitions) > 0:
+                diffs[name] = new_definitions
+        return diffs
 
     async def process_folder(self, ob):
         for key in await ob.async_keys():
@@ -168,7 +270,54 @@ class Migrator:
             await self.process_folder(ob)
 
     async def index_object(self, ob, full=False):
-        pass
+        batch_type = 'update'
+        if full:
+            data = await ICatalogDataAdapter(ob)()
+            batch_type = 'index'
+        else:
+            if ob.type_name not in self.mapping_diff:
+                # no fields change, ignore this guy...
+                return
+            data = {}
+            for index_name in self.mapping_diff[ob.type_name].keys():
+                data[index_name] = await self.indexer.get_value(ob, index_name)
+
+        self.indexed += 1
+        self.batch.append((ob.uuid, batch_type, data))
+        await self.attempt_flush()
+
+    async def attempt_flush(self):
+
+        if self.indexed % 500 == 0:
+            self.interaction.invalidate_cache()
+            num, _, _ = gc.get_count()
+            gc.collect()
+            if self.response is not None:
+                if self.memory_tracking:
+                    total_memory = round(
+                        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0, 1)
+                    self.response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (
+                        total_memory, num, len(gc.get_objects())))
+                self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
+                    self.counter.indexed, int(self.counter.per_sec()),
+                ))
+
+        if len(self.batch) >= self.bulk_size:
+            await self.flush()
+
+    async def flush(self):
+        thread = ElasticThread(
+            self.next_index_name,
+            self.batch
+        )
+        self.reindex_threads.append(thread)
+        thread.start()
+
+        if len(self.reindex_threads) > 7:
+            for thread in self.reindex_threads:
+                thread.join()
+            self.reindex_threads = []
+        self.batch = []
 
     async def check_missing(self):
         '''
