@@ -156,7 +156,7 @@ async def test_new_indexes_are_performed_during_migration(es_requester):
         assert num_docs == await search.get_doc_count(container)
 
 
-@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=10)
 async def test_new_deletes_are_performed_during_migration(es_requester):
     async with await es_requester as requester:
         await add_content(requester)
@@ -167,10 +167,10 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
         await migrator.setup_next_index()
         await migrator.copy_to_next_index()
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
         num_docs = await search.get_doc_count(container, migrator.work_index_name)
         assert num_docs == await search.get_doc_count(container)
 
@@ -181,10 +181,10 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
             ob._p_oid, ob.type_name, get_content_path(ob)
         )], request=request, future=False)
 
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        await asyncio.sleep(1)
+        await asyncio.sleep(2)
         num_docs = await search.get_doc_count(container, migrator.work_index_name)
         current_count = await search.get_doc_count(container)
         assert num_docs == current_count

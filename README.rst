@@ -38,22 +38,18 @@ DELETE SITE_URL/@catalog
 {}
 
 
-Commands
---------
+Migrate Command
+---------------
 
-`guillotina_elasticsearch` comes with a `es-reindex` guillotina command::
+`guillotina_elasticsearch` comes with a `es-migrate` guillotina command::
 
-    ./bin/g es-reindex
+    ./bin/g es-migrate
 
 
+This command will perform a live migration on the index. It does this by
+performing the reindex on a new index while the other one is still active.
 
-Improvements
-------------
+New index and delete requests are performed on both indexes during live migration.
 
-- live reindex
-  - reindex on new index, switch over when done
-- optimized reindex
-  - run updates on diff of indexes that have changed
-- after reindex finishes, identify
-  - orphaned docs
-  - missing docs
+It is also smart about how to migrate, doing a diff on the mapping and only
+reindexing the fields that changed.

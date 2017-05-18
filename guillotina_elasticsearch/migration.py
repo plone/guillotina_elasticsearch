@@ -328,10 +328,10 @@ class Migrator:
         self.batch.append((ob.uuid, batch_type, data))
 
         if self.log_details:
-            self.response.write(b'(%d %d/sec) Object: %s, type: %s, Buffer: %d\n' % (
+            self.response.write(b'(%d %d/sec) Object: %s, type: %s, fields: %d, Buffer: %d\n' % (
                 self.processed, int(self.per_sec()),
                 get_content_path(ob).encode('utf-8'), batch_type.encode('utf-8'),
-                len(self.batch)))
+                len(data), len(self.batch)))
 
         await self.attempt_flush()
 
@@ -423,6 +423,7 @@ class Migrator:
                                                                 request=self.request)
 
         await self.setup_next_index()
+
         await asyncio.sleep(1)
 
         if not self.full:
