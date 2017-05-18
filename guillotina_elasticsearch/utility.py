@@ -256,7 +256,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             else:
                 logger.warn('Wrong deletion of childs' + json.dumps(result))
 
-    async def unindex_all_childs(self, resource, response=noop_response, future=True):
+    async def unindex_all_childs(self, resource, index_name=None, response=noop_response, future=True):
         if type(resource) is str:
             path = resource
             depth = path.count('/') + 1
@@ -264,9 +264,11 @@ class ElasticSearchUtility(ElasticSearchManager):
             path = get_content_path(resource)
             depth = get_content_depth(resource)
             depth += 1
-        response.write(b'Removing all childs of %s' % path.encode('utf-8'))
-        request = get_current_request()
-        index_name = await self.get_index_name(request.container)
+        response.write(b'Removing all children of %s' % path.encode('utf-8'))
+        if index_name is None:
+            request = get_current_request()
+            index_name = await self.get_index_name(request.container)
+
         path_query = {
             'query': {
                 'bool': {
@@ -287,7 +289,8 @@ class ElasticSearchUtility(ElasticSearchManager):
 
         if future:
             _id = 'unindex_all_childs-' + uuid.uuid4().hex
-            request._futures.update({_id: self.call_unindex_all_childs(index_name, path_query)})
+            request._futures.update({
+                _id: self.call_unindex_all_childs(index_name, path_query)})
         else:
             await self.call_unindex_all_childs(index_name, path_query)
 
@@ -435,15 +438,18 @@ class ElasticSearchUtility(ElasticSearchManager):
                         '_type': type_name
                     }
                 })
-                await self.unindex_all_childs(content_path, future=future)
+                await self.unindex_all_childs(content_path, index_name=index_name,
+                                              future=future)
             await self.conn.bulk(index=index_name, body=bulk_data)
 
         if check_next:
             # also need to call on next index while it's running...
-            next_index_name = await self.get_next_index_name(container, request=request)
+            next_index_name = await self.get_next_index_name(container,
+                                                             request=request)
             if next_index_name:
                 async with self._migration_lock:
-                    await self.remove(container, uids, next_index_name, request=request)
+                    await self.remove(container, uids, next_index_name,
+                                      request=request, future=future)
 
     async def get_doc_count(self, container, index_name=None):
         if index_name is None:

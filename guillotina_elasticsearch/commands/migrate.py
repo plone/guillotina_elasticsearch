@@ -49,7 +49,7 @@ class MigrateCommand(Command):
                 memory_tracking=arguments.memory_tracking)
             await migrator.run_migration()
             seconds = int(time.time() - migrator.start_time)
-            print(f'''Finished reindexing:
+            print(f'''Finished migration:
 Total Seconds: {seconds}
 Processed: {migrator.processed}
 Indexed: {migrator.indexed}
