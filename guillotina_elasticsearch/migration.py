@@ -317,8 +317,8 @@ class Migrator:
         self.batch.append((ob.uuid, batch_type, data))
 
         if self.log_details:
-            self.response.write(b'(%d %d/sec)Object: %s, Buffer: %d\n' % (
-                self.indexed, int(self.per_sec()),
+            self.response.write(b'(%d %d/sec) Object: %s, type: %s, Buffer: %d\n' % (
+                self.indexed, int(self.per_sec()), batch_type,
                 get_content_path(ob).encode('utf-8'),
                 len(self.batch)))
 

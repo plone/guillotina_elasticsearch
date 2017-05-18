@@ -15,11 +15,11 @@ class printer:
         print(txt.strip())
 
 
-class ReindexCommand(Command):
+class MigrateCommand(Command):
     description = 'Migrate indexes'
 
     def get_parser(self):
-        parser = super(ReindexCommand, self).get_parser()
+        parser = super(MigrateCommand, self).get_parser()
         parser.add_argument('--full', help='Do a full reindex', action='store_true')
         parser.add_argument('--force', help='Override failing if existin migration index exists',
                             action='store_true')

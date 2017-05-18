@@ -16,7 +16,7 @@ app_settings = {
         }
     },
     'commands': {
-        'es-reindex': 'guillotina_elasticsearch.commands.reindex.ReindexCommand'
+        'es-migrate': 'guillotina_elasticsearch.commands.migrate.MigrateCommand'
     }
 }
 
