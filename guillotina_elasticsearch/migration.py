@@ -420,9 +420,12 @@ class Migrator:
                                                                 request=self.request)
 
         await self.setup_next_index()
+        await asyncio.sleep(1)
+
         if not self.full:
             # if full, we're reindexing everything no matter what anyways, so skip
             await self.copy_to_next_index()
+            await asyncio.sleep(1)
 
         self.existing = await self.get_all_uids()
         self.mapping_diff = await self.calculate_mapping_diff()
@@ -433,9 +436,6 @@ class Migrator:
 
         await self.flush()
         self.join_threads()
-
-        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
-            await self.utility.apply_next_index(self.container, self.request)
 
         await self.conn.indices.update_aliases({
             "actions": [
@@ -449,5 +449,9 @@ class Migrator:
                 }}
             ]
         })
+
+        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+            await self.utility.apply_next_index(self.container, self.request)
+
         await self.conn.indices.close(existing_index)
         await self.conn.indices.delete(existing_index)
