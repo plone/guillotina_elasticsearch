@@ -19,7 +19,6 @@ async def test_migrate_while_content_getting_added(es_requester):
         await search.refresh(container)
 
         current_count = await search.get_doc_count(container)
-        import pdb; pdb.set_trace()
 
         migrator = Migrator(search, container)
         add_content_task = asyncio.ensure_future(add_content(requester, base_id='foo-'))
@@ -27,12 +26,8 @@ async def test_migrate_while_content_getting_added(es_requester):
 
         await asyncio.wait([reindex_task, add_content_task])
         await search.refresh(container)
-        import pdb; pdb.set_trace()
 
         current_count = await search.get_doc_count(container)
-        import pdb; pdb.set_trace()
-
-        foo = 5
 
         await tm.abort(txn=txn)
 
