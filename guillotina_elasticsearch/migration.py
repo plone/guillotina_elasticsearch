@@ -1,8 +1,11 @@
-from guillotina.utils import get_current_request
 from guillotina.db.cache.dummy import DummyCache
-import time
-from guillotina.interfaces import IInteraction, IFolder
+from guillotina.interfaces import IFolder
+from guillotina.interfaces import IInteraction
 from guillotina.transactions import managed_transaction
+from guillotina.utils import get_current_request
+
+import json
+import time
 
 
 class Migrator:
@@ -77,9 +80,9 @@ class Migrator:
         self.next_index_name = None
 
     async def create_next_index(self):
-        version = await self.get_version(self.container)
+        version = await self.utility.get_version(self.container)
         next_version = version + 1
-        index_name = await self.get_index_name(self.container, self.request)
+        index_name = await self.utility.get_index_name(self.container, self.request)
         next_index_name = index_name + '_' + str(next_version)
         if self.conn.indices.exists(next_index_name):
             if self.force:
@@ -89,7 +92,19 @@ class Migrator:
         return next_version, next_index_name
 
     async def copy_to_next_index(self):
-        pass
+        conn_es = await self.conn.transport.get_connection()
+        real_index_name = await self.utility.get_index_name(self.container, self.request)
+        await conn_es._session.post(
+            str(conn_es._base_url) + '_reindex',
+            data=json.dumps({
+              "source": {
+                "index": real_index_name
+              },
+              "dest": {
+                "index": self.next_index_name
+              }
+            })
+        )
 
     async def get_all_uids(self):
         page_size = 3000
@@ -149,7 +164,7 @@ class Migrator:
             self.existing.remove(ob.uuid)
         await self.index_object(ob, full=full)
 
-        if IFolder.providedBy(self.context):
+        if IFolder.providedBy(ob):
             await self.process_folder(ob)
 
     async def index_object(self, ob, full=False):
@@ -173,7 +188,7 @@ class Migrator:
         alias_index_name = await self.utility.get_index_name(self.container)
         existing_index = await self.utility.get_real_index_name(self.container)
 
-        async with managed_transaction(self.request, allow_write=True):
+        async with managed_transaction(self.request, write=True):
             self.next_index_version, self.next_index_name = await self.create_next_index()
             await self.utility.install_mappings_on_index(self.next_index_name)
             await self.utility.activate_next_index(self.container, self.next_index_version)
@@ -188,7 +203,7 @@ class Migrator:
 
         await self.check_missing()
 
-        async with managed_transaction(self.request, allow_write=True):
+        async with managed_transaction(self.request, write=True):
             await self.utility.apply_next_index(self.container)
 
         await self.conn.indices.update_aliases({

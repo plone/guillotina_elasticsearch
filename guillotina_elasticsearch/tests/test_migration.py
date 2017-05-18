@@ -73,8 +73,36 @@ async def test_updates_index_name(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
         existing_index = await search.get_real_index_name(container)
-        assert search.conn.indices.exists(existing_index)
+        assert await search.conn.indices.exists(existing_index)
         migrator = Migrator(search, container)
         await migrator.run_migration()
-        assert not search.conn.indices.exists(existing_index)
+        assert not await search.conn.indices.exists(existing_index)
         assert search.conn.indices.exists(migrator.next_index_name)
+        assert await search.get_real_index_name(container) == migrator.next_index_name
+
+
+async def test_moves_docs_over(es_requester):
+    async with await es_requester as requester:
+        await add_content(requester)
+        container, request, txn, tm = await setup_txn_on_container(requester)
+        search = getUtility(ICatalogUtility)
+
+        await search.refresh(container)
+        current_count = await search.get_doc_count(container)
+
+        migrator = Migrator(search, container)
+        await migrator.run_migration()
+
+        assert await search.get_real_index_name(container) == migrator.next_index_name
+        await search.refresh(container)
+        assert await search.get_doc_count(container) == current_count
+
+
+async def test_create_next_index(es_requester):
+    async with await es_requester as requester:
+        container, request, txn, tm = await setup_txn_on_container(requester)
+        search = getUtility(ICatalogUtility)
+        migrator = Migrator(search, container)
+        version, name = await migrator.create_next_index()
+        assert version == 2
+        assert name == 'guillotina-guillotina_2'

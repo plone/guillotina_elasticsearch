@@ -245,7 +245,7 @@ class ElasticSearchManager(DefaultSearchUtility):
     async def apply_next_index(self, container):
         registry = await self.get_registry(container, None)
         assert registry['el_next_index_version'] is not None
-        await self.set_version(registry['el_next_index_version'])
+        await self.set_version(container, registry['el_next_index_version'])
         registry['el_next_index_version'] = None
         registry._p_register()
 
@@ -291,7 +291,7 @@ class ElasticSearchManager(DefaultSearchUtility):
             }
             conn_es = await self.conn.transport.get_connection()
             async with conn_es._session.post(
-                        conn_es._base_url + '_aliases',
+                        str(conn_es._base_url) + '_aliases',
                         data=json.dumps(body),
                         timeout=1000000
                     ) as resp:
@@ -305,7 +305,7 @@ class ElasticSearchManager(DefaultSearchUtility):
               }
             }
             async with conn_es._session.post(
-                        conn_es._base_url + '_reindex',
+                        str(conn_es._base_url) + '_reindex',
                         data=json.dumps(body)
                     ) as resp:
                 pass
@@ -330,7 +330,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         }
 
         async with conn_es._session.post(
-                    conn_es._base_url + '_aliases',
+                    str(conn_es._base_url) + '_aliases',
                     data=json.dumps(body),
                     timeout=1000000
                 ) as resp:
@@ -348,7 +348,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         }
         conn_es = await self.conn.transport.get_connection()
         async with conn_es._session.post(
-                    conn_es._base_url + '_reindex',
+                    str(conn_es._base_url) + '_reindex',
                     data=json.dumps(body),
                     timeout=10000000
                 ) as resp:
@@ -370,7 +370,7 @@ class ElasticSearchManager(DefaultSearchUtility):
         }
         conn_es = await self.conn.transport.get_connection()
         async with conn_es._session.post(
-                    conn_es._base_url + '_aliases',
+                    str(conn_es._base_url) + '_aliases',
                     data=json.dumps(body),
                     timeout=1000000
                 ) as resp:
@@ -388,7 +388,7 @@ class ElasticSearchManager(DefaultSearchUtility):
           }
         }
         async with conn_es._session.post(
-                    conn_es._base_url + '_reindex',
+                    str(conn_es._base_url) + '_reindex',
                     data=json.dumps(body)
                 ) as resp:  # noqa
             pass
