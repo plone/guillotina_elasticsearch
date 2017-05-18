@@ -11,6 +11,7 @@ from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.schema import get_mappings
 
+import asyncio
 import logging
 
 
@@ -41,6 +42,7 @@ class ElasticSearchManager(DefaultSearchUtility):
     def __init__(self, settings={}, loop=None):
         self.loop = loop
         self._conn = None
+        self._migration_lock = None
 
     @property
     def bulk_size(self):
@@ -63,6 +65,7 @@ class ElasticSearchManager(DefaultSearchUtility):
 
     async def initialize(self, app):
         self.app = app
+        self._migration_lock = asyncio.Lock()
 
     async def finalize(self, app):
         if self._conn is not None:

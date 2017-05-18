@@ -374,9 +374,10 @@ class ElasticSearchUtility(ElasticSearchManager):
             # also need to call on next index while it's running...
             next_index_name = await self.get_next_index_name(container, request=request)
             if next_index_name:
-                await self.index(
-                    container, datas, response=response, flush_all=flush_all,
-                    index_name=next_index_name, request=request)
+                async with self._migration_lock:
+                    await self.index(
+                        container, datas, response=response, flush_all=flush_all,
+                        index_name=next_index_name, request=request)
 
         return result
 
@@ -441,7 +442,8 @@ class ElasticSearchUtility(ElasticSearchManager):
             # also need to call on next index while it's running...
             next_index_name = await self.get_next_index_name(container, request=request)
             if next_index_name:
-                await self.remove(container, uids, next_index_name, request=request)
+                async with self._migration_lock:
+                    await self.remove(container, uids, next_index_name, request=request)
 
     async def get_doc_count(self, container, index_name=None):
         if index_name is None:

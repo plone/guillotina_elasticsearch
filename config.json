@@ -29,6 +29,10 @@
       "index": {},
       "mapping_overrides": {
           "*": {
+              "creators": {
+                    "type": "text",
+                    "index": true
+                }
           }
       }
   },

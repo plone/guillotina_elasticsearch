@@ -55,4 +55,5 @@ Processed: {migrator.processed}
 Indexed: {migrator.indexed}
 Objects missing: {len(migrator.missing)}
 Objects orphaned: {len(migrator.orphaned)}
+Mapping Diff: {migrator.mapping_diff}
 ''')

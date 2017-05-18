@@ -440,24 +440,22 @@ class Migrator:
         await self.flush()
         self.join_threads()
 
-        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
-            await self.utility.apply_next_index(self.container, self.request)
+        async with self.utility._migration_lock:
+            async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+                await self.utility.apply_next_index(self.container, self.request)
 
-        await asyncio.sleep(1)
-
-        await self.conn.indices.update_aliases({
-            "actions": [
-                {"remove": {
-                    "alias": alias_index_name,
-                    "index": existing_index
-                }},
-                {"add": {
-                    "alias": alias_index_name,
-                    "index": self.work_index_name
-                }}
-            ]
-        })
-        await asyncio.sleep(1)
+            await self.conn.indices.update_aliases({
+                "actions": [
+                    {"remove": {
+                        "alias": alias_index_name,
+                        "index": existing_index
+                    }},
+                    {"add": {
+                        "alias": alias_index_name,
+                        "index": self.work_index_name
+                    }}
+                ]
+            })
 
         await self.conn.indices.close(existing_index)
         await self.conn.indices.delete(existing_index)
