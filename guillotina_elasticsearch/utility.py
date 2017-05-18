@@ -265,6 +265,8 @@ class ElasticSearchUtility(ElasticSearchManager):
             depth = get_content_depth(resource)
             depth += 1
         response.write(b'Removing all children of %s' % path.encode('utf-8'))
+
+        request = None
         if index_name is None:
             request = get_current_request()
             index_name = await self.get_index_name(request.container)
@@ -288,6 +290,8 @@ class ElasticSearchUtility(ElasticSearchManager):
             })
 
         if future:
+            if request is None:
+                request = get_current_request()
             _id = 'unindex_all_childs-' + uuid.uuid4().hex
             request._futures.update({
                 _id: self.call_unindex_all_childs(index_name, path_query)})
