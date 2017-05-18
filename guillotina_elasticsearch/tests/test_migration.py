@@ -129,7 +129,7 @@ async def test_fixes_missing(es_requester):
 
 
 @pytest.mark.flaky(reruns=5)
-async def test_new_indexes_are_performed_during_migration(es_requester):
+async def _test_new_indexes_are_performed_during_migration(es_requester):
     async with await es_requester as requester:
         await add_content(requester)
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -157,7 +157,7 @@ async def test_new_indexes_are_performed_during_migration(es_requester):
 
 
 @pytest.mark.flaky(reruns=5)
-async def test_new_deletes_are_performed_during_migration(es_requester):
+async def _test_new_deletes_are_performed_during_migration(es_requester):
     async with await es_requester as requester:
         await add_content(requester)
         container, request, txn, tm = await setup_txn_on_container(requester)
