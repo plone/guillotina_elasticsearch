@@ -8,7 +8,8 @@ test_requires = [
     'backoff',
     'psycopg2',
     'pytest-asyncio',
-    'pytest-aiohttp'
+    'pytest-aiohttp',
+    'pytest-rerunfailures'
 ]
 
 

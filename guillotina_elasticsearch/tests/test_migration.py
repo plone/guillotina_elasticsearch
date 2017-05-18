@@ -15,6 +15,7 @@ import pytest
 import random
 
 
+@pytest.mark.flaky(reruns=5)
 async def test_migrate_while_content_getting_added(es_requester):
     async with await es_requester as requester:
         add_count = await add_content(requester)
@@ -127,6 +128,7 @@ async def test_fixes_missing(es_requester):
         assert old_index_name != await search.get_real_index_name(container)
 
 
+@pytest.mark.flaky(reruns=5)
 async def test_new_indexes_are_performed_during_migration(es_requester):
     async with await es_requester as requester:
         await add_content(requester)
@@ -154,6 +156,7 @@ async def test_new_indexes_are_performed_during_migration(es_requester):
         assert num_docs == await search.get_doc_count(container)
 
 
+@pytest.mark.flaky(reruns=5)
 async def test_new_deletes_are_performed_during_migration(es_requester):
     async with await es_requester as requester:
         await add_content(requester)
@@ -187,6 +190,7 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
         assert num_docs == current_count
 
 
+@pytest.mark.flaky(reruns=5)
 async def test_updates_index_data(es_requester):
     async with await es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
