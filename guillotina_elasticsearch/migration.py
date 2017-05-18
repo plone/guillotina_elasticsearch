@@ -7,19 +7,25 @@ from guillotina.directives import merged_tagged_value_dict
 from guillotina.exceptions import NoIndexField
 from guillotina.interfaces import IAsyncBehavior
 from guillotina.interfaces import ICatalogDataAdapter
+from guillotina.interfaces import IContainer
 from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
 from guillotina.interfaces import IResourceFactory
 from guillotina.transactions import managed_transaction
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.utility import ElasticSearchUtility
+from guillotina_elasticsearch.utils import noop_response
 
 import asyncio
 import gc
 import json
+import logging
 import resource
 import threading
 import time
+
+
+logger = logging.getLogger('guillotina_elasticsearch')
 
 
 class Indexer:
@@ -66,18 +72,26 @@ class ElasticThread(threading.Thread):
     async def _run(self):
         utility = ElasticSearchUtility(loop=self._loop)
         bulk_data = []
+
+        uids = []
         for uuid, batch_type, data in self.batch:
+            uids.append(uuid)
             doc_type = data['type_name']
             if batch_type == 'update':
                 data = {'doc': data}
-            bulk_data.extend([{
+            bulk_data.append({
                 batch_type: {
                     '_index': self.index_name,
                     '_type': doc_type,
                     '_id': uuid
                 }
-            }, data])
-        await utility.conn.bulk(index=self.index_name, doc_type=None, body=bulk_data)
+            })
+            if batch_type != 'delete':
+                bulk_data.append(data)
+        results = await utility.conn.bulk(index=self.index_name, doc_type=None,
+                                          body=bulk_data)
+        if results['errors']:
+            logger.warn(f'Error bulk bulk putting: {", ".join(uids)}')
         utility.conn.close()
         del utility
         del self.batch
@@ -128,7 +142,7 @@ class Migrator:
             - requires more work...
     '''
 
-    def __init__(self, utility, context, response=None, force=False,
+    def __init__(self, utility, context, response=noop_response, force=False,
                  log_details=False, memory_tracking=False, request=None,
                  bulk_size=40):
         self.utility = utility
@@ -156,6 +170,7 @@ class Migrator:
         self.missing = []
         self.orphaned = []
         self.existing = []
+        self.errors = []
         self.mapping_diff = {}
         self.start_time = time.time()
         self.reindex_threads = []
@@ -163,9 +178,11 @@ class Migrator:
         self.next_index_name = None
 
     async def create_next_index(self):
-        version = await self.utility.get_version(self.container)
+        version = await self.utility.get_version(self.container,
+                                                 request=self.request)
         next_version = version + 1
-        index_name = await self.utility.get_index_name(self.container, self.request)
+        index_name = await self.utility.get_index_name(self.container,
+                                                       request=self.request)
         next_index_name = index_name + '_' + str(next_version)
         if await self.conn.indices.exists(next_index_name):
             if self.force:
@@ -176,7 +193,8 @@ class Migrator:
 
     async def copy_to_next_index(self):
         conn_es = await self.conn.transport.get_connection()
-        real_index_name = await self.utility.get_index_name(self.container, self.request)
+        real_index_name = await self.utility.get_index_name(self.container,
+                                                            self.request)
         await conn_es._session.post(
             str(conn_es._base_url) + '_reindex',
             data=json.dumps({
@@ -186,7 +204,8 @@ class Migrator:
               "dest": {
                 "index": self.next_index_name
               }
-            })
+            }),
+            timeout=10000000
         )
 
     async def get_all_uids(self):
@@ -206,7 +225,7 @@ class Migrator:
         while scroll_id:
             result = await self.utility.conn.scroll(
                 scroll_id=scroll_id,
-                scroll='30s'
+                scroll='2m'
             )
             if len(result['hits']['hits']) == 0:
                 break
@@ -220,7 +239,8 @@ class Migrator:
         Missing ones are ignored and we don't care about it.
         '''
         diffs = {}
-        existing_index_name = await self.utility.get_real_index_name(self.container)
+        existing_index_name = await self.utility.get_real_index_name(
+            self.container, self.request)
         for name, schema in getUtilitiesFor(IResourceFactory):
             new_definitions = {}
             existing_mapping = await self.conn.indices.get_mapping(existing_index_name, name)
@@ -269,6 +289,10 @@ class Migrator:
         if IFolder.providedBy(ob):
             await self.process_folder(ob)
 
+        if not IContainer.providedBy(ob):
+            del ob.__annotations__
+        del ob
+
     async def index_object(self, ob, full=False):
         batch_type = 'update'
         if full:
@@ -278,7 +302,9 @@ class Migrator:
             if ob.type_name not in self.mapping_diff:
                 # no fields change, ignore this guy...
                 return
-            data = {}
+            data = {
+                'type_name': ob.type_name  # always need this one...
+            }
             for index_name in self.mapping_diff[ob.type_name].keys():
                 data[index_name] = await self.indexer.get_value(ob, index_name)
 
@@ -292,68 +318,100 @@ class Migrator:
             self.interaction.invalidate_cache()
             num, _, _ = gc.get_count()
             gc.collect()
-            if self.response is not None:
-                if self.memory_tracking:
-                    total_memory = round(
-                        resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0, 1)
-                    self.response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (
-                        total_memory, num, len(gc.get_objects())))
-                self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
-                    self.counter.indexed, int(self.counter.per_sec()),
-                ))
+            if self.memory_tracking:
+                total_memory = round(
+                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0, 1)
+                self.response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (
+                    total_memory, num, len(gc.get_objects())))
+            self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
+                self.counter.indexed, int(self.counter.per_sec()),
+            ))
 
         if len(self.batch) >= self.bulk_size:
             await self.flush()
+
+    def join_threads(self):
+        for thread in self.reindex_threads:
+            thread.join()
+        self.reindex_threads = []
 
     async def flush(self):
         thread = ElasticThread(
             self.next_index_name,
             self.batch
         )
+        self.batch = []
+
         self.reindex_threads.append(thread)
         thread.start()
 
         if len(self.reindex_threads) > 7:
-            for thread in self.reindex_threads:
-                thread.join()
-            self.reindex_threads = []
-        self.batch = []
+            self.join_threads()
 
-    async def check_missing(self):
+    async def check_existing(self):
         '''
         Go through self.existing and see why it wasn't processed
         '''
         for uuid in self.existing:
-            ob = self.context._txn.get(uuid)
+            try:
+                ob = await self.context._p_jar.get(uuid)
+            except KeyError:
+                ob = None
             if ob is None:
                 # no longer present on db, this was orphaned
                 self.orphaned.append(uuid)
-                # XXX delete doc
+                # this is dumb... since we don't have the doc type on us, we
+                # need to ask elasticsearch for it again...
+                # elasticsearch does not allow deleting without the doc type
+                # even though you can query for a doc without it... argh
+                doc = await self.conn.get(self.next_index_name, uuid,
+                                          _source=False)
+                self.batch.append((uuid, 'delete', {'type_name': doc['_type']}))
+                await self.attempt_flush()
             else:
-                # XXX fill in parents and do a full index
-                pass
+                # XXX this should not happen so log it. Maybe we'll try doing something
+                # about it another time...
+                self.errors.append({
+                    'type': 'unprocessed',
+                    'uuid': uuid
+                })
+                # we re-query es to get full path of ob
+                # doc = self.utility.conn.get(
+                #     await self.utility.get_index_name(), fields='path'
+                # )
+                # import pdb; pdb.set_trace()
+                # ob = await do_traverse(self.request, self.container,
+                #                        doc['_source']['path'].strip('/').split('/'))
+                # import pdb; pdb.set_trace()
+                # await self.index_object(ob, full=True)
 
-    async def run_migration(self):
-        alias_index_name = await self.utility.get_index_name(self.container)
-        existing_index = await self.utility.get_real_index_name(self.container)
-
-        async with managed_transaction(self.request, write=True):
+    async def setup_next_index(self):
+        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
             self.next_index_version, self.next_index_name = await self.create_next_index()
             await self.utility.install_mappings_on_index(self.next_index_name)
-            await self.utility.activate_next_index(self.container, self.next_index_version)
+            await self.utility.activate_next_index(
+                self.container, self.next_index_version, request=self.request)
 
+    async def run_migration(self):
+        alias_index_name = await self.utility.get_index_name(self.container,
+                                                             request=self.request)
+        existing_index = await self.utility.get_real_index_name(self.container,
+                                                                request=self.request)
+
+        await self.setup_next_index()
         await self.copy_to_next_index()
 
         self.existing = await self.get_all_uids()
-
         self.mapping_diff = await self.calculate_mapping_diff()
 
-        await self.process_object(self.context)
+        await self.process_object(self.context)  # this is recursive
 
-        await self.check_missing()
+        await self.check_existing()
 
-        async with managed_transaction(self.request, write=True):
-            await self.utility.apply_next_index(self.container)
+        await self.flush()
+
+        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+            await self.utility.apply_next_index(self.container, self.request)
 
         await self.conn.indices.update_aliases({
             "actions": [

@@ -35,7 +35,7 @@ setup(
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
         'setuptools',
-        'guillotina',
+        'guillotina>=1.0.0a28.dev0',
         'aioes>=0.7.0',
         'ujson',
     ],

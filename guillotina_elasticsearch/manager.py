@@ -11,7 +11,7 @@ from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.schema import get_mappings
 
-import json
+import asyncio
 import logging
 
 
@@ -80,12 +80,10 @@ class ElasticSearchManager(DefaultSearchUtility):
 
     async def get_real_index_name(self, container, request=None):
         index_name = await self.get_index_name(container, request)
-        version = await self.get_version(container)
+        version = await self.get_version(container, request)
         return index_name + '_' + str(version)
 
     async def get_index_name(self, container, request=None):
-        if request is not None and hasattr(request, '_cache_index_name'):
-            return request._cache_index_name
         registry = await self.get_registry(container, request)
 
         try:
@@ -93,13 +91,18 @@ class ElasticSearchManager(DefaultSearchUtility):
         except KeyError:
             result = app_settings['elasticsearch'].get(
                 'index_name_prefix', 'guillotina-') + container.id
-        if request is not None:
-            request._cache_index_name = result
         return result
 
+    async def get_next_index_name(self, container, request=None):
+        registry = await self.get_registry(container, request)
+        if ('el_next_index_version' not in registry or
+                registry['el_next_index_version'] is None):
+            return None
+        index_name = await self.get_index_name(container, request)
+        version = registry['el_next_index_version']
+        return index_name + '_' + str(version)
+
     async def set_index_name(self, container, name, request=None):
-        if hasattr(request, '_cache_index_name'):
-            request._cache_index_name = name
         registry = await self.get_registry(container, request)
         registry['el_index_name'] = name
         registry._p_register()
@@ -206,16 +209,19 @@ class ElasticSearchManager(DefaultSearchUtility):
         except (RequestError, NotFoundError):
             pass
 
-    async def get_version(self, container):
-        registry = await self.get_registry(container, None)
+    async def get_version(self, container, request=None):
+        registry = await self.get_registry(container, request)
         try:
             version = registry['el_index_version']
         except KeyError:
             version = 1
         return version
 
-    async def set_version(self, container, version):
-        registry = await self.get_registry(container, None)
+    async def set_version(self, container, version, request=None, force=False):
+        registry = await self.get_registry(container, request)
+        if (not force and 'el_next_index_version' in registry and
+                registry['el_next_index_version'] is not None):
+            raise Exception('Cannot change index while migration is in progress')
         registry['el_index_version'] = version
         registry._p_register()
 
@@ -233,169 +239,23 @@ class ElasticSearchManager(DefaultSearchUtility):
             await self.conn.indices.put_mapping(index_name, key, value)
         await self.conn.indices.open(index_name)
 
-    async def activate_next_index(self, container, version):
+    async def activate_next_index(self, container, version, request=None):
         '''
         Next index support designates an index to also push
         delete and index calls to
         '''
-        registry = await self.get_registry(container, None)
+        registry = await self.get_registry(container, request)
+        try:
+            assert registry['el_next_index_version'] is not None
+        except KeyError:
+            pass
         registry['el_next_index_version'] = version
         registry._p_register()
 
-    async def apply_next_index(self, container):
-        registry = await self.get_registry(container, None)
+    async def apply_next_index(self, container, request=None):
+        registry = await self.get_registry(container, request)
         assert registry['el_next_index_version'] is not None
-        await self.set_version(container, registry['el_next_index_version'])
+        await self.set_version(
+            container, registry['el_next_index_version'], request, force=True)
         registry['el_next_index_version'] = None
         registry._p_register()
-
-    async def migrate_index(self, container):
-        index_name = await self.get_index_name(container)
-        version = await self.get_version(container)
-        next_version = version + 1
-        real_index_name = index_name + '_' + str(version)
-        real_index_name_next_version = index_name + '_' + str(next_version)
-        temp_index = index_name + '_' + str(next_version) + '_t'
-
-        # Create and setup the new index
-        exists = await self.conn.indices.exists(index_name)
-        if exists:
-            logger.warn('Canonical index exist')
-            await self.conn.indices.delete(index_name)
-
-        # Create and setup the new index
-        exists = await self.conn.indices.exists(real_index_name_next_version)
-        if exists:
-            logger.warn('New version exist')
-            await self.conn.indices.delete(real_index_name_next_version)
-
-        exists = await self.conn.indices.exists(temp_index)
-        conn_es = await self.conn.transport.get_connection()
-
-        if exists:
-            # There is a temp index so it needs to be reindex to the old one
-            # Its been a failing reindexing
-            logger.warn('Temp index exist')
-            # Move aliases
-            body = {
-                "actions": [
-                    {"remove": {
-                        "alias": index_name,
-                        "index": temp_index
-                    }},
-                    {"add": {
-                        "alias": index_name,
-                        "index": real_index_name
-                    }}
-                ]
-            }
-            conn_es = await self.conn.transport.get_connection()
-            async with conn_es._session.post(
-                        str(conn_es._base_url) + '_aliases',
-                        data=json.dumps(body),
-                        timeout=1000000
-                    ) as resp:
-                pass
-            body = {
-              "source": {
-                "index": temp_index
-              },
-              "dest": {
-                "index": real_index_name
-              }
-            }
-            async with conn_es._session.post(
-                        str(conn_es._base_url) + '_reindex',
-                        data=json.dumps(body)
-                    ) as resp:
-                pass
-            await self.conn.indices.delete(temp_index)
-
-        await self.conn.indices.create(temp_index)
-        await self.conn.indices.create(real_index_name_next_version)
-        await self.install_mappings_on_index(real_index_name_next_version)
-
-        # Start to duplicate aliases
-        body = {
-            "actions": [
-                {"remove": {
-                    "alias": index_name,
-                    "index": real_index_name
-                }},
-                {"add": {
-                    "alias": index_name,
-                    "index": temp_index
-                }}
-            ]
-        }
-
-        async with conn_es._session.post(
-                    str(conn_es._base_url) + '_aliases',
-                    data=json.dumps(body),
-                    timeout=1000000
-                ) as resp:
-            pass
-        logger.warn('Updated aliases')
-
-        # Reindex
-        body = {
-          "source": {
-            "index": real_index_name
-          },
-          "dest": {
-            "index": real_index_name_next_version
-          }
-        }
-        conn_es = await self.conn.transport.get_connection()
-        async with conn_es._session.post(
-                    str(conn_es._base_url) + '_reindex',
-                    data=json.dumps(body),
-                    timeout=10000000
-                ) as resp:
-            pass
-        logger.warn('Reindexed')
-
-        # Move aliases
-        body = {
-            "actions": [
-                {"remove": {
-                    "alias": index_name,
-                    "index": temp_index
-                }},
-                {"add": {
-                    "alias": index_name,
-                    "index": real_index_name_next_version
-                }}
-            ]
-        }
-        conn_es = await self.conn.transport.get_connection()
-        async with conn_es._session.post(
-                    str(conn_es._base_url) + '_aliases',
-                    data=json.dumps(body),
-                    timeout=1000000
-                ) as resp:
-            pass
-        logger.warn('Updated aliases')
-        await self.set_version(container, next_version)
-
-        # Reindex
-        body = {
-          "source": {
-            "index": temp_index
-          },
-          "dest": {
-            "index": real_index_name_next_version
-          }
-        }
-        async with conn_es._session.post(
-                    str(conn_es._base_url) + '_reindex',
-                    data=json.dumps(body)
-                ) as resp:  # noqa
-            pass
-        logger.warn('Reindexed temp')
-
-        # Delete old index
-        await self.conn.indices.close(real_index_name)
-        await self.conn.indices.delete(real_index_name)
-        await self.conn.indices.close(temp_index)
-        await self.conn.indices.delete(temp_index)
