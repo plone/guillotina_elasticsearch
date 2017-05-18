@@ -106,7 +106,7 @@ async def test_fixes_missing(es_requester):
         ob = await container.async_get(key)
         await search.remove(container, [(
             ob._p_oid, ob.type_name, get_content_path(ob)
-        )], request=request)
+        )], request=request, future=False)
 
         await asyncio.sleep(1)
         await search.refresh(container)
@@ -179,7 +179,7 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
         ob = await container.async_get(key)
         await search.remove(container, [(
             ob._p_oid, ob.type_name, get_content_path(ob)
-        )], request=request)
+        )], request=request, future=False)
 
         await asyncio.sleep(1)
         await search.refresh(container, migrator.work_index_name)

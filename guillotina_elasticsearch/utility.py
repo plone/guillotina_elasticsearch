@@ -412,7 +412,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 logger.error(json.dumps(result))
             return result
 
-    async def remove(self, container, uids, index_name=None, request=None):
+    async def remove(self, container, uids, index_name=None, request=None, future=True):
         """List of UIDs to remove from index.
 
         It will remove all the childs on the index"""
@@ -434,7 +434,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                         '_type': type_name
                     }
                 })
-                await self.unindex_all_childs(content_path)
+                await self.unindex_all_childs(content_path, future=future)
             await self.conn.bulk(index=index_name, body=bulk_data)
 
         if check_next:
