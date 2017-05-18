@@ -177,7 +177,7 @@ class Migrator:
         self.start_time = time.time()
         self.reindex_threads = []
 
-        self.next_index_name = None
+        self.work_index_name = None
 
     def per_sec(self):
         return self.indexed / (time.time() - self.start_time)
@@ -207,7 +207,7 @@ class Migrator:
                 "index": real_index_name
               },
               "dest": {
-                "index": self.next_index_name
+                "index": self.work_index_name
               }
             }),
             timeout=10000000
@@ -249,9 +249,9 @@ class Migrator:
         for name, schema in getUtilitiesFor(IResourceFactory):
             new_definitions = {}
             existing_mapping = await self.conn.indices.get_mapping(existing_index_name, name)
-            next_mapping = await self.conn.indices.get_mapping(self.next_index_name, name)
+            next_mapping = await self.conn.indices.get_mapping(self.work_index_name, name)
             existing_mapping = existing_mapping[existing_index_name]['mappings'][name]['properties']
-            next_mapping = next_mapping[self.next_index_name]['mappings'][name]['properties']
+            next_mapping = next_mapping[self.work_index_name]['mappings'][name]['properties']
 
             for field_name, definition in next_mapping.items():
                 if (field_name not in existing_mapping or
@@ -349,7 +349,7 @@ class Migrator:
 
     async def flush(self):
         thread = ElasticThread(
-            self.next_index_name,
+            self.work_index_name,
             self.batch
         )
         self.batch = []
@@ -376,7 +376,7 @@ class Migrator:
                 # need to ask elasticsearch for it again...
                 # elasticsearch does not allow deleting without the doc type
                 # even though you can query for a doc without it... argh
-                doc = await self.conn.get(self.next_index_name, uuid,
+                doc = await self.conn.get(self.work_index_name, uuid,
                                           _source=False)
                 self.batch.append((uuid, 'delete', {'type_name': doc['_type']}))
                 await self.attempt_flush()
@@ -399,8 +399,8 @@ class Migrator:
 
     async def setup_next_index(self):
         async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
-            self.next_index_version, self.next_index_name = await self.create_next_index()
-            await self.utility.install_mappings_on_index(self.next_index_name)
+            self.next_index_version, self.work_index_name = await self.create_next_index()
+            await self.utility.install_mappings_on_index(self.work_index_name)
             await self.utility.activate_next_index(
                 self.container, self.next_index_version, request=self.request)
 
@@ -435,7 +435,7 @@ class Migrator:
                 }},
                 {"add": {
                     "alias": alias_index_name,
-                    "index": self.next_index_name
+                    "index": self.work_index_name
                 }}
             ]
         })

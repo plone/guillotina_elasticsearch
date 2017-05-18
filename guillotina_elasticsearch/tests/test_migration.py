@@ -110,7 +110,7 @@ async def test_fixes_missing(es_requester):
 
         await search.refresh(container)
         # new index should fix missing one, old index still has it missing
-        num_docs = await search.get_doc_count(container, migrator.next_index_name)
+        num_docs = await search.get_doc_count(container, migrator.work_index_name)
         # it's + 2 here because reindexing also adds container object which
         # in these tests is not there by default.
         assert num_docs == (old_count + 2)
@@ -127,16 +127,16 @@ async def test_new_indexes_are_performed_during_migration(es_requester):
         await migrator.setup_next_index()
         await migrator.copy_to_next_index()
 
-        await search.refresh(container, migrator.next_index_name)
+        await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        num_docs = await search.get_doc_count(container, migrator.next_index_name)
+        num_docs = await search.get_doc_count(container, migrator.work_index_name)
         assert num_docs == await search.get_doc_count(container)
 
         await add_content(requester, base_id='foobar1-')
 
-        await search.refresh(container, migrator.next_index_name)
+        await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        num_docs = await search.get_doc_count(container, migrator.next_index_name)
+        num_docs = await search.get_doc_count(container, migrator.work_index_name)
         assert num_docs == await search.get_doc_count(container)
 
 
@@ -150,9 +150,9 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
         await migrator.setup_next_index()
         await migrator.copy_to_next_index()
 
-        await search.refresh(container, migrator.next_index_name)
+        await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        num_docs = await search.get_doc_count(container, migrator.next_index_name)
+        num_docs = await search.get_doc_count(container, migrator.work_index_name)
         assert num_docs == await search.get_doc_count(container)
 
         keys = await container.async_keys()
@@ -162,9 +162,9 @@ async def test_new_deletes_are_performed_during_migration(es_requester):
             ob._p_oid, ob.type_name, get_content_path(ob)
         )], request=request)
 
-        await search.refresh(container, migrator.next_index_name)
+        await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        num_docs = await search.get_doc_count(container, migrator.next_index_name)
+        num_docs = await search.get_doc_count(container, migrator.work_index_name)
         current_count = await search.get_doc_count(container)
         assert num_docs == current_count
 
@@ -176,7 +176,7 @@ async def test_updates_index_data(es_requester):
 
         migrator = Migrator(search, container, force=True, request=request)
         version, new_index_name = await migrator.create_next_index()
-        migrator.next_index_name = new_index_name
+        migrator.work_index_name = new_index_name
         await search.install_mappings_on_index(new_index_name)
 
         ob = create_content()
@@ -219,7 +219,7 @@ async def test_calculate_mapping_diff(es_requester):
 
         migrator = Migrator(search, container, force=True, request=request)
         version, new_index_name = await migrator.create_next_index()
-        migrator.next_index_name = new_index_name
+        migrator.work_index_name = new_index_name
 
         mappings = get_mappings()
         index_settings = DEFAULT_SETTINGS.copy()
@@ -253,8 +253,8 @@ async def test_updates_index_name(es_requester):
         migrator = Migrator(search, container, force=True, request=request)
         await migrator.run_migration()
         assert not await search.conn.indices.exists(existing_index)
-        assert search.conn.indices.exists(migrator.next_index_name)
-        assert await search.get_real_index_name(container) == migrator.next_index_name
+        assert search.conn.indices.exists(migrator.work_index_name)
+        assert await search.get_real_index_name(container) == migrator.work_index_name
 
 
 async def test_moves_docs_over(es_requester):
@@ -269,7 +269,7 @@ async def test_moves_docs_over(es_requester):
         migrator = Migrator(search, container, force=True, request=request)
         await migrator.run_migration()
 
-        assert await search.get_real_index_name(container) == migrator.next_index_name
+        assert await search.get_real_index_name(container) == migrator.work_index_name
         await search.refresh(container)
         # adds container to index(+ 1)
         assert await search.get_doc_count(container) == (current_count + 1)
