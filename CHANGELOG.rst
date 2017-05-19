@@ -1,7 +1,8 @@
 1.0.22 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Be able to cancel migration and have it do some cleanup
+  [vangheem]
 
 
 1.0.21 (2017-05-19)

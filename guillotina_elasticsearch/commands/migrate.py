@@ -17,6 +17,7 @@ class printer:
 
 class MigrateCommand(Command):
     description = 'Migrate indexes'
+    migrator = None
 
     def get_parser(self):
         parser = super(MigrateCommand, self).get_parser()
@@ -40,20 +41,31 @@ class MigrateCommand(Command):
                     tm.request.container = container
                     yield tm, container
 
-    async def run(self, arguments, settings, app):
+    async def migrate_all(self, arguments):
         search = getUtility(ICatalogUtility)
         async for tm, container in self.get_containers():
-            migrator = Migrator(
+            self.migrator = Migrator(
                 search, container, response=printer(), full=arguments.full,
                 force=arguments.force, log_details=arguments.log_details,
                 memory_tracking=arguments.memory_tracking)
-            await migrator.run_migration()
-            seconds = int(time.time() - migrator.start_time)
+            await self.migrator.run_migration()
+            seconds = int(time.time() - self.migrator.start_time)
             print(f'''Finished migration:
 Total Seconds: {seconds}
-Processed: {migrator.processed}
-Indexed: {migrator.indexed}
-Objects missing: {len(migrator.missing)}
-Objects orphaned: {len(migrator.orphaned)}
-Mapping Diff: {migrator.mapping_diff}
+Processed: {self.migrator.processed}
+Indexed: {self.migrator.indexed}
+Objects missing: {len(self.migrator.missing)}
+Objects orphaned: {len(self.migrator.orphaned)}
+Mapping Diff: {self.migrator.mapping_diff}
 ''')
+
+    def run(self, arguments, settings, app):
+        loop = self.get_loop()
+        try:
+            loop.run_until_complete(self.migrate_all(arguments))
+        except KeyboardInterrupt:  # pragma: no cover
+            pass
+        finally:
+            if self.migrator.status != 'done':
+                loop = self.get_loop()
+                loop.run_until_complete(self.migrator.cancel_migration())

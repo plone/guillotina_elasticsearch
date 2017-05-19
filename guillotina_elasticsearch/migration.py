@@ -178,15 +178,17 @@ class Migrator:
         self.existing = []
         self.errors = []
         self.mapping_diff = {}
-        self.start_time = time.time()
+        self.start_time = self.index_start_time = time.time()
         self.reindex_threads = []
+        self.status = 'started'
+        self.active_task_id = None
 
         self.copied_docs = 0
 
         self.work_index_name = None
 
     def per_sec(self):
-        return self.processed / (time.time() - self.start_time)
+        return self.processed / (time.time() - self.index_start_time)
 
     async def create_next_index(self):
         version = await self.utility.get_version(self.container,
@@ -225,7 +227,7 @@ class Migrator:
         )
 
         data = await resp.json()
-        task_id = data['task']
+        self.active_task_id = task_id = data['task']
         while True:
             await asyncio.sleep(10)
             resp = await conn_es._session.get(
@@ -240,6 +242,7 @@ class Migrator:
                                 f'Copying data to new index. task id: {task_id}')
             self.copied_docs = status["created"]
 
+        self.active_task_id = None
         response = data['response']
         failures = response['failures']
         if len(failures) > 0:
@@ -468,6 +471,22 @@ class Migrator:
                 self.container, self.next_index_version, request=self.request,
                 force=self.force)
 
+    async def cancel_migration(self):
+        # canceling the migration, clearing index
+        self.response.write('Canceling migration')
+        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+            await self.utility.disable_next_index(self.context, request=self.request)
+            self.response.write('Next index disabled')
+        if self.active_task_id is not None:
+            self.response.write('Canceling copy of index task')
+            conn_es = await self.conn.transport.get_connection()
+            await conn_es._session.post(
+                str(conn_es._base_url) + '_tasks/' + self.active_task_id + '/_cancel')
+            asyncio.sleep(5)
+        self.response.write('Deleting new index')
+        await self.conn.indices.delete(self.work_index_name)
+        self.response.write('Migration canceled')
+
     async def run_migration(self):
         alias_index_name = await self.utility.get_index_name(self.container,
                                                              request=self.request)
@@ -489,6 +508,7 @@ class Migrator:
 
         self.existing = await self.get_all_uids()
 
+        self.index_start_time = time.time()
         await self.process_object(self.context)  # this is recursive
 
         await self.check_existing()
@@ -499,6 +519,7 @@ class Migrator:
         async with self.utility._migration_lock:
             async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
                 await self.utility.apply_next_index(self.container, self.request)
+            self.migrator.status = 'done'
 
             await self.conn.indices.update_aliases({
                 "actions": [
