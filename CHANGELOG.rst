@@ -1,4 +1,4 @@
-1.0.21 (unreleased)
+1.0.21 (2017-05-19)
 -------------------
 
 - A bunch of migration fixes to make it more resilient
