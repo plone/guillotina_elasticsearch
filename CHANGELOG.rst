@@ -1,4 +1,4 @@
-1.0.22 (unreleased)
+1.0.22 (2017-05-19)
 -------------------
 
 - Be able to cancel migration and have it do some cleanup
