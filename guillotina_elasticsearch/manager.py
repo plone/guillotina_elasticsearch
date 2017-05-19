@@ -255,6 +255,15 @@ class ElasticSearchManager(DefaultSearchUtility):
         registry['el_next_index_version'] = version
         registry._p_register()
 
+    async def disable_next_index(self, container, request=None):
+        '''
+        Next index support designates an index to also push
+        delete and index calls to
+        '''
+        registry = await self.get_registry(container, request)
+        registry['el_next_index_version'] = None
+        registry._p_register()
+
     async def apply_next_index(self, container, request=None):
         registry = await self.get_registry(container, request)
         assert registry['el_next_index_version'] is not None

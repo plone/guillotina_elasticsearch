@@ -53,3 +53,11 @@ New index and delete requests are performed on both indexes during live migratio
 
 It is also smart about how to migrate, doing a diff on the mapping and only
 reindexing the fields that changed.
+
+
+TODO
+----
+
+- do reindex out of band and monitor task
+  - updated info
+- after getting list of doc ids, check against current count and give log info...

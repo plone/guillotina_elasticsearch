@@ -1,7 +1,8 @@
 1.0.21 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- A bunch of migration fixes to make it more resilient
+  [vangheem]
 
 
 1.0.20 (2017-05-18)

@@ -45,8 +45,11 @@ class Indexer:
                     }
 
     async def get_value(self, ob, index_name):
-        schema = self.mappings[ob.type_name][index_name]['schema']
-        index_data = self.mappings[ob.type_name][index_name]['properties']
+        try:
+            schema = self.mappings[ob.type_name][index_name]['schema']
+            index_data = self.mappings[ob.type_name][index_name]['properties']
+        except KeyError:
+            return None
         behavior = schema(ob)
         if IAsyncBehavior.implementedBy(behavior.__class__):
             # providedBy not working here?
@@ -178,6 +181,8 @@ class Migrator:
         self.start_time = time.time()
         self.reindex_threads = []
 
+        self.copied_docs = 0
+
         self.work_index_name = None
 
     def per_sec(self):
@@ -193,7 +198,9 @@ class Migrator:
         if await self.conn.indices.exists(next_index_name):
             if self.force:
                 # delete and recreate
-                await self.conn.indices.delete(next_index_name)
+                self.response.write('Clearing index')
+                resp = await self.conn.indices.delete(next_index_name)
+                assert resp['acknowledged']
         await self.conn.indices.create(next_index_name)
         return next_version, next_index_name
 
@@ -201,23 +208,49 @@ class Migrator:
         conn_es = await self.conn.transport.get_connection()
         real_index_name = await self.utility.get_index_name(self.container,
                                                             self.request)
-        await conn_es._session.post(
+        resp = await conn_es._session.post(
             str(conn_es._base_url) + '_reindex',
             params={
-                'refresh': 'true'
+                'wait_for_completion': 'false'
             },
             data=json.dumps({
               "source": {
-                "index": real_index_name
+                "index": real_index_name,
+                "size": 100
               },
               "dest": {
                 "index": self.work_index_name
               }
-            }),
-            timeout=10000000
+            })
         )
 
+        data = await resp.json()
+        task_id = data['task']
+        while True:
+            await asyncio.sleep(10)
+            resp = await conn_es._session.get(
+                str(conn_es._base_url) + '_tasks/' + task_id)
+            if resp.status in (400, 404):
+                break
+            data = await resp.json()
+            if data['completed']:
+                break
+            status = data["task"]["status"]
+            self.response.write(f'{status["created"]}/{status["total"]} - '
+                                f'Copying data to new index. task id: {task_id}')
+            self.copied_docs = status["created"]
+
+        response = data['response']
+        failures = response['failures']
+        if len(failures) > 0:
+            failures = json.dumps(failures, sort_keys=True, indent=4,
+                                  separators=(',', ': '))
+            self.response.write(f'Reindex encountered failures: {failures}')
+        else:
+            self.response.write(f'Finished copying to new index: {self.copied_docs}')
+
     async def get_all_uids(self):
+        self.response.write('Retrieving existing doc ids')
         page_size = 3000
         ids = []
         index_name = await self.utility.get_index_name(self.container)
@@ -239,7 +272,9 @@ class Migrator:
             if len(result['hits']['hits']) == 0:
                 break
             ids.extend([r['_id'] for r in result['hits']['hits']])
+            self.response.write(f'Retrieved {len(ids)} doc ids')
             scroll_id = result['_scroll_id']
+        self.response.write(f'Retrieved {len(ids)}. Copied {self.copied_docs} docs')
         return ids
 
     async def calculate_mapping_diff(self):
@@ -250,19 +285,32 @@ class Migrator:
         diffs = {}
         existing_index_name = await self.utility.get_real_index_name(
             self.container, self.request)
-        for name, schema in getUtilitiesFor(IResourceFactory):
+        existing_mappings = await self.conn.indices.get_mapping(existing_index_name)
+        existing_mappings = existing_mappings[existing_index_name]['mappings']
+        next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
+        next_mappings = next_mappings[self.work_index_name]['mappings']
+
+        for type_name, schema in getUtilitiesFor(IResourceFactory):
             new_definitions = {}
-            existing_mapping = await self.conn.indices.get_mapping(existing_index_name, name)
-            next_mapping = await self.conn.indices.get_mapping(self.work_index_name, name)
-            existing_mapping = existing_mapping[existing_index_name]['mappings'][name]['properties']
-            next_mapping = next_mapping[self.work_index_name]['mappings'][name]['properties']
+            existing_mapping = existing_mappings[type_name]['properties']
+            next_mapping = next_mappings[type_name]['properties']
 
             for field_name, definition in next_mapping.items():
                 if (field_name not in existing_mapping or
                         definition != existing_mapping[field_name]):
                     new_definitions[field_name] = definition
             if len(new_definitions) > 0:
-                diffs[name] = new_definitions
+                diffs[type_name] = new_definitions
+
+        for type_name, mapping in existing_mappings.items():
+            if type_name not in next_mappings:
+                # special case here... we need to import this mapping still
+                # in order for the index copy to work correctly if docs ref it
+                self.response.write(f'Backporting mapping of {type_name} to new '
+                                    f'even though it is not defined anymore')
+                await self.conn.indices.put_mapping(
+                    self.work_index_name, type_name, mapping)
+
         return diffs
 
     async def process_folder(self, ob):
@@ -313,31 +361,31 @@ class Migrator:
             if ob.type_name not in self.mapping_diff:
                 # no fields change, ignore this guy...
                 if self.log_details:
-                    self.response.write(b'(%d %d/sec) (skipped) Object: %s, type: %s, Buffer: %d\n' % (
-                        self.processed, int(self.per_sec()),
-                        get_content_path(ob).encode('utf-8'), batch_type.encode('utf-8'),
-                        len(self.batch)))
+                    self.response.write(f'({self.processed} {int(self.per_sec())}) '
+                                        f'(skipped) Object: {get_content_path(ob)}, '
+                                        f'Type: {batch_type}, Buffer: {len(self.batch)}')
                 return
             data = {
                 'type_name': ob.type_name  # always need this one...
             }
             for index_name in self.mapping_diff[ob.type_name].keys():
-                data[index_name] = await self.indexer.get_value(ob, index_name)
+                val = await self.indexer.get_value(ob, index_name)
+                if val is not None:
+                    data[index_name] = val
 
         self.indexed += 1
         self.batch.append((ob.uuid, batch_type, data))
 
         if self.log_details:
-            self.response.write(b'(%d %d/sec) Object: %s, type: %s, fields: %d, Buffer: %d\n' % (
-                self.processed, int(self.per_sec()),
-                get_content_path(ob).encode('utf-8'), batch_type.encode('utf-8'),
-                len(data), len(self.batch)))
+            self.response.write(f'({self.processed} {int(self.per_sec())}) '
+                                f'Object: {get_content_path(ob)}, '
+                                f'Type: {batch_type}, Buffer: {len(self.batch)}')
 
         await self.attempt_flush()
 
     async def attempt_flush(self):
 
-        if self.indexed % 500 == 0:
+        if self.processed % 500 == 0:
             self.interaction.invalidate_cache()
             num, _, _ = gc.get_count()
             gc.collect()
@@ -409,6 +457,10 @@ class Migrator:
                 # await self.index_object(ob, full=True)
 
     async def setup_next_index(self):
+        self.response.write(b'Creating new index')
+        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+            await self.utility.disable_next_index(self.context, request=self.request)
+
         async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
             self.next_index_version, self.work_index_name = await self.create_next_index()
             await self.utility.install_mappings_on_index(self.work_index_name)
@@ -424,15 +476,18 @@ class Migrator:
 
         await self.setup_next_index()
 
-        await asyncio.sleep(1)
+        self.mapping_diff = await self.calculate_mapping_diff()
+        diff = json.dumps(self.mapping_diff, sort_keys=True, indent=4,
+                          separators=(',', ': '))
+        self.response.write(f'Caculated mapping diff: {diff}')
 
         if not self.full:
             # if full, we're reindexing everything does not matter what anyways, so skip
+            self.response.write('Copying initial index data from existing index into new')
             await self.copy_to_next_index()
-            await asyncio.sleep(1)
+            self.response.write('Copying initial index data finished')
 
         self.existing = await self.get_all_uids()
-        self.mapping_diff = await self.calculate_mapping_diff()
 
         await self.process_object(self.context)  # this is recursive
 
