@@ -1,8 +1,8 @@
 1.0.23 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Fix reindexing on security change
+  [vangheem]
 
 1.0.22 (2017-05-19)
 -------------------

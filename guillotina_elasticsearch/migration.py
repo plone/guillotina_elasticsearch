@@ -11,6 +11,7 @@ from guillotina.interfaces import IContainer
 from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
 from guillotina.interfaces import IResourceFactory
+from guillotina.interfaces import ISecurityInfo
 from guillotina.transactions import managed_transaction
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
@@ -148,7 +149,7 @@ class Migrator:
 
     def __init__(self, utility, context, response=noop_response, force=False,
                  log_details=False, memory_tracking=False, request=None,
-                 bulk_size=40, full=False):
+                 bulk_size=40, full=False, reindex_security=False):
         self.utility = utility
         self.conn = utility.conn
         self.context = context
@@ -158,6 +159,7 @@ class Migrator:
         self.log_details = log_details
         self.memory_tracking = memory_tracking
         self.bulk_size = bulk_size
+        self.reindex_security = reindex_security
 
         if request is None:
             self.request = get_current_request()
@@ -357,7 +359,9 @@ class Migrator:
     async def index_object(self, ob, full=False):
 
         batch_type = 'update'
-        if full or self.full:
+        if self.reindex_security:
+            data = ISecurityInfo(ob)()
+        elif full or self.full:
             data = await ICatalogDataAdapter(ob)()
             batch_type = 'index'
         else:
