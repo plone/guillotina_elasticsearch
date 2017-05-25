@@ -1,4 +1,4 @@
-1.0.23 (unreleased)
+1.0.23 (2017-05-25)
 -------------------
 
 - Fix reindexing on security change
