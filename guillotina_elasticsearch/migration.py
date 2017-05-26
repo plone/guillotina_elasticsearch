@@ -297,6 +297,10 @@ class Migrator:
 
         for type_name, schema in getUtilitiesFor(IResourceFactory):
             new_definitions = {}
+            if type_name not in existing_mappings:
+                diffs[type_name] = next_mappings[type_name]['properties']
+                continue
+
             existing_mapping = existing_mappings[type_name]['properties']
             next_mapping = next_mappings[type_name]['properties']
 
@@ -487,8 +491,9 @@ class Migrator:
             await conn_es._session.post(
                 str(conn_es._base_url) + '_tasks/' + self.active_task_id + '/_cancel')
             asyncio.sleep(5)
-        self.response.write('Deleting new index')
-        await self.conn.indices.delete(self.work_index_name)
+        if self.work_index_name:
+            self.response.write('Deleting new index')
+            await self.conn.indices.delete(self.work_index_name)
         self.response.write('Migration canceled')
 
     async def run_migration(self):
@@ -523,7 +528,7 @@ class Migrator:
         async with self.utility._migration_lock:
             async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
                 await self.utility.apply_next_index(self.container, self.request)
-            self.migrator.status = 'done'
+            self.status = 'done'
 
             await self.conn.indices.update_aliases({
                 "actions": [

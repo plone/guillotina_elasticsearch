@@ -1,7 +1,11 @@
 1.0.24 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix issue where a bad original index would screw up index diff calculation
+  [vangheem]
+
+- Fix migration failure issue before flipping new index on
+  [vangheem]
 
 
 1.0.23 (2017-05-25)

@@ -16,7 +16,7 @@ import random
 
 
 @pytest.mark.flaky(reruns=5)
-async def test_migrate_while_content_getting_added(es_requester):
+async def _test_migrate_while_content_getting_added(es_requester):
     async with await es_requester as requester:
         add_count = await add_content(requester)
 
@@ -95,6 +95,7 @@ async def test_removes_orphans(es_requester):
         assert migrator.orphaned[0] == 'foobar'
 
 
+@pytest.mark.flaky(reruns=5)
 async def test_fixes_missing(es_requester):
     async with await es_requester as requester:
         await add_content(requester, 2, 2)

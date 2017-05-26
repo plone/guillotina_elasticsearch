@@ -6,13 +6,17 @@ from guillotina.interfaces import IDatabase
 from guillotina_elasticsearch.migration import Migrator
 
 import time
+import logging
+
+
+logger = logging.getLogger('guillotina_elasticsearch')
 
 
 class printer:
     def write(self, txt):
         if isinstance(txt, bytes):
             txt = txt.decode('utf-8')
-        print(txt.strip())
+        logger.warning(txt.strip())
 
 
 class MigrateCommand(Command):
