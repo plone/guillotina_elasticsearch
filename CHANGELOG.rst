@@ -1,4 +1,4 @@
-1.0.24 (unreleased)
+1.0.24 (2017-05-26)
 -------------------
 
 - Fix issue where a bad original index would screw up index diff calculation
