@@ -1,4 +1,4 @@
-1.0.26 (unreleased)
+1.0.26 (2017-05-26)
 -------------------
 
 - When adding groups to query that is built, make sure to prepend each group with
