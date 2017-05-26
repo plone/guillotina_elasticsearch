@@ -324,9 +324,12 @@ class Migrator:
 
     async def process_folder(self, ob):
         for key in await ob.async_keys():
-            # if key in already_visited:
-            #     continue
-            item = await ob._p_jar.get_child(ob, key)
+            try:
+                item = await ob._p_jar.get_child(ob, key)
+            except KeyError:
+                continue
+            if item is None:
+                continue
             await self.process_object(item)
             del item
 

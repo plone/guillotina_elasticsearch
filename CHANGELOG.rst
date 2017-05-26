@@ -1,7 +1,8 @@
 1.0.25 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Handle potential issue where data is changing while you're doing the reindex
+  [vangheem]
 
 
 1.0.24 (2017-05-26)
