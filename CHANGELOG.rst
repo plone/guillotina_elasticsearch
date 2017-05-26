@@ -1,4 +1,4 @@
-1.0.25 (unreleased)
+1.0.25 (2017-05-26)
 -------------------
 
 - Handle potential issue where data is changing while you're doing the reindex
