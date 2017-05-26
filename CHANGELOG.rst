@@ -1,7 +1,10 @@
 1.0.26 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- When adding groups to query that is built, make sure to prepend each group with
+  "group:" so we can distinguish groups from users and somehow can not potentially
+  hack it where they add a "root" group they are a part of
+  [vangheem]
 
 
 1.0.25 (2017-05-26)
