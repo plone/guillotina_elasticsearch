@@ -1,7 +1,8 @@
 1.0.27 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Make sure to flush reindexed items when calling reindex_all_content
+  [vangheem]
 
 
 1.0.26 (2017-05-26)

@@ -364,7 +364,6 @@ class Migrator:
         del ob
 
     async def index_object(self, ob, full=False):
-
         batch_type = 'update'
         if self.reindex_security:
             data = ISecurityInfo(ob)()

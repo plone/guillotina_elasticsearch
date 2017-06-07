@@ -45,6 +45,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         migrator = Migrator(self, obj, response=response, reindex_security=security)
         migrator.work_index_name = await self.get_index_name(request.container)
         await migrator.process_object(obj)
+        await migrator.flush()
 
     async def search(self, container, query):
         """
