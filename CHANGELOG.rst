@@ -1,4 +1,4 @@
-1.0.27 (unreleased)
+1.0.27 (2017-06-07)
 -------------------
 
 - Make sure to flush reindexed items when calling reindex_all_content
