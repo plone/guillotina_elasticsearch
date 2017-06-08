@@ -1,7 +1,8 @@
 1.0.28 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Be able to migrate the mapping only and skip working through content on the site
+  [vangheem]
 
 
 1.0.27 (2017-06-07)
