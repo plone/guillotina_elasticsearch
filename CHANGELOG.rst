@@ -1,4 +1,4 @@
-1.1.0 (unreleased)
+1.1.0 (2017-06-09)
 ------------------
 
 - Add Reindexer utility that specializes just in reindexing instead of
