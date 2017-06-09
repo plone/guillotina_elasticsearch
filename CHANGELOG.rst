@@ -1,7 +1,9 @@
 1.1.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Move fixtures out of conftest.py into it's own module. This could break
+  tests that depend on it!
+  [vangheem]
 
 
 1.1.0 (2017-06-09)
