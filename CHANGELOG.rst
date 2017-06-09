@@ -1,4 +1,4 @@
-1.0.29 (unreleased)
+1.0.29 (2017-06-08)
 -------------------
 
 - Clean mapping before it's compared to prevent false positives for detecting
