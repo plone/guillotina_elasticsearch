@@ -32,6 +32,7 @@ class MigrateCommand(Command):
         parser.add_argument('--log-details', action='store_true')
         parser.add_argument('--memory-tracking', action='store_true')
         parser.add_argument('--reindex-security', action='store_true')
+        parser.add_argument('--mapping-only', action='store_true')
         return parser
 
     async def get_containers(self):
@@ -53,7 +54,8 @@ class MigrateCommand(Command):
                 search, container, response=printer(), full=arguments.full,
                 force=arguments.force, log_details=arguments.log_details,
                 memory_tracking=arguments.memory_tracking,
-                reindex_security=arguments.reindex_security)
+                reindex_security=arguments.reindex_security,
+                mapping_only=arguments.mapping_only)
             await self.migrator.run_migration()
             seconds = int(time.time() - self.migrator.start_time)
             print(f'''Finished migration:

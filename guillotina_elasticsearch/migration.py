@@ -149,7 +149,7 @@ class Migrator:
 
     def __init__(self, utility, context, response=noop_response, force=False,
                  log_details=False, memory_tracking=False, request=None,
-                 bulk_size=40, full=False, reindex_security=False):
+                 bulk_size=40, full=False, reindex_security=False, mapping_only=False):
         self.utility = utility
         self.conn = utility.conn
         self.context = context
@@ -160,6 +160,9 @@ class Migrator:
         self.memory_tracking = memory_tracking
         self.bulk_size = bulk_size
         self.reindex_security = reindex_security
+        if mapping_only and full:
+            raise Exception('Can not do a full reindex and a mapping only migration')
+        self.mapping_only = mapping_only
 
         if request is None:
             self.request = get_current_request()
@@ -517,15 +520,16 @@ class Migrator:
             await self.copy_to_next_index()
             self.response.write('Copying initial index data finished')
 
-        self.existing = await self.get_all_uids()
+        if not self.mapping_only:
+            self.existing = await self.get_all_uids()
 
-        self.index_start_time = time.time()
-        await self.process_object(self.context)  # this is recursive
+            self.index_start_time = time.time()
+            await self.process_object(self.context)  # this is recursive
 
-        await self.check_existing()
+            await self.check_existing()
 
-        await self.flush()
-        self.join_threads()
+            await self.flush()
+            self.join_threads()
 
         async with self.utility._migration_lock:
             async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
