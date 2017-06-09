@@ -1,4 +1,4 @@
-1.1.1 (unreleased)
+1.1.1 (2017-06-09)
 ------------------
 
 - Move fixtures out of conftest.py into it's own module. This could break
