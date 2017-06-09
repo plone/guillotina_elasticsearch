@@ -40,12 +40,10 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def reindex_all_content(
             self, obj, security=False, response=noop_response):
-        from guillotina_elasticsearch.migration import Migrator
-        request = get_current_request()
-        migrator = Migrator(self, obj, response=response, reindex_security=security)
-        migrator.work_index_name = await self.get_index_name(request.container)
-        await migrator.process_object(obj)
-        await migrator.flush()
+        from guillotina_elasticsearch.reindexer import Reindexer
+        reindexer = Reindexer(self, obj, response=response,
+                              reindex_security=security)
+        await reindexer.reindex(obj)
 
     async def search(self, container, query):
         """

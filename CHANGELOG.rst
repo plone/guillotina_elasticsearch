@@ -1,7 +1,9 @@
-1.0.30 (unreleased)
--------------------
+1.1.0 (unreleased)
+------------------
 
-- Nothing changed yet.
+- Add Reindexer utility that specializes just in reindexing instead of
+  using the migrator
+  [vangheem]
 
 
 1.0.29 (2017-06-08)
