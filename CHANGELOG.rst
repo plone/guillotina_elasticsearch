@@ -1,7 +1,9 @@
 1.0.29 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Clean mapping before it's compared to prevent false positives for detecting
+  differences in mappings
+  [vangheem]
 
 
 1.0.28 (2017-06-08)

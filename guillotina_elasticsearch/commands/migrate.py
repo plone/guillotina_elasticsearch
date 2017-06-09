@@ -58,7 +58,7 @@ class MigrateCommand(Command):
                 mapping_only=arguments.mapping_only)
             await self.migrator.run_migration()
             seconds = int(time.time() - self.migrator.start_time)
-            print(f'''Finished migration:
+            logger.warning(f'''Finished migration:
 Total Seconds: {seconds}
 Processed: {self.migrator.processed}
 Indexed: {self.migrator.indexed}

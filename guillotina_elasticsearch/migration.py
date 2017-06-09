@@ -102,6 +102,18 @@ class ElasticThread(threading.Thread):
         del self.batch
 
 
+def _clean_mapping(mapping):
+    if 'properties' in mapping:
+        for key in ('confirm',):
+            if key in mapping['properties']:
+                del mapping['properties'][key]
+        if ('type' in mapping['properties'] and
+                'fields' in mapping['properties']['type'] and
+                isinstance(mapping['properties']['type']['fields'], dict)):
+            del mapping['properties']['type']
+    return mapping
+
+
 class Migrator:
     '''
     Reindex/Migration...
@@ -308,8 +320,9 @@ class Migrator:
             next_mapping = next_mappings[type_name]['properties']
 
             for field_name, definition in next_mapping.items():
+                definition = _clean_mapping(definition)
                 if (field_name not in existing_mapping or
-                        definition != existing_mapping[field_name]):
+                        definition != _clean_mapping(existing_mapping[field_name])):
                     new_definitions[field_name] = definition
             if len(new_definitions) > 0:
                 diffs[type_name] = new_definitions
@@ -466,10 +479,8 @@ class Migrator:
                 # doc = self.utility.conn.get(
                 #     await self.utility.get_index_name(), fields='path'
                 # )
-                # import pdb; pdb.set_trace()
                 # ob = await do_traverse(self.request, self.container,
                 #                        doc['_source']['path'].strip('/').split('/'))
-                # import pdb; pdb.set_trace()
                 # await self.index_object(ob, full=True)
 
     async def setup_next_index(self):
@@ -532,10 +543,12 @@ class Migrator:
             self.join_threads()
 
         async with self.utility._migration_lock:
+            self.response.write('Activating new index')
             async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
                 await self.utility.apply_next_index(self.container, self.request)
             self.status = 'done'
 
+            self.response.write('Update aliases')
             await self.conn.indices.update_aliases({
                 "actions": [
                     {"remove": {
@@ -549,5 +562,6 @@ class Migrator:
                 ]
             })
 
+        self.response.write('Delete old index')
         await self.conn.indices.close(existing_index)
         await self.conn.indices.delete(existing_index)
