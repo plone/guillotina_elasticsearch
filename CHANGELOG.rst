@@ -1,4 +1,4 @@
-1.0.28 (unreleased)
+1.0.28 (2017-06-08)
 -------------------
 
 - Be able to migrate the mapping only and skip working through content on the site
