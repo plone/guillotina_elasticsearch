@@ -323,7 +323,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             result = await self.conn.bulk(
                 index=index_name, doc_type=None,
                 body=bulk_data)
-        except aiohttp.errors.ClientResponseError as e:
+        except aiohttp.client_exceptions.ClientResponseError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
                 response.write(b'Could not index %s\n' % str(e).encode('utf-8'))
@@ -331,7 +331,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             else:
                 await asyncio.sleep(1.0)
                 result = await self.bulk_insert(index_name, bulk_data, idents, count)
-        except aiohttp.errors.ClientOSError as e:
+        except aiohttp.client_exceptions.ClientOSError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
                 response.write(b'Could not index %s\n' % str(e).encode('utf-8'))

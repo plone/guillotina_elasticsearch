@@ -1,7 +1,8 @@
 1.1.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix import for client_exceptions aiohttp errors
+  [vangheem]
 
 
 1.1.1 (2017-06-09)
