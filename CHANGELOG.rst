@@ -1,4 +1,4 @@
-1.1.2 (unreleased)
+1.1.2 (2017-06-15)
 ------------------
 
 - Fix import for client_exceptions aiohttp errors
