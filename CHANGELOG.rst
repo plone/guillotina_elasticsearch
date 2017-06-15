@@ -1,7 +1,8 @@
 1.1.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix reindexing
+  [vangheem]
 
 
 1.1.2 (2017-06-15)

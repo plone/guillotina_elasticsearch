@@ -40,7 +40,7 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def reindex_all_content(
             self, obj, security=False, response=noop_response):
-        from guillotina_elasticsearch.reindexer import Reindexer
+        from guillotina_elasticsearch.reindex import Reindexer
         reindexer = Reindexer(self, obj, response=response,
                               reindex_security=security)
         await reindexer.reindex(obj)
