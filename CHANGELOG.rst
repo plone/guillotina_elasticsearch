@@ -1,4 +1,4 @@
-1.1.4 (unreleased)
+1.1.4 (2017-06-20)
 ------------------
 
 - Prevent auto mapping of metadata
