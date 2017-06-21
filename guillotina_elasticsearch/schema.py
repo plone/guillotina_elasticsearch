@@ -61,6 +61,10 @@ def get_mappings():
                 field_mapping = type_overrides[field_name]
             mappings[field_name] = field_mapping
         global_mappings[name] = {
-            'properties': mappings
+            'properties': mappings,
+            'dynamic': False,
+            '_all': {
+                'enabled': False
+            }
         }
     return global_mappings
