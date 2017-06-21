@@ -1,7 +1,8 @@
 1.1.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Prevent auto mapping of metadata
+  [bloodbare]
 
 
 1.1.3 (2017-06-15)
