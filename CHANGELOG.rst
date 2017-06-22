@@ -1,4 +1,4 @@
-1.1.5 (unreleased)
+1.1.5 (2017-06-21)
 ------------------
 
 - Fix migration when objects were deleted while migrating that were thought to
