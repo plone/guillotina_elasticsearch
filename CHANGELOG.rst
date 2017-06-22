@@ -1,7 +1,9 @@
 1.1.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix migration when objects were deleted while migrating that were thought to
+  be orphaned
+  [vangheem]
 
 
 1.1.4 (2017-06-20)

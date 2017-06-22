@@ -18,6 +18,7 @@ from guillotina.utils import get_current_request
 from guillotina_elasticsearch.utility import ElasticSearchUtility
 from guillotina_elasticsearch.utils import noop_response
 
+import aioes
 import asyncio
 import gc
 import json
@@ -458,16 +459,20 @@ class Migrator:
             except KeyError:
                 ob = None
             if ob is None:
-                # no longer present on db, this was orphaned
-                self.orphaned.append(uuid)
                 # this is dumb... since we don't have the doc type on us, we
                 # need to ask elasticsearch for it again...
                 # elasticsearch does not allow deleting without the doc type
                 # even though you can query for a doc without it... argh
-                doc = await self.conn.get(self.work_index_name, uuid,
-                                          _source=False)
-                self.batch.append((uuid, 'delete', {'type_name': doc['_type']}))
-                await self.attempt_flush()
+                try:
+                    doc = await self.conn.get(self.work_index_name, uuid,
+                                              _source=False)
+                    self.batch.append((uuid, 'delete', {'type_name': doc['_type']}))
+                    await self.attempt_flush()
+                    # no longer present on db, this was orphaned
+                    self.orphaned.append(uuid)
+                except aioes.exception.NotFoundError:
+                    # it was deleted in the meantime so we're actually okay
+                    pass
             else:
                 # XXX this should not happen so log it. Maybe we'll try doing something
                 # about it another time...
