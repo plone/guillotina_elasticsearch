@@ -1,4 +1,4 @@
-1.1.6 (unreleased)
+1.1.6 (2017-06-23)
 ------------------
 
 - Fix group query to not prepend 'group:' to security query for groups
