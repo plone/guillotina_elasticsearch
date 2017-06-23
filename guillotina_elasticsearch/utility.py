@@ -79,7 +79,7 @@ class ElasticSearchUtility(ElasticSearchManager):
 
         for user in interaction.participations:
             users.append(user.principal.id)
-            users.extend(['group:' + g for g in user.principal.groups])
+            users.extend(user.principal.groups)
             roles_dict = interaction.global_principal_roles(
                 user.principal.id,
                 user.principal.groups)

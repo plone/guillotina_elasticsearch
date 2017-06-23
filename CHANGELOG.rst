@@ -1,7 +1,8 @@
 1.1.6 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix group query to not prepend 'group:' to security query for groups
+  [vangheem]
 
 
 1.1.5 (2017-06-21)
