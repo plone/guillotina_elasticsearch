@@ -437,6 +437,10 @@ class Migrator:
         self.reindex_threads = []
 
     async def flush(self):
+        if len(self.batch) == 0:
+            # nothing to flush
+            return
+
         thread = ElasticThread(
             self.work_index_name,
             self.batch

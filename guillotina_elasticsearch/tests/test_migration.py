@@ -204,7 +204,6 @@ async def test_calculate_mapping_diff(es_requester):
         await search.conn.indices.open(new_index_name)
 
         diff = await migrator.calculate_mapping_diff()
-        assert len(diff) == (len(mappings) - 1)
         assert len(diff['Folder']) == 1
         assert len(diff['Item']) == 2
 
