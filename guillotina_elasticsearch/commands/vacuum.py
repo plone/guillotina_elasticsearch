@@ -189,7 +189,10 @@ class VacuumCommand(Command):
         self.request._message.headers['Host'] = 'localhost'
         first_run = True
         while arguments.continuous or first_run:
-            first_run = False
+            if not first_run:
+                await asyncio.sleep(arguments.sleep)
+            else:
+                first_run = False
             async for txn, tm, container in get_containers(self.request):
                 logger.warn(f'Vacuuming container {container.id}', extra={
                     'account': container.id
@@ -203,4 +206,3 @@ class VacuumCommand(Command):
     ''')
                 except:
                     logger.error('Error vacuuming', exc_info=True)
-                await asyncio.sleep(arguments.sleep)
