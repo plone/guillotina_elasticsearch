@@ -130,7 +130,7 @@ class Vacuum:
                 # these are keys that are in ES but not in DB so we should remove them..
                 self.orphaned.extend(orphaned)
                 print(f'deleting orphaned {len(orphaned)}')
-                conn_es = self.utility.conn
+                conn_es = await self.utility.conn.transport.get_connection()
                 # delete by query for orphaned keys...
                 await conn_es._session.post(
                     conn_es._base_url.human_repr() + index_name + '/_delete_by_query',
