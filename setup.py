@@ -39,6 +39,7 @@ setup(
         'guillotina>=1.0.0a28.dev0',
         'aioes>=0.7.0',
         'ujson',
+        'lru-dict'
     ],
     tests_require=test_requires,
     extras_require={
