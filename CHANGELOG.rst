@@ -1,4 +1,4 @@
-1.1.7 (unreleased)
+1.1.7 (2017-06-29)
 ------------------
 
 - Add vacuum command
