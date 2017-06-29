@@ -1,7 +1,8 @@
 1.1.7 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Add vacuum command
+  [vangheem]
 
 
 1.1.6 (2017-06-23)
