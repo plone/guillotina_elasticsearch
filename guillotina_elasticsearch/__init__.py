@@ -16,7 +16,8 @@ app_settings = {
         }
     },
     'commands': {
-        'es-migrate': 'guillotina_elasticsearch.commands.migrate.MigrateCommand'
+        'es-migrate': 'guillotina_elasticsearch.commands.migrate.MigrateCommand',
+        'es-vacuum': 'guillotina_elasticsearch.commands.vacuum.VacuumCommand'
     }
 }
 

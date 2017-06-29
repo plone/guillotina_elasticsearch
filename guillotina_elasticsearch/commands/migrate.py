@@ -1,9 +1,8 @@
 from guillotina.commands import Command
 from guillotina.component import getUtility
-from guillotina.interfaces import IApplication
 from guillotina.interfaces import ICatalogUtility
-from guillotina.interfaces import IDatabase
 from guillotina_elasticsearch.migration import Migrator
+from guillotina_elasticsearch.commands.utils import get_containers
 
 import time
 import logging
@@ -35,21 +34,9 @@ class MigrateCommand(Command):
         parser.add_argument('--mapping-only', action='store_true')
         return parser
 
-    async def get_containers(self):
-        root = getUtility(IApplication, name='root')
-        for _id, db in root:
-            if IDatabase.providedBy(db):
-                db._db._storage._transaction_strategy = 'none'
-                tm = db.get_transaction_manager()
-                tm.request = self.request
-                await tm.begin(self.request)
-                async for s_id, container in db.async_items():
-                    tm.request.container = container
-                    yield tm, container
-
     async def migrate_all(self, arguments):
         search = getUtility(ICatalogUtility)
-        async for tm, container in self.get_containers():
+        async for txn, tm, container in get_containers(self.request):
             self.migrator = Migrator(
                 search, container, response=printer(), full=arguments.full,
                 force=arguments.force, log_details=arguments.log_details,
