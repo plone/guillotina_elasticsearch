@@ -1,7 +1,8 @@
 1.1.8 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Add more logging for vacuum
+  [vangheem]
 
 
 1.1.7 (2017-06-29)

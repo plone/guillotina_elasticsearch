@@ -120,6 +120,7 @@ class Vacuum:
 
         conn = self.txn._manager._storage._read_conn
         smt = await conn.prepare(SELECT_BY_KEYS)
+        logger.warn('Checking orphaned elasticsearch entries')
         async for es_batch in self.iter_batched_es_keys():
             records = await smt.fetch(es_batch)
             db_batch = set()
@@ -129,7 +130,7 @@ class Vacuum:
             if len(orphaned) > 0:
                 # these are keys that are in ES but not in DB so we should remove them..
                 self.orphaned.extend(orphaned)
-                print(f'deleting orphaned {len(orphaned)}')
+                logger.warn(f'deleting orphaned {len(orphaned)}')
                 conn_es = await self.utility.conn.transport.get_connection()
                 # delete by query for orphaned keys...
                 await conn_es._session.post(
@@ -142,6 +143,7 @@ class Vacuum:
                         }
                     }))
 
+        logger.warn('Checking missing elasticsearch entries')
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
             es_batch = []
             results = await self.utility.conn.search(
@@ -158,7 +160,7 @@ class Vacuum:
                 es_batch.append(result['_id'])
             missing = [k for k in (set(batch) - set(es_batch))]
             if len(missing) > 0:
-                print(f'indexing missing {len(missing)}')
+                logger.warn(f'indexing missing {len(missing)}')
                 # these are keys that are in DB but not in ES so we should index them..
                 self.missing.extend(missing)
                 batch = []
@@ -200,7 +202,7 @@ class VacuumCommand(Command):
                 try:
                     vacuum = Vacuum(txn, tm, self.request, container)
                     await vacuum()
-                    print(f'''Finished vacuuming with results:
+                    logger.warn(f'''Finished vacuuming with results:
     Orphaned cleaned: {len(vacuum.orphaned)}
     Missing added: {len(vacuum.missing)}
     ''')
