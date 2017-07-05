@@ -1,4 +1,4 @@
-1.1.8 (unreleased)
+1.1.8 (2017-07-05)
 ------------------
 
 - Add more logging for vacuum
