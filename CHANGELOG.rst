@@ -1,4 +1,4 @@
-1.1.9 (unreleased)
+1.1.9 (2017-07-06)
 ------------------
 
 - Fix invalid import in migrate script
