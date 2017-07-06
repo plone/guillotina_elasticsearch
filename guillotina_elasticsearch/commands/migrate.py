@@ -1,11 +1,11 @@
 from guillotina.commands import Command
 from guillotina.component import getUtility
 from guillotina.interfaces import ICatalogUtility
+from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
-from guillotina_elasticsearch.commands.utils import get_containers
 
-import time
 import logging
+import time
 
 
 logger = logging.getLogger('guillotina_elasticsearch')

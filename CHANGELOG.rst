@@ -1,7 +1,8 @@
 1.1.9 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix invalid import in migrate script
+  [vangheem]
 
 
 1.1.8 (2017-07-05)

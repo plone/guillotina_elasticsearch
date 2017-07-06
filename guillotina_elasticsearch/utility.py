@@ -110,43 +110,6 @@ class ElasticSearchUtility(ElasticSearchManager):
         logger.warn(q)
         return q
 
-    async def add_security_query(self, query, request=None):
-        users = []
-        roles = []
-        if request is None:
-            request = get_current_request()
-        interaction = IInteraction(request)
-
-        for user in interaction.participations:
-            users.append(user.principal.id)
-            users.extend(user.principal.groups)
-            roles_dict = interaction.global_principal_roles(
-                user.principal.id,
-                user.principal.groups)
-            roles.extend([key for key, value in roles_dict.items()
-                          if value])
-        # We got all users and roles
-        # users: users and groups
-
-        should_list = [{'match': {'access_roles': x}} for x in roles]
-        should_list.extend([{'match': {'access_users': x}} for x in users])
-
-        if 'query' not in query:
-            query['query'] = {}
-        if 'bool' not in query['query']:
-            query['query']['bool'] = {}
-        if 'filter' not in query['query']['bool']:
-            query['query']['bool']['filter'] = {}
-
-        query['query']['bool']['filter'] = {
-            'bool': {
-                'should': should_list,
-                'minimum_should_match': 1
-            }
-        }
-
-        return query
-
     async def query(
             self, container, query,
             doc_type=None, size=10, request=None):
