@@ -1,4 +1,4 @@
-1.1.10 (unreleased)
+1.1.10 (2017-07-06)
 -------------------
 
 - Add reindex command
