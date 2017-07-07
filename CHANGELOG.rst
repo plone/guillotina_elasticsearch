@@ -1,7 +1,8 @@
 1.1.10 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Add reindex command
+  [vangheem]
 
 
 1.1.9 (2017-07-06)
