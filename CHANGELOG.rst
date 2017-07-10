@@ -1,7 +1,8 @@
 1.1.11 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Add update_by_query method
+  [vangheem]
 
 
 1.1.10 (2017-07-06)

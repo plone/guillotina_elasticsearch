@@ -78,6 +78,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         interaction = IInteraction(request)
 
         for user in interaction.participations:
+            print(f'searching with {user.principal.id} {user.principal.groups}')
             users.append(user.principal.id)
             users.extend(user.principal.groups)
             roles_dict = interaction.global_principal_roles(
@@ -219,7 +220,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             else:
                 logger.warn('Wrong deletion of childs' + json.dumps(result))
 
-    async def unindex_all_childs(self, resource, index_name=None, response=noop_response, future=True):
+    async def get_path_query(self, resource, index_name=None, response=noop_response):
         if type(resource) is str:
             path = resource
             depth = path.count('/') + 1
@@ -251,15 +252,58 @@ class ElasticSearchUtility(ElasticSearchManager):
                 'range':
                     {'depth': {'gte': depth}}
             })
+        return path_query
 
+    async def unindex_all_childs(self, resource, index_name=None,
+                                 response=noop_response, future=True):
+        path_query = await self.get_path_query(resource, index_name, response)
+        request = get_current_request()
         if future:
-            if request is None:
-                request = get_current_request()
             _id = 'unindex_all_childs-' + uuid.uuid4().hex
             request._futures.update({
                 _id: self.call_unindex_all_childs(index_name, path_query)})
         else:
             await self.call_unindex_all_childs(index_name, path_query)
+
+        next_index_name = await self.get_next_index_name(request.container, request=request)
+        if next_index_name:
+            async with self._migration_lock:
+                _id = 'unindex_all_childs-' + uuid.uuid4().hex
+                request._futures.update({
+                    _id: self.call_unindex_all_childs(next_index_name, path_query)})
+
+    async def update_by_query(self, query, future=True):
+        request = get_current_request()
+        index_name = await self.get_index_name(request.container)
+        resp = None
+        if future:
+            _id = 'update_by_query-' + uuid.uuid4().hex
+            request._futures.update({
+                _id: self._update_by_query(query, index_name)})
+        else:
+            resp = await self._update_by_query(query, index_name)
+
+        next_index_name = await self.get_next_index_name(
+            request.container, request=request)
+        if next_index_name:
+            async with self._migration_lock:
+                _id = 'update_by_path-' + uuid.uuid4().hex
+                request._futures.update({
+                    _id: self._update_by_query(query, next_index_name)})
+        return resp
+
+    async def _update_by_query(self, query, index_name):
+        conn_es = await self.conn.transport.get_connection()
+        resp = await conn_es._session.post(
+            conn_es._base_url.human_repr() + index_name + '/_update_by_query?conflicts=proceed',
+            data=json.dumps(query))
+        result = await resp.json()
+        if 'updated' in result:
+            logger.warn('Updated %d childs' % result['updated'])
+            logger.warn('Updated %s ' % json.dumps(query))
+        else:
+            logger.warn('Wrong update of children' + json.dumps(result))
+        return result
 
     async def get_folder_contents(self, container, parent_uuid, doc_type=None):
         query = {
