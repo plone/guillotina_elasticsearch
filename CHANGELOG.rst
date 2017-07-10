@@ -1,4 +1,4 @@
-1.1.11 (unreleased)
+1.1.11 (2017-07-10)
 -------------------
 
 - Add update_by_query method
