@@ -1,7 +1,8 @@
 1.1.13 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Wait a bit before running migration so addons that use async to calculate
+  dynamic types can load
 
 
 1.1.12 (2017-07-12)

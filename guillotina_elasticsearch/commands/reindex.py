@@ -4,6 +4,7 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.reindex import Reindexer
 
+import asyncio
 import logging
 import time
 
@@ -32,6 +33,7 @@ class ReindexCommand(Command):
 
     async def reindex_all(self, arguments):
         search = getUtility(ICatalogUtility)
+        await asyncio.sleep(1)  # since something initialize custom types...
         async for txn, tm, container in get_containers(self.request):
             self.reindexer = Reindexer(
                 search, container, response=printer(),

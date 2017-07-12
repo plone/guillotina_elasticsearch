@@ -4,6 +4,7 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
 
+import asyncio
 import logging
 import time
 
@@ -36,6 +37,7 @@ class MigrateCommand(Command):
 
     async def migrate_all(self, arguments):
         search = getUtility(ICatalogUtility)
+        await asyncio.sleep(1)  # since something initialize custom types...
         async for txn, tm, container in get_containers(self.request):
             self.migrator = Migrator(
                 search, container, response=printer(), full=arguments.full,
