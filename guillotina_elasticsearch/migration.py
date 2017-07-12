@@ -318,6 +318,10 @@ class Migrator:
                 continue
 
             existing_mapping = existing_mappings[type_name]['properties']
+            if type_name not in next_mappings:
+                # copy over orphaned type otherwise move will potentiall not work
+                # any orphaned doc types will need to be manually deleted for now...
+                next_mappings[type_name] = existing_mappings[type_name]
             next_mapping = next_mappings[type_name]['properties']
 
             for field_name, definition in next_mapping.items():

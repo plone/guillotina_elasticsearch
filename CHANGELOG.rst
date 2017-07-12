@@ -1,7 +1,8 @@
 1.1.12 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix scenario where doc type is missing in the upgraded mapping
+  [vangheem]
 
 
 1.1.11 (2017-07-10)
