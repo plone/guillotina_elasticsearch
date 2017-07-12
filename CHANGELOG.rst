@@ -1,4 +1,4 @@
-1.1.13 (unreleased)
+1.1.13 (2017-07-12)
 -------------------
 
 - Wait a bit before running migration so addons that use async to calculate
