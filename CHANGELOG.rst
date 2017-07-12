@@ -1,4 +1,4 @@
-1.1.12 (unreleased)
+1.1.12 (2017-07-12)
 -------------------
 
 - Fix scenario where doc type is missing in the upgraded mapping
