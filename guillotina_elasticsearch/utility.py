@@ -265,13 +265,6 @@ class ElasticSearchUtility(ElasticSearchManager):
         else:
             await self.call_unindex_all_childs(index_name, path_query)
 
-        next_index_name = await self.get_next_index_name(request.container, request=request)
-        if next_index_name:
-            async with self._migration_lock:
-                _id = 'unindex_all_childs-' + uuid.uuid4().hex
-                request._futures.update({
-                    _id: self.call_unindex_all_childs(next_index_name, path_query)})
-
     async def update_by_query(self, query, future=True):
         request = get_current_request()
         index_name = await self.get_index_name(request.container)

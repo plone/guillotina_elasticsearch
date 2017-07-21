@@ -1,7 +1,8 @@
 1.1.14 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix deadlock issue on unindex when migration is active
+  [vangheem]
 
 
 1.1.13 (2017-07-12)

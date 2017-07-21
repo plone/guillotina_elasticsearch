@@ -1,4 +1,6 @@
 from guillotina import app_settings
+from guillotina.event import notify
+from guillotina.events import ObjectRemovedEvent
 from guillotina.component import getUtility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import create_content
@@ -251,3 +253,22 @@ async def test_create_next_index(es_requester):
         version, name = await migrator.create_next_index()
         assert version == 2
         assert name == 'guillotina-guillotina_2'
+
+
+async def test_unindex_during_next_index(es_requester):
+    async with await es_requester as requester:
+        await add_content(requester, 2)
+        container, request, txn, tm = await setup_txn_on_container(requester)
+        search = getUtility(ICatalogUtility)
+        migrator = Migrator(search, container, force=True, request=request)
+        next_index_version, work_index_name = await migrator.create_next_index()
+        await search.install_mappings_on_index(work_index_name)
+        await search.activate_next_index(
+            container, next_index_version, request=request)
+        await tm.commit(txn=txn)
+        container, request, txn, tm = await setup_txn_on_container(requester)
+        keys = await container.async_keys()
+        item = await container.async_get(keys[0])
+        await notify(ObjectRemovedEvent(item, container, item.id))
+        await txn._call_after_commit_hooks()
+        assert len(request._futures) == 2
