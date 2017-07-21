@@ -1,4 +1,4 @@
-1.1.14 (unreleased)
+1.1.14 (2017-07-21)
 -------------------
 
 - Fix deadlock issue on unindex when migration is active
