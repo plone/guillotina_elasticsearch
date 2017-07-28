@@ -1,7 +1,8 @@
 1.1.15 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix vacuum to handle empty scroll errors when iterating through all keys
+  [vangheem]
 
 
 1.1.14 (2017-07-21)

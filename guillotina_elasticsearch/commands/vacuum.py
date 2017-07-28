@@ -1,3 +1,8 @@
+import asyncio
+import json
+import logging
+
+import aioes
 from guillotina.commands import Command
 from guillotina.component import getUtility
 from guillotina.db.reader import reader
@@ -6,10 +11,6 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
 from lru import LRU
-
-import asyncio
-import json
-import logging
 
 
 logger = logging.getLogger('guillotina_elasticsearch')
@@ -53,10 +54,14 @@ class Vacuum:
         yield [r['_id'] for r in result['hits']['hits']]
         scroll_id = result['_scroll_id']
         while scroll_id:
-            result = await self.utility.conn.scroll(
-                scroll_id=scroll_id,
-                scroll='2m'
-            )
+            try:
+                result = await self.utility.conn.scroll(
+                    scroll_id=scroll_id,
+                    scroll='2m'
+                )
+            except aioes.exception.TransportError:
+                # no results
+                break
             if len(result['hits']['hits']) == 0:
                 break
             yield [r['_id'] for r in result['hits']['hits']]
