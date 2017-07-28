@@ -1,4 +1,4 @@
-1.1.15 (unreleased)
+1.1.15 (2017-07-28)
 -------------------
 
 - Fix vacuum to handle empty scroll errors when iterating through all keys
