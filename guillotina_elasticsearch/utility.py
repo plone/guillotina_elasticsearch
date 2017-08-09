@@ -132,6 +132,9 @@ class ElasticSearchUtility(ElasticSearchManager):
                 '@absolute_url': container_url + data.get('path', ''),
                 '@type': data.get('type_name'),
             })
+            sort_value = item.get('sort')
+            if sort_value:
+                data.update({'sort': sort_value})
             items.append(data)
         final = {
             'items_count': result['hits']['total'],
