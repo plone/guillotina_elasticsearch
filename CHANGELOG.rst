@@ -1,7 +1,8 @@
 1.1.16 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Results from search should return sort value
+  [gitcarbs]
 
 
 1.1.15 (2017-07-28)
