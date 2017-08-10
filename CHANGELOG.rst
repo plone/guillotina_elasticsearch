@@ -1,4 +1,4 @@
-1.1.16 (unreleased)
+1.1.16 (2017-08-09)
 -------------------
 
 - Results from search should return sort value
