@@ -315,10 +315,19 @@ class Migrator:
             if type_name not in next_mappings:
                 # copy over orphaned type otherwise move will potentially not work
                 # any orphaned doc types will need to be manually deleted for now...
-                next_mappings[type_name] = existing_mappings[type_name]
+                mapping = existing_mappings[type_name]
+                properties = mapping['properties']
+                # need to make sure to normalize field definitions so they are inline
+                # with new mappings otherwise you could get conflicting definitions
+                for field_name in properties.keys():
+                    for check_type_name in next_mappings.keys():
+                        if field_name in next_mappings[check_type_name]['properties']:
+                            properties[field_name] = next_mappings[
+                                check_type_name]['properties'][field_name]
+                            break
                 # and install new mapping
                 await self.utility.conn.indices.put_mapping(
-                    self.work_index_name, type_name, existing_mappings[type_name])
+                    self.work_index_name, type_name, mapping)
 
         for type_name, schema in getUtilitiesFor(IResourceFactory):
             new_definitions = {}

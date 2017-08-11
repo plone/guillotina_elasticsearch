@@ -1,7 +1,8 @@
 1.1.17 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Handle missing types from migrations when mappings change better
+  [vangheem]
 
 
 1.1.16 (2017-08-09)
