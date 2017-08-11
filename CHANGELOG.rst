@@ -1,4 +1,4 @@
-1.1.17 (unreleased)
+1.1.17 (2017-08-11)
 -------------------
 
 - Handle missing types from migrations when mappings change better
