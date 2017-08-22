@@ -1,4 +1,4 @@
-1.1.18 (unreleased)
+1.1.18 (2017-08-22)
 -------------------
 
 - Fix TIDConflictError when registry is edited during a migration.
