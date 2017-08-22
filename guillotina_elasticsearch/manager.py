@@ -265,6 +265,11 @@ class ElasticSearchManager(DefaultSearchUtility):
         registry._p_register()
 
     async def apply_next_index(self, container, request=None):
+        # make sure to reload the registry to make sure we have the latest
+        # to write to
+        if (request is not None and hasattr(request, 'container_settings') and
+                REGISTRY_DATA_KEY in container.__annotations__):
+            await request._txn.refresh(request.container_settings)
         registry = await self.get_registry(container, request)
         assert registry['el_next_index_version'] is not None
         await self.set_version(

@@ -1,9 +1,12 @@
 from guillotina import app_settings
+from guillotina.component import getUtility
 from guillotina.event import notify
 from guillotina.events import ObjectRemovedEvent
-from guillotina.component import getUtility
+from guillotina.interfaces import IAnnotations
 from guillotina.interfaces import ICatalogUtility
+from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.tests.utils import create_content
+from guillotina.transactions import managed_transaction
 from guillotina.utils import get_content_path
 from guillotina_elasticsearch.manager import DEFAULT_SETTINGS
 from guillotina_elasticsearch.migration import Migrator
@@ -272,3 +275,24 @@ async def test_unindex_during_next_index(es_requester):
         await notify(ObjectRemovedEvent(item, container, item.id))
         await txn._call_after_commit_hooks()
         assert len(request._futures) == 2
+
+
+async def test_apply_next_index_does_not_cause_conflict_error(es_requester):
+    async with await es_requester as requester:
+        container, req, txn, tm = await setup_txn_on_container(requester)
+        search = getUtility(ICatalogUtility)
+        migrator = Migrator(search, container, force=True, request=req)
+        await migrator.setup_next_index()
+        assert migrator.next_index_version == 2
+        assert migrator.work_index_name == 'guillotina-guillotina_2'
+
+        container, req, txn, tm = await setup_txn_on_container(requester)
+        annotations_container = IAnnotations(container)
+        container_settings = await annotations_container.async_get(REGISTRY_DATA_KEY)
+        container_settings['foo'] = 'bar'
+        await tm.commit(txn=txn)
+
+        async with managed_transaction(migrator.request, write=True,
+                                       adopt_parent_txn=True) as txn:
+            await migrator.utility.apply_next_index(migrator.container,
+                                                    migrator.request)

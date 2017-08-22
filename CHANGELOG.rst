@@ -1,7 +1,8 @@
 1.1.18 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix TIDConflictError when registry is edited during a migration.
+  [vangheem]
 
 
 1.1.17 (2017-08-11)
