@@ -1,4 +1,4 @@
-1.1.19 (unreleased)
+1.1.19 (2017-09-14)
 -------------------
 
 - Change page size and scroll of esvacuum to prevent timeouts
