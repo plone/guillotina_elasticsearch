@@ -1,7 +1,8 @@
 1.1.19 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Change page size and scroll of esvacuum to prevent timeouts
+  [vangheem]
 
 
 1.1.18 (2017-08-22)

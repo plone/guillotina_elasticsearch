@@ -27,6 +27,9 @@ OFFSET $3::int
 """
 
 
+PAGE_SIZE = 1000
+
+
 class Vacuum:
 
     def __init__(self, txn, tm, request, container):
@@ -41,12 +44,11 @@ class Vacuum:
         self.cache = LRU(200)
 
     async def iter_batched_es_keys(self):
-        page_size = 3000
         index_name = await self.utility.get_index_name(self.container)
         result = await self.utility.conn.search(
             index=index_name,
-            scroll='2m',
-            size=page_size,
+            scroll='5m',
+            size=PAGE_SIZE,
             stored_fields='',
             body={
                 "sort": ["_doc"]
@@ -57,7 +59,7 @@ class Vacuum:
             try:
                 result = await self.utility.conn.scroll(
                     scroll_id=scroll_id,
-                    scroll='2m'
+                    scroll='5m'
                 )
             except aioes.exception.TransportError:
                 # no results
@@ -67,7 +69,7 @@ class Vacuum:
             yield [r['_id'] for r in result['hits']['hits']]
             scroll_id = result['_scroll_id']
 
-    async def get_db_page_of_keys(self, oids, page=1, page_size=1000):
+    async def get_db_page_of_keys(self, oids, page=1, page_size=PAGE_SIZE):
         conn = self.txn._manager._storage._read_conn
         smt = await conn.prepare(BATCHED_GET_CHILDREN_BY_PARENT)
         keys = []
@@ -160,7 +162,7 @@ class Vacuum:
                     }
                 },
                 stored_fields='',
-                size=3000)
+                size=PAGE_SIZE)
             for result in results['hits']['hits']:
                 es_batch.append(result['_id'])
             missing = [k for k in (set(batch) - set(es_batch))]
