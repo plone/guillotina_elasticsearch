@@ -1,4 +1,4 @@
-1.1.20 (unreleased)
+1.1.20 (2017-09-21)
 -------------------
 
 - Use latest guillotina futures request api
