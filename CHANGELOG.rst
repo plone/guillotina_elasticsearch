@@ -1,7 +1,8 @@
 1.1.20 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Use latest guillotina futures request api
+  [vangheem]
 
 
 1.1.19 (2017-09-14)
