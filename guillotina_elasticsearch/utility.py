@@ -210,18 +210,17 @@ class ElasticSearchUtility(ElasticSearchManager):
 
         return await self.query(container, query, doc_type, size=size)
 
-    async def call_unindex_all_childs(self, index_name, path_query):
+    async def call_unindex_all_children(self, index_name, path_query):
         conn_es = await self.conn.transport.get_connection()
-        async with conn_es._session.post(
-                    conn_es._base_url.human_repr() + index_name + '/_delete_by_query',
-                    data=json.dumps(path_query)
-                ) as resp:
-            result = await resp.json()
-            if 'deleted' in result:
-                logger.warn('Deleted %d childs' % result['deleted'])
-                logger.warn('Deleted %s ' % json.dumps(path_query))
-            else:
-                logger.warn('Wrong deletion of childs' + json.dumps(result))
+        resp = conn_es._session.post(
+            conn_es._base_url.human_repr() + index_name + '/_delete_by_query',
+            data=json.dumps(path_query))
+        result = await resp.json()
+        if 'deleted' in result:
+            logger.warn('Deleted %d children' % result['deleted'])
+            logger.warn('Deleted %s ' % json.dumps(path_query))
+        else:
+            logger.warn('Wrong deletion of children ' + json.dumps(result))
 
     async def get_path_query(self, resource, index_name=None, response=noop_response):
         if type(resource) is str:
@@ -257,16 +256,16 @@ class ElasticSearchUtility(ElasticSearchManager):
             })
         return path_query
 
-    async def unindex_all_childs(self, resource, index_name=None,
-                                 response=noop_response, future=True):
+    async def unindex_all_children(self, resource, index_name=None,
+                                   response=noop_response, future=True):
         path_query = await self.get_path_query(resource, index_name, response)
         request = get_current_request()
         if future:
-            _id = 'unindex_all_childs-' + uuid.uuid4().hex
-            request._futures.update({
-                _id: self.call_unindex_all_childs(index_name, path_query)})
+            _id = 'unindex_all_children-' + uuid.uuid4().hex
+            request.add_future(
+                _id, self.call_unindex_all_children(index_name, path_query))
         else:
-            await self.call_unindex_all_childs(index_name, path_query)
+            await self.call_unindex_all_children(index_name, path_query)
 
     async def update_by_query(self, query, future=True):
         request = get_current_request()
@@ -274,8 +273,8 @@ class ElasticSearchUtility(ElasticSearchManager):
         resp = None
         if future:
             _id = 'update_by_query-' + uuid.uuid4().hex
-            request._futures.update({
-                _id: self._update_by_query(query, index_name)})
+            request.add_future(
+                _id, self._update_by_query(query, index_name))
         else:
             resp = await self._update_by_query(query, index_name)
 
@@ -284,8 +283,8 @@ class ElasticSearchUtility(ElasticSearchManager):
         if next_index_name:
             async with self._migration_lock:
                 _id = 'update_by_path-' + uuid.uuid4().hex
-                request._futures.update({
-                    _id: self._update_by_query(query, next_index_name)})
+                request.add_future(
+                    _id. self._update_by_query(query, next_index_name))
         return resp
 
     async def _update_by_query(self, query, index_name):
@@ -295,7 +294,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             data=json.dumps(query))
         result = await resp.json()
         if 'updated' in result:
-            logger.warn('Updated %d childs' % result['updated'])
+            logger.warn('Updated %d children' % result['updated'])
             logger.warn('Updated %s ' % json.dumps(query))
         else:
             logger.warn('Wrong update of children' + json.dumps(result))
@@ -426,7 +425,7 @@ class ElasticSearchUtility(ElasticSearchManager):
     async def remove(self, container, uids, index_name=None, request=None, future=True):
         """List of UIDs to remove from index.
 
-        It will remove all the childs on the index"""
+        It will remove all the children on the index"""
         if not self.enabled:
             return
 
@@ -445,8 +444,8 @@ class ElasticSearchUtility(ElasticSearchManager):
                         '_type': type_name
                     }
                 })
-                await self.unindex_all_childs(content_path, index_name=index_name,
-                                              future=future)
+                await self.unindex_all_children(content_path, index_name=index_name,
+                                                future=future)
             await self.conn.bulk(index=index_name, body=bulk_data)
 
         if check_next:
