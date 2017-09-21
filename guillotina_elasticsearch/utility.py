@@ -212,7 +212,7 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def call_unindex_all_children(self, index_name, path_query):
         conn_es = await self.conn.transport.get_connection()
-        resp = conn_es._session.post(
+        resp = await conn_es._session.post(
             conn_es._base_url.human_repr() + index_name + '/_delete_by_query',
             data=json.dumps(path_query))
         result = await resp.json()
