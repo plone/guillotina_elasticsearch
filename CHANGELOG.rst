@@ -1,4 +1,4 @@
-1.1.21 (unreleased)
+1.1.21 (2017-09-21)
 -------------------
 
 - All indexing/removing operations are already in a future so no need to add futures
