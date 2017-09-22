@@ -1,6 +1,7 @@
 from guillotina.tests import utils
 from time import sleep
 
+import asyncio
 import docker
 import json
 import os
@@ -92,6 +93,7 @@ async def add_content(requester, num_folders=10, num_items=10, base_id='es-'):
             )
             created += 1
             assert status == 201
+    await asyncio.sleep(1)  # make sure async index tasks finish
     return created
 
 

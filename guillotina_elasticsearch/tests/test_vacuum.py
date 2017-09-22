@@ -12,6 +12,7 @@ import random
 async def test_adds_missing_elasticsearch_entry(es_requester):
     async with await es_requester as requester:
         await add_content(requester)
+        await asyncio.sleep(1)
 
         container, request, txn, tm = await setup_txn_on_container(requester)
 
@@ -21,7 +22,9 @@ async def test_adds_missing_elasticsearch_entry(es_requester):
         search = getUtility(ICatalogUtility)
         await search.remove(container, [(
             ob._p_oid, ob.type_name, get_content_path(ob)
-        )], request=request, future=False)
+        )], request=request)
+
+        await asyncio.sleep(1)
 
         vacuum = Vacuum(txn, tm, request, container)
         await vacuum()

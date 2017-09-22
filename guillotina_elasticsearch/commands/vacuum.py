@@ -190,7 +190,7 @@ class VacuumCommand(Command):
         parser = super(VacuumCommand, self).get_parser()
         parser.add_argument('--continuous', help='Continuously vacuum', action='store_true')
         parser.add_argument('--sleep', help='Time in seconds to sleep',
-                            default=300, type=int)
+                            default=10 * 60, type=int)
         return parser
 
     async def run(self, arguments, settings, app):

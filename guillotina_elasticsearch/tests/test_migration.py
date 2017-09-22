@@ -107,17 +107,22 @@ async def test_fixes_missing(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
 
         search = getUtility(ICatalogUtility)
+        await asyncio.sleep(1)
+        await search.refresh(container)
+        await asyncio.sleep(1)
+        original_count = await search.get_doc_count(container)
+
         keys = await container.async_keys()
         key = random.choice(keys)
         ob = await container.async_get(key)
         await search.remove(container, [(
             ob._p_oid, ob.type_name, get_content_path(ob)
-        )], request=request, future=False)
+        )], request=request)
 
         await asyncio.sleep(1)
         await search.refresh(container)
         await asyncio.sleep(1)
-        old_count = await search.get_doc_count(container)
+        assert original_count != await search.get_doc_count(container)
         old_index_name = await search.get_real_index_name(container)
 
         migrator = Migrator(search, container, force=True, request=request)
@@ -128,9 +133,9 @@ async def test_fixes_missing(es_requester):
         await asyncio.sleep(1)
         # new index should fix missing one, old index still has it missing
         num_docs = await search.get_doc_count(container, migrator.work_index_name)
-        # it's + 2 here because reindexing also adds container object which
+        # it's + 1 here because reindexing also adds container object which
         # in these tests is not there by default.
-        assert num_docs == (old_count + 2)
+        assert num_docs == (original_count + 1)
         assert old_index_name != await search.get_real_index_name(container)
 
 
@@ -273,8 +278,8 @@ async def test_unindex_during_next_index(es_requester):
         keys = await container.async_keys()
         item = await container.async_get(keys[0])
         await notify(ObjectRemovedEvent(item, container, item.id))
-        await txn._call_after_commit_hooks()
-        assert len(request._futures) == 2
+        request.execute_futures()
+        await asyncio.sleep(1)
 
 
 async def test_apply_next_index_does_not_cause_conflict_error(es_requester):

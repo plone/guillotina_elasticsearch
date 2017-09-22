@@ -55,6 +55,6 @@ async def test_delete(es_requester):
         })
         await search.refresh(container)
         assert await search.get_doc_count(container) == current_count + 1
-        await search.remove(container, [('foobar', 'Item', '/foobar')], future=False)
+        await search.remove(container, [('foobar', 'Item', '/foobar')])
         await search.refresh(container)
         assert await search.get_doc_count(container) == current_count

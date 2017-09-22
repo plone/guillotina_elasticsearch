@@ -1,7 +1,9 @@
 1.1.21 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- All indexing/removing operations are already in a future so no need to add futures
+  to operations.
+  [vangheem]
 
 
 1.1.20 (2017-09-21)

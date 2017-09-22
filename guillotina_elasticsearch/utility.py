@@ -78,7 +78,6 @@ class ElasticSearchUtility(ElasticSearchManager):
         interaction = IInteraction(request)
 
         for user in interaction.participations:
-            print(f'searching with {user.principal.id} {user.principal.groups}')
             users.append(user.principal.id)
             users.extend(user.principal.groups)
             roles_dict = interaction.global_principal_roles(
@@ -145,7 +144,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         if 'suggest' in result:
             final['suggest'] = result['suggest']
         tdif = time.time() - t1
-        print('Time ELASTIC %f' % tdif)
+        logger.debug('Time ELASTIC %f' % tdif)
         await notify(SearchDoneEvent(
             query, result['hits']['total'], request, tdif))
         return final
@@ -257,34 +256,21 @@ class ElasticSearchUtility(ElasticSearchManager):
         return path_query
 
     async def unindex_all_children(self, resource, index_name=None,
-                                   response=noop_response, future=True):
+                                   response=noop_response):
         path_query = await self.get_path_query(resource, index_name, response)
-        request = get_current_request()
-        if future:
-            _id = 'unindex_all_children-' + uuid.uuid4().hex
-            request.add_future(
-                _id, self.call_unindex_all_children(index_name, path_query))
-        else:
-            await self.call_unindex_all_children(index_name, path_query)
+        await self.call_unindex_all_children(index_name, path_query)
 
-    async def update_by_query(self, query, future=True):
+    async def update_by_query(self, query):
         request = get_current_request()
         index_name = await self.get_index_name(request.container)
         resp = None
-        if future:
-            _id = 'update_by_query-' + uuid.uuid4().hex
-            request.add_future(
-                _id, self._update_by_query(query, index_name))
-        else:
-            resp = await self._update_by_query(query, index_name)
+        resp = await self._update_by_query(query, index_name)
 
         next_index_name = await self.get_next_index_name(
             request.container, request=request)
         if next_index_name:
             async with self._migration_lock:
-                _id = 'update_by_path-' + uuid.uuid4().hex
-                request.add_future(
-                    _id. self._update_by_query(query, next_index_name))
+                await self._update_by_query(query, next_index_name)
         return resp
 
     async def _update_by_query(self, query, index_name):
@@ -422,7 +408,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 logger.error(json.dumps(result))
             return result
 
-    async def remove(self, container, uids, index_name=None, request=None, future=True):
+    async def remove(self, container, uids, index_name=None, request=None):
         """List of UIDs to remove from index.
 
         It will remove all the children on the index"""
@@ -444,8 +430,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                         '_type': type_name
                     }
                 })
-                await self.unindex_all_children(content_path, index_name=index_name,
-                                                future=future)
+                await self.unindex_all_children(content_path, index_name=index_name)
             await self.conn.bulk(index=index_name, body=bulk_data)
 
         if check_next:
@@ -455,15 +440,15 @@ class ElasticSearchUtility(ElasticSearchManager):
             if next_index_name:
                 async with self._migration_lock:
                     await self.remove(container, uids, next_index_name,
-                                      request=request, future=future)
+                                      request=request)
 
     async def get_doc_count(self, container, index_name=None):
         if index_name is None:
-            index_name = await self.get_index_name(container)
+            index_name = await self.get_real_index_name(container)
         result = await self.conn.count(index=index_name)
         return result['count']
 
     async def refresh(self, container, index_name=None):
         if index_name is None:
-            index_name = await self.get_index_name(container)
+            index_name = await self.get_real_index_name(container)
         await self.conn.indices.refresh(index=index_name)
