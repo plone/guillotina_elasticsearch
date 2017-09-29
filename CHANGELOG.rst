@@ -1,4 +1,4 @@
-1.1.22 (unreleased)
+1.1.22 (2017-09-28)
 -------------------
 
 - Another tweak for missing indexes on running migration
