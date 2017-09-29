@@ -234,13 +234,13 @@ class Migrator:
                 'wait_for_completion': 'false'
             },
             data=json.dumps({
-              "source": {
-                "index": real_index_name,
-                "size": 100
-              },
-              "dest": {
-                "index": self.work_index_name
-              }
+                "source": {
+                    "index": real_index_name,
+                    "size": 100
+                },
+                "dest": {
+                    "index": self.work_index_name
+                }
             })
         )
 
@@ -311,6 +311,7 @@ class Migrator:
         next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
         next_mappings = next_mappings[self.work_index_name]['mappings']
 
+        changes = False
         for type_name in existing_mappings.keys():
             if type_name not in next_mappings:
                 # copy over orphaned type otherwise move will potentially not work
@@ -328,6 +329,11 @@ class Migrator:
                 # and install new mapping
                 await self.utility.conn.indices.put_mapping(
                     self.work_index_name, type_name, mapping)
+                changes = True
+        if changes:
+            # we add to the mappings so we need to update...
+            next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
+            next_mappings = next_mappings[self.work_index_name]['mappings']
 
         for type_name, schema in getUtilitiesFor(IResourceFactory):
             new_definitions = {}

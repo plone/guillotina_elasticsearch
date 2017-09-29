@@ -1,7 +1,8 @@
 1.1.22 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Another tweak for missing indexes on running migration
+  [vangheem]
 
 
 1.1.21 (2017-09-21)
