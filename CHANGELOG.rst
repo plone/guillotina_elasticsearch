@@ -1,4 +1,4 @@
-1.1.23 (unreleased)
+1.1.23 (2017-10-09)
 -------------------
 
 - Make sure to use `async with` syntax for manual api calls to elasticsearch using
