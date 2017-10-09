@@ -228,47 +228,45 @@ class Migrator:
         conn_es = await self.conn.transport.get_connection()
         real_index_name = await self.utility.get_index_name(self.container,
                                                             self.request)
-        resp = await conn_es._session.post(
-            str(conn_es._base_url) + '_reindex',
-            params={
-                'wait_for_completion': 'false'
-            },
-            data=json.dumps({
-                "source": {
-                    "index": real_index_name,
-                    "size": 100
+        async with conn_es._session.post(
+                str(conn_es._base_url) + '_reindex',
+                params={
+                    'wait_for_completion': 'false'
                 },
-                "dest": {
-                    "index": self.work_index_name
-                }
-            })
-        )
-
-        data = await resp.json()
-        self.active_task_id = task_id = data['task']
-        while True:
-            await asyncio.sleep(10)
-            resp = await conn_es._session.get(
-                str(conn_es._base_url) + '_tasks/' + task_id)
-            if resp.status in (400, 404):
-                break
+                data=json.dumps({
+                    "source": {
+                        "index": real_index_name,
+                        "size": 100
+                    },
+                    "dest": {
+                        "index": self.work_index_name
+                    }
+                })) as resp:
             data = await resp.json()
-            if data['completed']:
-                break
-            status = data["task"]["status"]
-            self.response.write(f'{status["created"]}/{status["total"]} - '
-                                f'Copying data to new index. task id: {task_id}')
-            self.copied_docs = status["created"]
+            self.active_task_id = task_id = data['task']
+            while True:
+                await asyncio.sleep(10)
+                async with conn_es._session.get(
+                        str(conn_es._base_url) + '_tasks/' + task_id) as resp:
+                    if resp.status in (400, 404):
+                        break
+                    data = await resp.json()
+                    if data['completed']:
+                        break
+                    status = data["task"]["status"]
+                    self.response.write(f'{status["created"]}/{status["total"]} - '
+                                        f'Copying data to new index. task id: {task_id}')
+                    self.copied_docs = status["created"]
 
-        self.active_task_id = None
-        response = data['response']
-        failures = response['failures']
-        if len(failures) > 0:
-            failures = json.dumps(failures, sort_keys=True, indent=4,
-                                  separators=(',', ': '))
-            self.response.write(f'Reindex encountered failures: {failures}')
-        else:
-            self.response.write(f'Finished copying to new index: {self.copied_docs}')
+            self.active_task_id = None
+            response = data['response']
+            failures = response['failures']
+            if len(failures) > 0:
+                failures = json.dumps(failures, sort_keys=True, indent=4,
+                                      separators=(',', ': '))
+                self.response.write(f'Reindex encountered failures: {failures}')
+            else:
+                self.response.write(f'Finished copying to new index: {self.copied_docs}')
 
     async def get_all_uids(self):
         self.response.write('Retrieving existing doc ids')
@@ -445,7 +443,7 @@ class Migrator:
             gc.collect()
             if self.memory_tracking:
                 total_memory = round(
-                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss/1024.0, 1)
+                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)
                 self.response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (
                     total_memory, num, len(gc.get_objects())))
             self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
@@ -537,9 +535,9 @@ class Migrator:
         if self.active_task_id is not None:
             self.response.write('Canceling copy of index task')
             conn_es = await self.conn.transport.get_connection()
-            await conn_es._session.post(
-                str(conn_es._base_url) + '_tasks/' + self.active_task_id + '/_cancel')
-            asyncio.sleep(5)
+            async with conn_es._session.post(
+                    str(conn_es._base_url) + '_tasks/' + self.active_task_id + '/_cancel'):
+                asyncio.sleep(5)
         if self.work_index_name:
             self.response.write('Deleting new index')
             await self.conn.indices.delete(self.work_index_name)

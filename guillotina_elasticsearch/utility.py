@@ -19,7 +19,6 @@ import asyncio
 import json
 import logging
 import time
-import uuid
 
 
 logger = logging.getLogger('guillotina_elasticsearch')
@@ -211,15 +210,19 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def call_unindex_all_children(self, index_name, path_query):
         conn_es = await self.conn.transport.get_connection()
-        resp = await conn_es._session.post(
-            conn_es._base_url.human_repr() + index_name + '/_delete_by_query',
-            data=json.dumps(path_query))
-        result = await resp.json()
-        if 'deleted' in result:
-            logger.warn('Deleted %d children' % result['deleted'])
-            logger.warn('Deleted %s ' % json.dumps(path_query))
-        else:
-            logger.warn('Wrong deletion of children ' + json.dumps(result))
+        async with conn_es._session.post(
+                conn_es._base_url.human_repr() + index_name + '/_delete_by_query',
+                data=json.dumps(path_query)) as resp:
+            result = await resp.json()
+            if 'deleted' in result:
+                logger.info('Deleted %d children' % result['deleted'])
+                logger.info('Deleted %s ' % json.dumps(path_query))
+            else:
+                try:
+                    if result['error']['caused_by']['type'] == 'index_not_found_exception':
+                        return  # ignore these...
+                except KeyError:
+                    logger.warn('Wrong deletion of children ' + json.dumps(result))
 
     async def get_path_query(self, resource, index_name=None, response=noop_response):
         if type(resource) is str:
@@ -275,16 +278,16 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def _update_by_query(self, query, index_name):
         conn_es = await self.conn.transport.get_connection()
-        resp = await conn_es._session.post(
-            conn_es._base_url.human_repr() + index_name + '/_update_by_query?conflicts=proceed',
-            data=json.dumps(query))
-        result = await resp.json()
-        if 'updated' in result:
-            logger.warn('Updated %d children' % result['updated'])
-            logger.warn('Updated %s ' % json.dumps(query))
-        else:
-            logger.warn('Wrong update of children' + json.dumps(result))
-        return result
+        async with conn_es._session.post(
+                conn_es._base_url.human_repr() + index_name + '/_update_by_query?conflicts=proceed',
+                data=json.dumps(query)) as resp:
+            result = await resp.json()
+            if 'updated' in result:
+                logger.warn('Updated %d children' % result['updated'])
+                logger.warn('Updated %s ' % json.dumps(query))
+            else:
+                logger.warn('Wrong update of children' + json.dumps(result))
+            return result
 
     async def get_folder_contents(self, container, parent_uuid, doc_type=None):
         query = {

@@ -1,7 +1,9 @@
 1.1.23 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Make sure to use `async with` syntax for manual api calls to elasticsearch using
+  session object.
+  [vangheem]
 
 
 1.1.22 (2017-09-28)
