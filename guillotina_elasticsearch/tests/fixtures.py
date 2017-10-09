@@ -38,6 +38,8 @@ def elasticsearch():
 
 # XXX order of this import matters
 from guillotina.tests.fixtures import ContainerRequesterAsyncContextManager  # noqa
+# make sure to clear out utilities so default search utility isn't used
+TESTING_SETTINGS["utilities"] = []
 
 
 class ESRequester(ContainerRequesterAsyncContextManager):
