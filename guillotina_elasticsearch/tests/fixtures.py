@@ -1,23 +1,30 @@
+from guillotina import testing
 from guillotina.component import getUtility
 from guillotina.interfaces import ICatalogUtility
-from guillotina.testing import TESTING_SETTINGS
+from guillotina.tests.fixtures import ContainerRequesterAsyncContextManager
 from guillotina_elasticsearch.tests.utils import run_elasticsearch_docker
 
 import os
 import pytest
 
-if 'applications' in TESTING_SETTINGS:
-    TESTING_SETTINGS['applications'].append('guillotina_elasticsearch')
-else:
-    TESTING_SETTINGS['applications'] = ['guillotina_elasticsearch']
 
-TESTING_SETTINGS['elasticsearch'] = {
-    "index_name_prefix": "guillotina-",
-    "connection_settings": {
-        "endpoints": ["localhost:9200"],
-        "sniffer_timeout": 0.5
+def base_settings_configurator(settings):
+    if 'applications' in settings:
+        settings['applications'].append('guillotina_elasticsearch')
+    else:
+        settings['applications'] = ['guillotina_elasticsearch']
+
+    settings['elasticsearch'] = {
+        "index_name_prefix": "guillotina-",
+        "connection_settings": {
+            "endpoints": ["localhost:9200"],
+            "sniffer_timeout": 0.5
+        }
     }
-}
+    settings["utilities"] = []
+
+
+testing.configure_with(base_settings_configurator)
 
 
 @pytest.fixture(scope='session')
@@ -25,8 +32,7 @@ def elasticsearch():
     container = run_elasticsearch_docker()
 
     if os.environ.get('TESTING', '') == 'jenkins':
-        TESTING_SETTINGS['elasticsearch']['connection_settings']['endpoints'] = [
-            container.attrs['NetworkSettings']['IPAddress'] + ':9200']
+        setattr(elasticsearch, 'host', container.attrs['NetworkSettings']['IPAddress'])
 
     yield container
 
@@ -36,10 +42,11 @@ def elasticsearch():
     )
 
 
-# XXX order of this import matters
-from guillotina.tests.fixtures import ContainerRequesterAsyncContextManager  # noqa
-# make sure to clear out utilities so default search utility isn't used
-TESTING_SETTINGS["utilities"] = []
+def get_settings():
+    settings = testing.get_settings()
+    settings['elasticsearch']['connection_settings']['endpoints'] = [
+        getattr(elasticsearch, 'host', 'localhost') + ':9200']
+    return settings
 
 
 class ESRequester(ContainerRequesterAsyncContextManager):
@@ -56,7 +63,7 @@ class ESRequester(ContainerRequesterAsyncContextManager):
         if os.environ.get('TESTING', '') == 'jenkins':
             if 'elasticsearch' in app_settings:
                 app_settings['elasticsearch']['connection_settings']['endpoints'] = \
-                    TESTING_SETTINGS['elasticsearch']['connection_settings']['endpoints']
+                    getattr(elasticsearch, 'host', 'localhost') + ':9200'
 
 
 @pytest.fixture(scope='function')
