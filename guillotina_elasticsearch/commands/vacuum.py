@@ -213,5 +213,6 @@ class VacuumCommand(Command):
     Orphaned cleaned: {len(vacuum.orphaned)}
     Missing added: {len(vacuum.missing)}
     ''')
+                    await tm.abort(txn=txn)
                 except:
                     logger.error('Error vacuuming', exc_info=True)
