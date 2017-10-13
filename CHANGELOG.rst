@@ -1,7 +1,8 @@
 1.1.24 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Close connection after done in vacuum command
+  [vangheem]
 
 
 1.1.23 (2017-10-09)
