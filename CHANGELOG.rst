@@ -1,4 +1,4 @@
-1.1.24 (unreleased)
+1.1.24 (2017-10-12)
 -------------------
 
 - Close connection after done in vacuum command
