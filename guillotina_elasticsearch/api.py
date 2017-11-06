@@ -1,8 +1,8 @@
 from guillotina import configure
-from guillotina.component import getUtility
+from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IContainer
-from guillotina.component import queryUtility
+from guillotina.component import query_utility
 from guillotina_elasticsearch.manager import get_mappings
 from guillotina_elasticsearch.manager import DEFAULT_SETTINGS
 from guillotina import app_settings
@@ -13,7 +13,7 @@ import json
     context=IContainer, name='@update_mapping', method='POST',
     permission='guillotina.ManageCatalog')
 async def update_mapping(context, request):
-    util = getUtility(ICatalogUtility)
+    util = get_utility(ICatalogUtility)
     await util.migrate_index(context)
 
 
@@ -21,7 +21,7 @@ async def update_mapping(context, request):
     context=IContainer, name='@force_mapping', method='POST',
     permission='guillotina.ManageCatalog')
 async def force_update_mapping(context, request):
-    catalog = queryUtility(ICatalogUtility)
+    catalog = query_utility(ICatalogUtility)
     index_name = await catalog.get_index_name(request.container)
     version = await catalog.get_version(request.container)
     real_index_name = index_name + '_' + str(version)
@@ -39,10 +39,9 @@ async def force_update_mapping(context, request):
     }
     for key, value in mappings.items():
         async with conn_es._session.put(
-                    str(conn_es._base_url) + '_mapping/' + key + '?update_all_types',
-                    data=json.dumps(value),
-                    timeout=1000000
-                ) as resp:
+                str(conn_es._base_url) + '_mapping/' + key + '?update_all_types',
+                data=json.dumps(value),
+                timeout=1000000) as resp:
             if resp.status != 200:
                 response = {
                     'status': resp.status,

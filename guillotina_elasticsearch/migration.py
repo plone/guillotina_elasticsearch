@@ -1,6 +1,6 @@
 from guillotina import directives
 from guillotina.catalog.catalog import DefaultCatalogDataAdapter
-from guillotina.component import getUtilitiesFor
+from guillotina.component import get_utilities_for
 from guillotina.content import iter_schemata_for_type
 from guillotina.db.cache.dummy import DummyCache
 from guillotina.directives import merged_tagged_value_dict
@@ -36,7 +36,7 @@ class Indexer:
     def __init__(self):
         self.data_adapter = DefaultCatalogDataAdapter(None)
         self.mappings = {}
-        for type_name, schema in getUtilitiesFor(IResourceFactory):
+        for type_name, schema in get_utilities_for(IResourceFactory):
             self.mappings[type_name] = {}
             for schema in iter_schemata_for_type(type_name):
                 for index_name, index_data in merged_tagged_value_dict(
@@ -183,7 +183,7 @@ class Migrator:
         else:
             self.request = request
         # make sure that we don't cache requests...
-        self.request._txn._cache = DummyCache(None, None)
+        self.request._txn._cache = DummyCache(self.request._txn)
         self.container = self.request.container
         self.interaction = IInteraction(self.request)
         self.indexer = Indexer()
@@ -333,7 +333,7 @@ class Migrator:
             next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
             next_mappings = next_mappings[self.work_index_name]['mappings']
 
-        for type_name, schema in getUtilitiesFor(IResourceFactory):
+        for type_name, schema in get_utilities_for(IResourceFactory):
             new_definitions = {}
             if type_name not in existing_mappings:
                 diffs[type_name] = next_mappings[type_name]['properties']

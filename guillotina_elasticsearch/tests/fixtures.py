@@ -1,7 +1,7 @@
 from guillotina import testing
 from guillotina.component import getUtility
 from guillotina.interfaces import ICatalogUtility
-from guillotina.tests.fixtures import ContainerRequesterAsyncContextManager
+from guillotina.tests.utils import ContainerRequesterAsyncContextManager
 from guillotina_elasticsearch.tests.utils import run_elasticsearch_docker
 
 import os

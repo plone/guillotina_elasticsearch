@@ -1,6 +1,7 @@
+from guillotina.interfaces import ICatalogDataAdapter
 from guillotina_elasticsearch.migration import Indexer
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
-from guillotina.interfaces import ICatalogDataAdapter
+
 import json
 
 
@@ -20,4 +21,6 @@ async def test_indexer_matches_manual(es_requester):
         full_data = await ICatalogDataAdapter(ob)()
         indexer = Indexer()
         for key, value in full_data.items():
+            if key in ('type_name', ):
+                continue
             assert value == await indexer.get_value(ob, key)

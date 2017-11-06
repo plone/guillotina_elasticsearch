@@ -2,12 +2,13 @@
 from setuptools import find_packages
 from setuptools import setup
 
+
 test_requires = [
     'pytest',
     'docker',
     'backoff',
     'psycopg2',
-    'pytest-asyncio',
+    'pytest-asyncio<=0.5.0',
     'pytest-aiohttp',
     'pytest-rerunfailures'
 ]
@@ -35,8 +36,7 @@ setup(
     include_package_data=True,
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
-        'setuptools>=1.1.0a11',
-        'guillotina>=1.3.15.dev0',
+        'guillotina>=2.0.0',
         'aioes>=0.7.0',
         'ujson',
         'lru-dict'

@@ -15,6 +15,7 @@ from guillotina_elasticsearch.tests.utils import add_content
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
 import aioes
+import aiotask_context
 import asyncio
 import pytest
 import random
@@ -277,6 +278,7 @@ async def test_unindex_during_next_index(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
         keys = await container.async_keys()
         item = await container.async_get(keys[0])
+        aiotask_context.set('request', request)
         await notify(ObjectRemovedEvent(item, container, item.id))
         request.execute_futures()
         await asyncio.sleep(1)

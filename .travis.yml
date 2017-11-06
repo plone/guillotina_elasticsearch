@@ -16,8 +16,7 @@ cache:
   directories:
     - eggs
 install:
-  - python bootstrap-buildout.py
-  - bin/buildout -t 3
+  - pip3.6 install -e .[test]
 script:
   - bin/py.test -s --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
 after_success:
