@@ -16,7 +16,7 @@ cache:
   directories:
     - eggs
 install:
-  - bin/pip3 install -e .[test]
+  - bin/pip install -e .[test]
 script:
   - bin/pytest -s --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
 after_success:
