@@ -16,9 +16,9 @@ cache:
   directories:
     - eggs
 install:
-  - pip3.6 install -e .[test]
+  - bin/pip3 install -e .[test]
 script:
-  - bin/py.test -s --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
+  - bin/pytest -s --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
 after_success:
   - pip install coveralls
   - coveralls
