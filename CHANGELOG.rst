@@ -1,4 +1,4 @@
-1.2.0 (unreleased)
+1.2.0 (2017-11-06)
 ------------------
 
 - Upgrade to guillotina 2.0.0
