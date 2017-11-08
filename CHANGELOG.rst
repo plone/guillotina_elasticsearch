@@ -1,4 +1,4 @@
-1.2.2 (unreleased)
+1.2.2 (2017-11-08)
 ------------------
 
 - Fix test setup with jenkins
