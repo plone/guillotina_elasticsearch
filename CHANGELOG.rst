@@ -1,7 +1,8 @@
 1.2.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Make logging less noisy
+  [vangheem]
 
 
 1.2.0 (2017-11-06)

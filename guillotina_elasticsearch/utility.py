@@ -106,7 +106,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         # query.update(permission_query)
         q['body'] = query
         q['size'] = size
-        logger.warn(q)
+        logger.debug(q)
         return q
 
     async def query(
@@ -215,14 +215,10 @@ class ElasticSearchUtility(ElasticSearchManager):
                 data=json.dumps(path_query)) as resp:
             result = await resp.json()
             if 'deleted' in result:
-                logger.info('Deleted %d children' % result['deleted'])
-                logger.info('Deleted %s ' % json.dumps(path_query))
+                logger.debug('Deleted %d children' % result['deleted'])
+                logger.debug('Deleted %s ' % json.dumps(path_query))
             else:
-                try:
-                    if result['error']['caused_by']['type'] == 'index_not_found_exception':
-                        return  # ignore these...
-                except KeyError:
-                    logger.warn('Wrong deletion of children ' + json.dumps(result))
+                self.log_result(result, 'Deletion of children')
 
     async def get_path_query(self, resource, index_name=None, response=noop_response):
         if type(resource) is str:
@@ -283,10 +279,11 @@ class ElasticSearchUtility(ElasticSearchManager):
                 data=json.dumps(query)) as resp:
             result = await resp.json()
             if 'updated' in result:
-                logger.warn('Updated %d children' % result['updated'])
-                logger.warn('Updated %s ' % json.dumps(query))
+                logger.debug('Updated %d children' % result['updated'])
+                logger.debug('Updated %s ' % json.dumps(query))
             else:
-                logger.warn('Wrong update of children' + json.dumps(result))
+                self.log_result(result, 'Updating children')
+
             return result
 
     async def get_folder_contents(self, container, parent_uuid, doc_type=None):
@@ -365,8 +362,8 @@ class ElasticSearchUtility(ElasticSearchManager):
         if len(bulk_data) > 0:
             result = await self.bulk_insert(
                 index_name, bulk_data, idents, response=response)
-        if 'errors' in result and result['errors']:
-            logger.error(json.dumps(result))
+
+        self.log_result(result)
 
         if check_next:
             # also need to call on next index while it's running...
@@ -407,9 +404,20 @@ class ElasticSearchUtility(ElasticSearchManager):
             if len(bulk_data) > 0:
                 result = await self.bulk_insert(
                     index_name, bulk_data, idents, response=response)
-            if 'errors' in result and result['errors']:
-                logger.error(json.dumps(result))
+            self.log_result(result)
             return result
+
+    def log_result(self, result, label='ES Query'):
+        if 'errors' in result and result['errors']:
+            try:
+                if result['error']['caused_by']['type'] in ('index_not_found_exception',
+                                                            'cluster_block_exception'):
+                    return  # ignore these...
+            except KeyError:
+                return
+            logger.error(label + ': ' + json.dumps(result))
+        else:
+            logger.debug(label + ': ' + json.dumps(result))
 
     async def remove(self, container, uids, index_name=None, request=None):
         """List of UIDs to remove from index.
