@@ -6,7 +6,7 @@ import json
 
 
 async def test_indexer_matches_manual(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         resp, status = await requester(
             'POST',
             '/db/guillotina/',

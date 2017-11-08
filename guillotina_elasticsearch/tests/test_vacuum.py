@@ -10,7 +10,7 @@ import random
 
 
 async def test_adds_missing_elasticsearch_entry(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         await add_content(requester)
         await asyncio.sleep(1)
 
@@ -35,7 +35,7 @@ async def test_adds_missing_elasticsearch_entry(es_requester):
 
 
 async def test_removes_orphaned_es_entry(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
         index_name = await search.get_index_name(container)

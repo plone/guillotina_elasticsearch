@@ -23,7 +23,7 @@ import random
 
 @pytest.mark.flaky(reruns=5)
 async def _test_migrate_while_content_getting_added(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         add_count = await add_content(requester)
 
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -51,7 +51,7 @@ async def _test_migrate_while_content_getting_added(es_requester):
 
 
 async def test_migrate_get_all_uids(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         await add_content(requester)
 
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -72,7 +72,7 @@ async def test_migrate_get_all_uids(es_requester):
 
 
 async def test_removes_orphans(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
         await search.index(container, {
@@ -103,7 +103,7 @@ async def test_removes_orphans(es_requester):
 
 @pytest.mark.flaky(reruns=5)
 async def test_fixes_missing(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         await add_content(requester, 2, 2)
         container, request, txn, tm = await setup_txn_on_container(requester)
 
@@ -142,7 +142,7 @@ async def test_fixes_missing(es_requester):
 
 @pytest.mark.flaky(reruns=5)
 async def test_updates_index_data(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
 
@@ -189,7 +189,7 @@ async def test_updates_index_data(es_requester):
 
 
 async def test_calculate_mapping_diff(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
 
@@ -220,7 +220,7 @@ async def test_calculate_mapping_diff(es_requester):
 
 
 async def test_updates_index_name(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
         existing_index = await search.get_real_index_name(container)
@@ -233,7 +233,7 @@ async def test_updates_index_name(es_requester):
 
 
 async def test_moves_docs_over(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         await add_content(requester)
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
@@ -255,7 +255,7 @@ async def test_moves_docs_over(es_requester):
 
 
 async def test_create_next_index(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
         migrator = Migrator(search, container, force=True, request=request)
@@ -265,7 +265,7 @@ async def test_create_next_index(es_requester):
 
 
 async def test_unindex_during_next_index(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         await add_content(requester, 2)
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
@@ -285,7 +285,7 @@ async def test_unindex_during_next_index(es_requester):
 
 
 async def test_apply_next_index_does_not_cause_conflict_error(es_requester):
-    async with await es_requester as requester:
+    async with es_requester as requester:
         container, req, txn, tm = await setup_txn_on_container(requester)
         search = getUtility(ICatalogUtility)
         migrator = Migrator(search, container, force=True, request=req)
