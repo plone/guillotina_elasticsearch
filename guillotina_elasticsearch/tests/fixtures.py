@@ -62,8 +62,8 @@ class ESRequester(ContainerRequesterAsyncContextManager):
         from guillotina import app_settings
         if os.environ.get('TESTING', '') == 'jenkins':
             if 'elasticsearch' in app_settings:
-                app_settings['elasticsearch']['connection_settings']['endpoints'] = \
-                    getattr(elasticsearch, 'host', 'localhost') + ':9200'
+                app_settings['elasticsearch']['connection_settings']['endpoints'] = [
+                    getattr(elasticsearch, 'host', 'localhost') + ':9200']
 
 
 @pytest.fixture(scope='function')
