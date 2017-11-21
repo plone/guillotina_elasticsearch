@@ -1,5 +1,6 @@
 from guillotina.tests.docker_containers.base import BaseImage
 
+import os
 import requests
 
 
@@ -22,6 +23,13 @@ class ElasticSearch(BaseImage):
                 'ES_JAVA_OPTS': '-Xms512m -Xmx512m'
             }
         ))
+        if 'TRAVIS' in os.environ:
+            image_options.update({
+                'publish_all_ports': False,
+                'ports': {
+                    f'9200/tcp': '9200'
+                }
+            })
         return image_options
 
     def check(self):
