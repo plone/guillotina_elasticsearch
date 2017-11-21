@@ -2,7 +2,7 @@ from guillotina import testing
 from guillotina.component import getUtility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import ContainerRequesterAsyncContextManager
-from guillotina_elasticsearch.tests.utils import run_elasticsearch_docker
+from guillotina_elasticsearch.tests import container
 
 import os
 import pytest
@@ -17,7 +17,10 @@ def base_settings_configurator(settings):
     settings['elasticsearch'] = {
         "index_name_prefix": "guillotina-",
         "connection_settings": {
-            "endpoints": ["localhost:9200"],
+            "endpoints": ['{}:{}'.format(
+                getattr(elasticsearch, 'host', 'localhost'),
+                getattr(elasticsearch, 'port', '9200'),
+            )],
             "sniffer_timeout": 0.5
         }
     }
@@ -29,23 +32,23 @@ testing.configure_with(base_settings_configurator)
 
 @pytest.fixture(scope='session')
 def elasticsearch():
-    container = run_elasticsearch_docker()
+    host, port = container.image.run()
 
-    if os.environ.get('TESTING', '') == 'jenkins':
-        setattr(elasticsearch, 'host', container.attrs['NetworkSettings']['IPAddress'])
+    setattr(elasticsearch, 'host', host)
+    setattr(elasticsearch, 'port', port)
 
     yield container
 
-    container.remove(
-        v=True,
-        force=True
-    )
+    container.image.stop()
 
 
 def get_settings():
     settings = testing.get_settings()
     settings['elasticsearch']['connection_settings']['endpoints'] = [
-        getattr(elasticsearch, 'host', 'localhost') + ':9200']
+        '{}:{}'.format(
+            getattr(elasticsearch, 'host', 'localhost'),
+            getattr(elasticsearch, 'port', '9200'),
+        )]
     return settings
 
 
@@ -63,7 +66,10 @@ class ESRequester(ContainerRequesterAsyncContextManager):
         if os.environ.get('TESTING', '') == 'jenkins':
             if 'elasticsearch' in app_settings:
                 app_settings['elasticsearch']['connection_settings']['endpoints'] = [
-                    getattr(elasticsearch, 'host', 'localhost') + ':9200']
+                    '{}:{}'.format(
+                        getattr(elasticsearch, 'host', 'localhost'),
+                        getattr(elasticsearch, 'port', '9200'),
+                    )]
 
 
 @pytest.fixture(scope='function')

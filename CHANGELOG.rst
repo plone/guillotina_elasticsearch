@@ -1,7 +1,8 @@
 1.2.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Upgrade testing infrastructure with latest guillotina
+  [vangheem]
 
 
 1.2.2 (2017-11-08)
