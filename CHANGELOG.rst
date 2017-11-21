@@ -1,4 +1,4 @@
-1.2.3 (unreleased)
+1.2.3 (2017-11-21)
 ------------------
 
 - Upgrade testing infrastructure with latest guillotina
