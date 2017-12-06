@@ -1,4 +1,4 @@
-1.2.4 (unreleased)
+1.2.4 (2017-12-06)
 ------------------
 
 - Use futures instead of threads for migrations
