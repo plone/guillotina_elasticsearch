@@ -15,7 +15,6 @@ from guillotina.interfaces import ISecurityInfo
 from guillotina.transactions import managed_transaction
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
-from guillotina_elasticsearch.utility import ElasticSearchUtility
 from guillotina_elasticsearch.utils import noop_response
 
 import aioes
@@ -24,7 +23,6 @@ import gc
 import json
 import logging
 import resource
-import threading
 import time
 
 
@@ -63,44 +61,6 @@ class Indexer:
                 return self.data_adapter.get_data(behavior, schema, index_name)
         except NoIndexField:
             pass
-
-
-class ElasticThread(threading.Thread):
-    def __init__(self, index_name, batch):
-        self.index_name = index_name
-        self.batch = batch
-        super().__init__(target=self)
-
-    def __call__(self):
-        self._loop = asyncio.new_event_loop()
-        self._loop.run_until_complete(self._run())
-
-    async def _run(self):
-        utility = ElasticSearchUtility(loop=self._loop)
-        bulk_data = []
-
-        uids = []
-        for uuid, batch_type, data in self.batch:
-            uids.append(uuid)
-            doc_type = data['type_name']
-            if batch_type == 'update':
-                data = {'doc': data}
-            bulk_data.append({
-                batch_type: {
-                    '_index': self.index_name,
-                    '_type': doc_type,
-                    '_id': uuid
-                }
-            })
-            if batch_type != 'delete':
-                bulk_data.append(data)
-        results = await utility.conn.bulk(index=self.index_name, doc_type=None,
-                                          body=bulk_data)
-        if results['errors']:
-            logger.warn(f'Error bulk bulk putting: {", ".join(uids)}')
-        utility.conn.close()
-        del utility
-        del self.batch
 
 
 def _clean_mapping(mapping):
@@ -188,7 +148,7 @@ class Migrator:
         self.interaction = IInteraction(self.request)
         self.indexer = Indexer()
 
-        self.batch = []
+        self.batch = {}
         self.indexed = 0
         self.processed = 0
         self.missing = []
@@ -197,7 +157,7 @@ class Migrator:
         self.errors = []
         self.mapping_diff = {}
         self.start_time = self.index_start_time = time.time()
-        self.reindex_threads = []
+        self.reindex_futures = []
         self.status = 'started'
         self.active_task_id = None
 
@@ -426,7 +386,10 @@ class Migrator:
                     data[index_name] = val
 
         self.indexed += 1
-        self.batch.append((ob.uuid, batch_type, data))
+        self.batch[ob.uuid] = {
+            'action': batch_type,
+            'data': data
+        }
 
         if self.log_details:
             self.response.write(f'({self.processed} {int(self.per_sec())}) '
@@ -453,27 +416,59 @@ class Migrator:
         if len(self.batch) >= self.bulk_size:
             await self.flush()
 
-    def join_threads(self):
-        for thread in self.reindex_threads:
-            thread.join()
-        self.reindex_threads = []
+    async def join_futures(self):
+        for future in self.reindex_futures:
+            if not future.done():
+                await asyncio.wait_for(future, None)
+        self.reindex_futures = []
+
+    async def _index_batch(self, batch):
+        bulk_data = []
+
+        for _id, payload in batch.items():
+            doc_type = payload['data']['type_name']
+            data = payload['data']
+            if payload['action'] == 'update':
+                data = {'doc': data}
+            bulk_data.append({
+                payload['action']: {
+                    '_index': self.work_index_name,
+                    '_type': doc_type,
+                    '_id': _id
+                }
+            })
+            if payload['action'] != 'delete':
+                bulk_data.append(data)
+        results = await self.utility.conn.bulk(
+            index=self.work_index_name, doc_type=None,
+            body=bulk_data)
+        if results['errors']:
+            errors = []
+            for result in results['items']:
+                for key, value in result.items():
+                    if not isinstance(value, dict):
+                        continue
+                    if 'status' in value and value['status'] != 200:
+                        _id = value.get('_id')
+                        errors.append(f'{_id}: {value["status"]}')
+
+                        if value['status'] == 409:  # retry conflict errors
+                            self.batch[_id] = batch[_id]
+            logger.warn(f'Error bulk putting: {", ".join(errors)}')
 
     async def flush(self):
         if len(self.batch) == 0:
             # nothing to flush
             return
 
-        thread = ElasticThread(
-            self.work_index_name,
+        future = asyncio.ensure_future(self._index_batch(
             self.batch
-        )
-        self.batch = []
+        ))
+        self.batch = {}
+        self.reindex_futures.append(future)
 
-        self.reindex_threads.append(thread)
-        thread.start()
-
-        if len(self.reindex_threads) > 7:
-            self.join_threads()
+        if len(self.reindex_futures) > 7:
+            await self.join_futures()
 
     async def check_existing(self):
         '''
@@ -492,7 +487,10 @@ class Migrator:
                 try:
                     doc = await self.conn.get(self.work_index_name, uuid,
                                               _source=False)
-                    self.batch.append((uuid, 'delete', {'type_name': doc['_type']}))
+                    self.batch[uuid] = {
+                        'action': 'delete',
+                        'data': {'type_name': doc['_type']}
+                    }
                     await self.attempt_flush()
                     # no longer present on db, this was orphaned
                     self.orphaned.append(uuid)
@@ -571,7 +569,7 @@ class Migrator:
             await self.check_existing()
 
             await self.flush()
-            self.join_threads()
+            await self.join_futures()
 
         async with self.utility._migration_lock:
             self.response.write('Activating new index')

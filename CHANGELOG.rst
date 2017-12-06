@@ -1,7 +1,8 @@
 1.2.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Use futures instead of threads for migrations
+  [vangheem]
 
 
 1.2.3 (2017-11-21)

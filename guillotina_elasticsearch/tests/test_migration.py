@@ -155,11 +155,11 @@ async def test_updates_index_data(es_requester):
         ob.title = 'foobar'
         await migrator.index_object(ob, full=True)
         assert len(migrator.batch) == 1
-        assert migrator.batch[0][1] == 'index'
+        assert [v for v in migrator.batch.values()][0]['action'] == 'index'
 
         await migrator.flush()
         assert len(migrator.batch) == 0
-        migrator.join_threads()
+        await migrator.join_futures()
         await asyncio.sleep(1)
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
@@ -174,13 +174,14 @@ async def test_updates_index_data(es_requester):
         ob.title = 'foobar-new'
         await migrator.index_object(ob, full=False)
         assert len(migrator.batch) == 1
-        assert migrator.batch[0][1] == 'update'
-        assert len(migrator.batch[0][2]) == 2
-        assert migrator.batch[0][2]['title'] == 'foobar-new'
+        assert [v for v in migrator.batch.values()][0]['action'] == 'update'
+
+        assert len([v for v in migrator.batch.values()][0]['data']) == 2
+        assert [v for v in migrator.batch.values()][0]['data']['title'] == 'foobar-new'
 
         await migrator.flush()
         assert len(migrator.batch) == 0
-        migrator.join_threads()
+        await migrator.join_futures()
         await asyncio.sleep(1)
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
