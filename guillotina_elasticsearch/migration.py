@@ -424,7 +424,6 @@ class Migrator:
 
     async def _index_batch(self, batch):
         bulk_data = []
-
         for _id, payload in batch.items():
             doc_type = payload['data']['type_name']
             action_data = {

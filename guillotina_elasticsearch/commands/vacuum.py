@@ -1,8 +1,3 @@
-import asyncio
-import json
-import logging
-
-import aioes
 from guillotina.commands import Command
 from guillotina.component import getUtility
 from guillotina.db.reader import reader
@@ -11,6 +6,11 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
 from lru import LRU
+
+import aioes
+import asyncio
+import json
+import logging
 
 
 logger = logging.getLogger('guillotina_elasticsearch')
@@ -110,7 +110,7 @@ class Vacuum:
             obj = await self.get_object(oid)
         except KeyError:
             return  # object or parent of object was removed, ignore
-        await self.migrator.index_object(obj, full=True)
+        await self.migrator.index_object(obj, full=full)
 
     async def __call__(self):
         # how we're doing this...
@@ -179,6 +179,7 @@ class Vacuum:
                 await asyncio.gather(*batch)
 
         await self.migrator.flush()
+        await self.migrator.join_futures()
 
 
 class VacuumCommand(Command):
