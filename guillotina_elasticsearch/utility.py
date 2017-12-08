@@ -391,7 +391,8 @@ class ElasticSearchUtility(ElasticSearchManager):
                     'update': {
                         '_index': index_name,
                         '_type': data['type_name'],
-                        '_id': ident
+                        '_id': ident,
+                        '_retry_on_conflict': 3
                     }
                 }, {'doc': data}])
                 idents.append(ident)
