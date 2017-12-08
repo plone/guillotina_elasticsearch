@@ -1,7 +1,8 @@
 1.2.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Retry on conflict for updates
+  [vangheem]
 
 
 1.2.4 (2017-12-06)

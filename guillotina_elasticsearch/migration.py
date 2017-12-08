@@ -424,18 +424,19 @@ class Migrator:
 
     async def _index_batch(self, batch):
         bulk_data = []
-
         for _id, payload in batch.items():
             doc_type = payload['data']['type_name']
+            action_data = {
+                '_index': self.work_index_name,
+                '_type': doc_type,
+                '_id': _id
+            }
             data = payload['data']
             if payload['action'] == 'update':
                 data = {'doc': data}
+                action_data['_retry_on_conflict'] = 3
             bulk_data.append({
-                payload['action']: {
-                    '_index': self.work_index_name,
-                    '_type': doc_type,
-                    '_id': _id
-                }
+                payload['action']: action_data
             })
             if payload['action'] != 'delete':
                 bulk_data.append(data)

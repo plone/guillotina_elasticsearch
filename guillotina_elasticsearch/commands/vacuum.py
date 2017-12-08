@@ -1,8 +1,3 @@
-import asyncio
-import json
-import logging
-
-import aioes
 from guillotina.commands import Command
 from guillotina.component import getUtility
 from guillotina.db.reader import reader
@@ -11,6 +6,11 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
 from lru import LRU
+
+import aioes
+import asyncio
+import json
+import logging
 
 
 logger = logging.getLogger('guillotina_elasticsearch')
@@ -104,13 +104,13 @@ class Vacuum:
             obj.__parent__ = await self.get_object(result['parent_id'])
         return obj
 
-    async def process_missing(self, oid):
+    async def process_missing(self, oid, full=True):
         # need to fill in parents in order for indexing to work...
         try:
             obj = await self.get_object(oid)
         except KeyError:
             return  # object or parent of object was removed, ignore
-        await self.migrator.index_object(obj, full=True)
+        await self.migrator.index_object(obj, full=full)
 
     async def __call__(self):
         # how we're doing this...
@@ -179,12 +179,14 @@ class Vacuum:
                 await asyncio.gather(*batch)
 
         await self.migrator.flush()
+        await self.migrator.join_futures()
 
 
 class VacuumCommand(Command):
     '''
     '''
     description = 'Run vacuum on elasticearch'
+    vacuum_klass = Vacuum
 
     def get_parser(self):
         parser = super(VacuumCommand, self).get_parser()
@@ -207,7 +209,7 @@ class VacuumCommand(Command):
                     'account': container.id
                 })
                 try:
-                    vacuum = Vacuum(txn, tm, self.request, container)
+                    vacuum = self.vacuum_klass(txn, tm, self.request, container)
                     await vacuum()
                     logger.warn(f'''Finished vacuuming with results:
     Orphaned cleaned: {len(vacuum.orphaned)}
