@@ -104,7 +104,7 @@ class Vacuum:
             obj.__parent__ = await self.get_object(result['parent_id'])
         return obj
 
-    async def process_missing(self, oid):
+    async def process_missing(self, oid, full=True):
         # need to fill in parents in order for indexing to work...
         try:
             obj = await self.get_object(oid)
@@ -185,6 +185,7 @@ class VacuumCommand(Command):
     '''
     '''
     description = 'Run vacuum on elasticearch'
+    vacuum_klass = Vacuum
 
     def get_parser(self):
         parser = super(VacuumCommand, self).get_parser()
@@ -207,7 +208,7 @@ class VacuumCommand(Command):
                     'account': container.id
                 })
                 try:
-                    vacuum = Vacuum(txn, tm, self.request, container)
+                    vacuum = self.vacuum_klass(txn, tm, self.request, container)
                     await vacuum()
                     logger.warn(f'''Finished vacuuming with results:
     Orphaned cleaned: {len(vacuum.orphaned)}
