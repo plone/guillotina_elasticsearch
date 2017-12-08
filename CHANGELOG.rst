@@ -1,4 +1,4 @@
-1.2.5 (unreleased)
+1.2.5 (2017-12-08)
 ------------------
 
 - Retry on conflict for updates
