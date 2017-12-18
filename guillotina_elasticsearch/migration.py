@@ -509,7 +509,7 @@ class Migrator:
                 # doc = self.utility.conn.get(
                 #     await self.utility.get_index_name(), fields='path'
                 # )
-                # ob = await do_traverse(self.request, self.container,
+                # ob = await traverse(self.request, self.container,
                 #                        doc['_source']['path'].strip('/').split('/'))
                 # await self.index_object(ob, full=True)
 

@@ -5,7 +5,7 @@ from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IInteraction
-from guillotina.traversal import do_traverse
+from guillotina.traversal import traverse
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
@@ -177,7 +177,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             raise AttributeError('Not found a unique object')
 
         path = result['members'][0]['path']
-        obj = do_traverse(container, path)
+        obj, tail = traverse(container, path)
         return obj
 
     async def get_by_type(self, container, doc_type, query={}, size=10):

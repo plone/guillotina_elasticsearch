@@ -1,7 +1,8 @@
 1.2.6 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Use `traverse` instead of `do_traverse`.
+  [vangheem]
 
 
 1.2.5 (2017-12-08)
