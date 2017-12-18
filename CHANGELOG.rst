@@ -1,4 +1,4 @@
-1.2.6 (unreleased)
+1.2.6 (2017-12-18)
 ------------------
 
 - Use `traverse` instead of `do_traverse`.
