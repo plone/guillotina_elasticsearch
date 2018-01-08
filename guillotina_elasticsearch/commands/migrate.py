@@ -39,15 +39,16 @@ class MigrateCommand(Command):
         search = getUtility(ICatalogUtility)
         await asyncio.sleep(1)  # since something initialize custom types...
         async for txn, tm, container in get_containers(self.request):
-            self.migrator = Migrator(
-                search, container, response=printer(), full=arguments.full,
-                force=arguments.force, log_details=arguments.log_details,
-                memory_tracking=arguments.memory_tracking,
-                reindex_security=arguments.reindex_security,
-                mapping_only=arguments.mapping_only)
-            await self.migrator.run_migration()
-            seconds = int(time.time() - self.migrator.start_time)
-            logger.warning(f'''Finished migration:
+            try:
+                self.migrator = Migrator(
+                    search, container, response=printer(), full=arguments.full,
+                    force=arguments.force, log_details=arguments.log_details,
+                    memory_tracking=arguments.memory_tracking,
+                    reindex_security=arguments.reindex_security,
+                    mapping_only=arguments.mapping_only)
+                await self.migrator.run_migration()
+                seconds = int(time.time() - self.migrator.start_time)
+                logger.warning(f'''Finished migration:
 Total Seconds: {seconds}
 Processed: {self.migrator.processed}
 Indexed: {self.migrator.indexed}
@@ -55,6 +56,8 @@ Objects missing: {len(self.migrator.missing)}
 Objects orphaned: {len(self.migrator.orphaned)}
 Mapping Diff: {self.migrator.mapping_diff}
 ''')
+            finally:
+                await tm.commit(self.request)
 
     def run(self, arguments, settings, app):
         loop = self.get_loop()

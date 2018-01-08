@@ -35,21 +35,24 @@ class ReindexCommand(Command):
         search = getUtility(ICatalogUtility)
         await asyncio.sleep(1)  # since something initialize custom types...
         async for txn, tm, container in get_containers(self.request):
-            self.reindexer = Reindexer(
-                search, container, response=printer(),
-                log_details=arguments.log_details,
-                memory_tracking=arguments.memory_tracking,
-                reindex_security=arguments.reindex_security,
-                mapping_only=arguments.mapping_only)
-            await self.reindexer.reindex(container)
-            seconds = int(time.time() - self.reindexer.start_time)
-            logger.warning(f'''Finished reindex:
+            try:
+                self.reindexer = Reindexer(
+                    search, container, response=printer(),
+                    log_details=arguments.log_details,
+                    memory_tracking=arguments.memory_tracking,
+                    reindex_security=arguments.reindex_security,
+                    mapping_only=arguments.mapping_only)
+                await self.reindexer.reindex(container)
+                seconds = int(time.time() - self.reindexer.start_time)
+                logger.warning(f'''Finished reindex:
 Total Seconds: {seconds}
 Processed: {self.reindexer.processed}
 Indexed: {self.reindexer.indexed}
 Objects missing: {len(self.reindexer.missing)}
 Objects orphaned: {len(self.reindexer.orphaned)}
 ''')
+            finally:
+                await tm.commit(self.request)
 
     def run(self, arguments, settings, app):
         loop = self.get_loop()

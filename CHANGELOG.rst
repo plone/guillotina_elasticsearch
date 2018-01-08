@@ -1,7 +1,8 @@
 1.2.7 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Make sure to close out connection in commands
+  [vangheem]
 
 
 1.2.6 (2017-12-18)

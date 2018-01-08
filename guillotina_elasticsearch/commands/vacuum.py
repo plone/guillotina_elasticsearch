@@ -212,9 +212,10 @@ class VacuumCommand(Command):
                     vacuum = self.vacuum_klass(txn, tm, self.request, container)
                     await vacuum()
                     logger.warn(f'''Finished vacuuming with results:
-    Orphaned cleaned: {len(vacuum.orphaned)}
-    Missing added: {len(vacuum.missing)}
-    ''')
-                    await tm.abort(txn=txn)
+Orphaned cleaned: {len(vacuum.orphaned)}
+Missing added: {len(vacuum.missing)}
+''')
                 except:
                     logger.error('Error vacuuming', exc_info=True)
+                finally:
+                    await tm.abort(txn=txn)
