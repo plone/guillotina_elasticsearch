@@ -1,4 +1,4 @@
-1.2.7 (unreleased)
+1.2.7 (2018-01-08)
 ------------------
 
 - Make sure to close out connection in commands
