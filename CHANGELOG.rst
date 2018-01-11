@@ -1,4 +1,4 @@
-1.2.8 (unreleased)
+1.2.8 (2018-01-11)
 ------------------
 
 - Make sure to change transaction strategy for commands
