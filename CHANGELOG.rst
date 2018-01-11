@@ -1,7 +1,8 @@
 1.2.8 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Make sure to change transaction strategy for commands
+  [vangheem]
 
 
 1.2.7 (2018-01-08)

@@ -37,7 +37,7 @@ setup(
     include_package_data=True,
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
-        'guillotina>=2.1.9',
+        'guillotina>=2.3.9',
         'aioes>=0.7.0',
         'ujson',
         'lru-dict'

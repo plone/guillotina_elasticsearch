@@ -1,4 +1,5 @@
 from guillotina.commands import Command
+from guillotina.commands.utils import change_transaction_strategy
 from guillotina.component import getUtility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
@@ -55,5 +56,6 @@ Objects orphaned: {len(self.reindexer.orphaned)}
                 await tm.commit(self.request)
 
     def run(self, arguments, settings, app):
+        change_transaction_strategy('none')
         loop = self.get_loop()
         loop.run_until_complete(self.reindex_all(arguments))

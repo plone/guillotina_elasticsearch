@@ -1,4 +1,5 @@
 from guillotina.commands import Command
+from guillotina.commands.utils import change_transaction_strategy
 from guillotina.component import getUtility
 from guillotina.db.reader import reader
 from guillotina.db.transaction import HARD_CACHE
@@ -196,6 +197,7 @@ class VacuumCommand(Command):
         return parser
 
     async def run(self, arguments, settings, app):
+        change_transaction_strategy('none')
         self.request._db_write_enabled = True
         self.request._message.headers['Host'] = 'localhost'
         first_run = True
