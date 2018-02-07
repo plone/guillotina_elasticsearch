@@ -1,4 +1,4 @@
-1.2.9 (unreleased)
+1.2.9 (2018-02-07)
 ------------------
 
 - Handle errors unpickling object for es vacuum
