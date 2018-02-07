@@ -109,7 +109,7 @@ class Vacuum:
         # need to fill in parents in order for indexing to work...
         try:
             obj = await self.get_object(oid)
-        except KeyError:
+        except (KeyError, AttributeError, TypeError):
             return  # object or parent of object was removed, ignore
         await self.migrator.index_object(obj, full=full)
 

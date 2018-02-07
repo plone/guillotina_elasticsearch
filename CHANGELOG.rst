@@ -1,7 +1,8 @@
 1.2.9 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Handle errors unpickling object for es vacuum
+  [vangheem]
 
 
 1.2.8 (2018-01-11)
