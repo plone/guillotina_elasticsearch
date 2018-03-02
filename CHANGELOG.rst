@@ -1,4 +1,4 @@
-1.2.10 (unreleased)
+1.2.10 (2018-03-02)
 -------------------
 
 - Do not use cached statement for vacuum
