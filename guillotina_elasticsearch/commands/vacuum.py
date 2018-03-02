@@ -127,9 +127,9 @@ class Vacuum:
         self.migrator.work_index_name = index_name
 
         conn = self.txn._manager._storage._read_conn
-        smt = await conn.prepare(SELECT_BY_KEYS)
         logger.warn('Checking orphaned elasticsearch entries')
         async for es_batch in self.iter_batched_es_keys():
+            smt = await conn.prepare(SELECT_BY_KEYS)
             records = await smt.fetch(es_batch)
             db_batch = set()
             for record in records:

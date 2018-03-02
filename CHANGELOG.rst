@@ -1,7 +1,8 @@
 1.2.10 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Do not use cached statement for vacuum
+  [vangheem]
 
 
 1.2.9 (2018-02-07)

@@ -19,7 +19,7 @@ CATALOG_TYPES = {
     'textkeyword': {
         'type': 'text',
         'fields': {
-            'keyword':  {
+            'keyword': {
                 'type': 'keyword',
                 'ignore_above': 256
             }

@@ -455,7 +455,7 @@ class Migrator:
 
                         if value['status'] == 409:  # retry conflict errors
                             self.batch[_id] = batch[_id]
-            logger.warn(f'Error bulk putting: {", ".join(errors)}')
+            logger.warn(f'Error bulk putting: {results}')
 
     async def flush(self):
         if len(self.batch) == 0:
