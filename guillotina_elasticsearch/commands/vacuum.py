@@ -14,6 +14,12 @@ import json
 import logging
 
 
+try:
+    from guillotina.utils import clear_conn_statement_cache
+except ImportError:
+    def clear_conn_statement_cache(conn):
+        pass
+
 logger = logging.getLogger('guillotina_elasticsearch')
 
 
@@ -94,6 +100,7 @@ class Vacuum:
 
         result = HARD_CACHE.get(oid, None)
         if result is None:
+            clear_conn_statement_cache(await self.txn.get_connection())
             result = await self.txn._cache.get(oid=oid)
 
         if result is None:

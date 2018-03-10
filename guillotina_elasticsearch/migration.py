@@ -26,6 +26,13 @@ import resource
 import time
 
 
+try:
+    from guillotina.utils import clear_conn_statement_cache
+except ImportError:
+    def clear_conn_statement_cache(conn):
+        pass
+
+
 logger = logging.getLogger('guillotina_elasticsearch')
 
 
@@ -345,7 +352,7 @@ class Migrator:
             - else, do nothing
             - remove for list of existing doc ids
         '''
-        # do stuff...
+        clear_conn_statement_cache(await ob._p_jar.get_connection())
         full = False
         if ob.uuid not in self.existing:
             self.missing.append(ob.uuid)

@@ -1,7 +1,8 @@
 1.2.11 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Implement statement cache clearing
+  [vangheem]
 
 
 1.2.10 (2018-03-02)
