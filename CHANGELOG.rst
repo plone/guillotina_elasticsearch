@@ -1,4 +1,4 @@
-1.2.11 (unreleased)
+1.2.11 (2018-03-09)
 -------------------
 
 - Implement statement cache clearing
