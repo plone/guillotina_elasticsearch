@@ -1,4 +1,4 @@
-1.3.0 (unreleased)
+1.3.0 (2018-03-14)
 ------------------
 
 - Upgrade to work with guillotina 2.4.x
