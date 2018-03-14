@@ -1,4 +1,4 @@
-1.3.1 (unreleased)
+1.3.1 (2018-03-14)
 ------------------
 
 - Pay attention to `index_data` configuration
