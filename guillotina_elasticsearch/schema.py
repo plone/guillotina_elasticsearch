@@ -53,13 +53,14 @@ def get_mappings():
         type_overrides = base_type_overrides.copy()
         type_overrides.update(mapping_overrides.get(name, {}))
         for field_name, catalog_info in get_index_fields(name).items():
+            index_name = catalog_info.get('index_name', field_name)
             catalog_type = catalog_info.get('type', 'text')
             field_mapping = catalog_info.get('field_mapping', None)
             if field_mapping is None:
                 field_mapping = CATALOG_TYPES[catalog_type].copy()
-            if field_name in type_overrides:
-                field_mapping = type_overrides[field_name]
-            mappings[field_name] = field_mapping
+            if index_name in type_overrides:
+                field_mapping = type_overrides[index_name]
+            mappings[index_name] = field_mapping
         global_mappings[name] = {
             'properties': mappings,
             'dynamic': False,

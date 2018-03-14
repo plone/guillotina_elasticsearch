@@ -1,7 +1,8 @@
 1.3.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Pay attention to `index_data` configuration
+  [vangheem]
 
 
 1.3.0 (2018-03-14)
