@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from guillotina import configure
-from guillotina.async import IAsyncUtility
 from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import ICatalogUtility
@@ -19,6 +18,12 @@ import asyncio
 import json
 import logging
 import time
+
+
+try:
+    from guillotina.async_util import IAsyncUtility
+except ImportError:
+    from guillotina.async import IAsyncUtility
 
 
 logger = logging.getLogger('guillotina_elasticsearch')

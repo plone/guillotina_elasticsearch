@@ -1,7 +1,8 @@
-1.2.12 (unreleased)
--------------------
+1.3.0 (unreleased)
+------------------
 
-- Nothing changed yet.
+- Upgrade to work with guillotina 2.4.x
+  [vangheem]
 
 
 1.2.11 (2018-03-09)
