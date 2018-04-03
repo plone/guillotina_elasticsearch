@@ -4,14 +4,6 @@ language: python
 python: 3.6-dev
 sudo: required
 
-services:
-  - postgresql
-# make sure we're on the latest version of postgresql
-addons:
-  postgresql: "9.6"
-before_script:
-  - psql -c 'create database guillotina;' -U postgres
-
 cache:
   directories:
     - eggs

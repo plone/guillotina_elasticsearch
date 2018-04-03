@@ -2,7 +2,6 @@ from guillotina.commands import Command
 from guillotina.commands.utils import change_transaction_strategy
 from guillotina.component import getUtility
 from guillotina.db.reader import reader
-from guillotina.db.transaction import HARD_CACHE
 from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
@@ -98,7 +97,7 @@ class Vacuum:
         if oid in self.cache:
             return self.cache[oid]
 
-        result = HARD_CACHE.get(oid, None)
+        result = self.txn._manager._hard_cache.get(oid, None)
         if result is None:
             clear_conn_statement_cache(await self.txn.get_connection())
             result = await self.txn._cache.get(oid=oid)
@@ -143,13 +142,16 @@ class Vacuum:
                 db_batch.add(record['zoid'])
             orphaned = [k for k in (set(es_batch) - db_batch)]
             if len(orphaned) > 0:
-                # these are keys that are in ES but not in DB so we should remove them..
+                # these are keys that are in ES but not in DB so we should
+                # remove them..
                 self.orphaned.extend(orphaned)
                 logger.warn(f'deleting orphaned {len(orphaned)}')
                 conn_es = await self.utility.conn.transport.get_connection()
                 # delete by query for orphaned keys...
                 await conn_es._session.post(
-                    conn_es._base_url.human_repr() + index_name + '/_delete_by_query',
+                    '{}{}/_delete_by_query'.format(
+                        conn_es._base_url.human_repr(),
+                        index_name),
                     data=json.dumps({
                         'query': {
                             'terms': {
@@ -176,7 +178,8 @@ class Vacuum:
             missing = [k for k in (set(batch) - set(es_batch))]
             if len(missing) > 0:
                 logger.warn(f'indexing missing {len(missing)}')
-                # these are keys that are in DB but not in ES so we should index them..
+                # these are keys that are in DB but not in ES so we
+                # should index them..
                 self.missing.extend(missing)
                 batch = []
                 for oid in missing:
@@ -198,7 +201,8 @@ class VacuumCommand(Command):
 
     def get_parser(self):
         parser = super(VacuumCommand, self).get_parser()
-        parser.add_argument('--continuous', help='Continuously vacuum', action='store_true')
+        parser.add_argument(
+            '--continuous', help='Continuously vacuum', action='store_true')
         parser.add_argument('--sleep', help='Time in seconds to sleep',
                             default=10 * 60, type=int)
         return parser
@@ -218,7 +222,8 @@ class VacuumCommand(Command):
                     'account': container.id
                 })
                 try:
-                    vacuum = self.vacuum_klass(txn, tm, self.request, container)
+                    vacuum = self.vacuum_klass(
+                        txn, tm, self.request, container)
                     await vacuum()
                     logger.warn(f'''Finished vacuuming with results:
 Orphaned cleaned: {len(vacuum.orphaned)}

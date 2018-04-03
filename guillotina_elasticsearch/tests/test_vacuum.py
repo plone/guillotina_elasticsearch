@@ -6,9 +6,15 @@ from guillotina_elasticsearch.tests.utils import add_content
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
 import asyncio
+import os
+import pytest
 import random
 
 
+DATABASE = os.environ.get('DATABASE', 'DUMMY')
+
+
+@pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
 async def test_adds_missing_elasticsearch_entry(es_requester):
     async with es_requester as requester:
         await add_content(requester)
@@ -34,6 +40,7 @@ async def test_adds_missing_elasticsearch_entry(es_requester):
         await tm.abort(txn=txn)
 
 
+@pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
 async def test_removes_orphaned_es_entry(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)

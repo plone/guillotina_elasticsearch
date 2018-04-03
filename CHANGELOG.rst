@@ -1,7 +1,8 @@
 1.3.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Upgrade tests to use pytest-docker-fixtures
+  [vangheem]
 
 
 1.3.1 (2018-03-14)

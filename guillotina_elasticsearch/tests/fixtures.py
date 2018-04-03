@@ -2,7 +2,6 @@ from guillotina import testing
 from guillotina.component import getUtility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import ContainerRequesterAsyncContextManager
-from guillotina_elasticsearch.tests import container
 
 import os
 import pytest
@@ -31,15 +30,13 @@ testing.configure_with(base_settings_configurator)
 
 
 @pytest.fixture(scope='session')
-def elasticsearch():
-    host, port = container.image.run()
+def elasticsearch(es):
+    host, port = es
 
     setattr(elasticsearch, 'host', host)
     setattr(elasticsearch, 'port', port)
 
-    yield container
-
-    container.image.stop()
+    yield es
 
 
 def get_settings():
@@ -65,7 +62,7 @@ class ESRequester(ContainerRequesterAsyncContextManager):
         from guillotina import app_settings
         if os.environ.get('TESTING', '') == 'jenkins':
             if 'elasticsearch' in app_settings:
-                app_settings['elasticsearch']['connection_settings']['endpoints'] = [
+                app_settings['elasticsearch']['connection_settings']['endpoints'] = [  # noqa
                     '{}:{}'.format(
                         getattr(elasticsearch, 'host', 'localhost'),
                         getattr(elasticsearch, 'port', '9200'),

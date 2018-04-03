@@ -11,7 +11,8 @@ test_requires = [
     'pytest-asyncio<=0.5.0',
     'pytest-cov',
     'pytest-aiohttp',
-    'pytest-rerunfailures'
+    'pytest-rerunfailures',
+    'pytest-docker-fixtures>=1.1.0'
 ]
 
 
