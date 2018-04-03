@@ -1,4 +1,4 @@
-1.3.2 (unreleased)
+1.3.2 (2018-04-03)
 ------------------
 
 - Upgrade tests to use pytest-docker-fixtures
