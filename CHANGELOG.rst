@@ -1,7 +1,8 @@
 1.3.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Provide profile data in results
+  [gitcarbs]
 
 
 1.3.2 (2018-04-03)

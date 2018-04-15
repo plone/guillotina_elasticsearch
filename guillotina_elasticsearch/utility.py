@@ -134,6 +134,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             data.update({
                 '@absolute_url': container_url + data.get('path', ''),
                 '@type': data.get('type_name'),
+                '@id': item['_id']
             })
             sort_value = item.get('sort')
             if sort_value:
@@ -325,7 +326,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 response.write(b'Could not index %s\n' % str(e).encode('utf-8'))
                 logger.error('Could not index ' + ' '.join(idents) + ' ' + str(e))
             else:
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(0.5)
                 result = await self.bulk_insert(index_name, bulk_data, idents, count)
         except aiohttp.client_exceptions.ClientOSError as e:
             count += 1
@@ -333,7 +334,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 response.write(b'Could not index %s\n' % str(e).encode('utf-8'))
                 logger.error('Could not index ' + ' '.join(idents) + ' ' + str(e))
             else:
-                await asyncio.sleep(1.0)
+                await asyncio.sleep(0.5)
                 result = await self.bulk_insert(index_name, bulk_data, idents, count)
 
         return result

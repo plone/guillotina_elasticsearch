@@ -13,6 +13,7 @@ from guillotina.interfaces import IInteraction
 from guillotina.interfaces import IResourceFactory
 from guillotina.interfaces import ISecurityInfo
 from guillotina.transactions import managed_transaction
+from guillotina.utils import apply_coroutine
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.utils import noop_response
@@ -44,8 +45,9 @@ class Indexer:
         for type_name, schema in get_utilities_for(IResourceFactory):
             self.mappings[type_name] = {}
             for schema in iter_schemata_for_type(type_name):
-                for index_name, index_data in merged_tagged_value_dict(
+                for field_name, index_data in merged_tagged_value_dict(
                         schema, directives.index.key).items():
+                    index_name = index_data.get('index_name', field_name)
                     self.mappings[type_name][index_name] = {
                         'schema': schema,
                         'properties': index_data
@@ -63,7 +65,7 @@ class Indexer:
             await behavior.load(create=False)
         try:
             if 'accessor' in index_data:
-                return index_data['accessor'](behavior)
+                return await apply_coroutine(index_data['accessor'], behavior)
             else:
                 return self.data_adapter.get_data(behavior, schema, index_name)
         except NoIndexField:
