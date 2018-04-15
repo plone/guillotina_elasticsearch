@@ -147,6 +147,9 @@ class ElasticSearchUtility(ElasticSearchManager):
             final['aggregations'] = result['aggregations']
         if 'suggest' in result:
             final['suggest'] = result['suggest']
+        if 'profile' in result:
+            final['profile'] = result['profile']
+
         tdif = time.time() - t1
         logger.debug('Time ELASTIC %f' % tdif)
         await notify(SearchDoneEvent(
