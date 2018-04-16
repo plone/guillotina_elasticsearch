@@ -27,13 +27,13 @@ BATCHED_GET_CHILDREN_BY_PARENT = """
 SELECT zoid
 FROM objects
 WHERE parent_id = ANY($1)
-ORDER BY zoid
+ORDER BY parent_id
 LIMIT $2::int
 OFFSET $3::int
 """
 
 
-PAGE_SIZE = 1000
+PAGE_SIZE = 200
 
 
 class Vacuum:
@@ -53,9 +53,9 @@ class Vacuum:
         index_name = await self.utility.get_index_name(self.container)
         result = await self.utility.conn.search(
             index=index_name,
-            scroll='5m',
+            scroll='15m',
             size=PAGE_SIZE,
-            stored_fields='',
+            _source=False,
             body={
                 "sort": ["_doc"]
             })
@@ -76,10 +76,11 @@ class Vacuum:
             scroll_id = result['_scroll_id']
 
     async def get_db_page_of_keys(self, oids, page=1, page_size=PAGE_SIZE):
-        conn = self.txn._manager._storage._read_conn
-        smt = await conn.prepare(BATCHED_GET_CHILDREN_BY_PARENT)
+        conn = await self.txn.get_connection()
+        clear_conn_statement_cache(conn)
         keys = []
-        for record in await smt.fetch(oids, page_size, (page - 1) * page_size):
+        for record in await conn.fetch(
+                BATCHED_GET_CHILDREN_BY_PARENT, oids, page_size, (page - 1) * page_size):
             keys.append(record['zoid'])
         return keys
 
@@ -132,11 +133,11 @@ class Vacuum:
         index_name = await self.utility.get_index_name(self.container)
         self.migrator.work_index_name = index_name
 
-        conn = self.txn._manager._storage._read_conn
+        conn = await self.txn.get_connection()
         logger.warn('Checking orphaned elasticsearch entries')
         async for es_batch in self.iter_batched_es_keys():
-            smt = await conn.prepare(SELECT_BY_KEYS)
-            records = await smt.fetch(es_batch)
+            clear_conn_statement_cache(conn)
+            records = await conn.fetch(SELECT_BY_KEYS, es_batch)
             db_batch = set()
             for record in records:
                 db_batch.add(record['zoid'])
@@ -171,7 +172,7 @@ class Vacuum:
                         }
                     }
                 },
-                stored_fields='',
+                _source=False,
                 size=PAGE_SIZE)
             for result in results['hits']['hits']:
                 es_batch.append(result['_id'])
@@ -181,13 +182,8 @@ class Vacuum:
                 # these are keys that are in DB but not in ES so we
                 # should index them..
                 self.missing.extend(missing)
-                batch = []
                 for oid in missing:
-                    batch.append(self.process_missing(oid))
-                    if len(batch) >= 10:
-                        await asyncio.gather(*batch)
-                        batch = []
-                await asyncio.gather(*batch)
+                    await self.process_missing(oid)
 
         await self.migrator.flush()
         await self.migrator.join_futures()
