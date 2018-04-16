@@ -48,7 +48,6 @@ class Vacuum:
         self.utility = getUtility(ICatalogUtility)
         self.migrator = Migrator(self.utility, self.container, full=True)
         self.cache = LRU(200)
-        self.conn_lock = asyncio.Lock()
 
     async def iter_batched_es_keys(self):
         index_name = await self.utility.get_index_name(self.container)
@@ -80,7 +79,7 @@ class Vacuum:
         conn = await self.txn.get_connection()
         clear_conn_statement_cache(conn)
         keys = []
-        async with self.conn_lock:
+        async with self.txn._lock:
             for record in await conn.fetch(
                     BATCHED_GET_CHILDREN_BY_PARENT, oids,
                     page_size, (page - 1) * page_size):
@@ -101,7 +100,11 @@ class Vacuum:
         if oid in self.cache:
             return self.cache[oid]
 
-        result = self.txn._manager._hard_cache.get(oid, None)
+        try:
+            result = self.txn._manager._hard_cache.get(oid, None)
+        except AttributeError:
+            from guillotina.db.transaction import HARD_CACHE
+            result = HARD_CACHE.get(oid, None)
         if result is None:
             clear_conn_statement_cache(await self.txn.get_connection())
             result = await self.txn._cache.get(oid=oid)
@@ -137,7 +140,7 @@ class Vacuum:
         self.index_name = await self.utility.get_index_name(self.container)
         self.migrator.work_index_name = self.index_name
         logger.warn('Running vacuum...')
-        await asyncio.gather([self.check_orphans(), self.check_missing()])
+        await asyncio.gather(self.check_orphans(), self.check_missing())
 
     async def check_orphans(self):
         conn = await self.txn.get_connection()
@@ -145,7 +148,7 @@ class Vacuum:
         async for es_batch in self.iter_batched_es_keys():
             checked += len(es_batch)
             clear_conn_statement_cache(conn)
-            async with self.conn_lock:
+            async with self.txn._lock:
                 records = await conn.fetch(SELECT_BY_KEYS, es_batch)
             db_batch = set()
             for record in records:
