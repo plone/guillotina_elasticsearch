@@ -193,6 +193,7 @@ class Vacuum:
             for result in results['hits']['hits']:
                 es_batch.append(result['_id'])
             missing = [k for k in (set(batch) - set(es_batch))]
+            checked += len(batch)
             if len(missing) > 0:
                 logger.warn(f'indexing missing: {len(missing)}, total checked: {checked}')
                 # these are keys that are in DB but not in ES so we
