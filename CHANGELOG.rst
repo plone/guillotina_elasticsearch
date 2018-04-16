@@ -1,4 +1,4 @@
-1.3.4 (unreleased)
+1.3.4 (2018-04-15)
 ------------------
 
 - Some performance fixes for vacuuming
