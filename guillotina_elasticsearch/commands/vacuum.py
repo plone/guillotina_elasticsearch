@@ -117,6 +117,7 @@ class Vacuum:
         try:
             obj = await self.get_object(oid)
         except (KeyError, AttributeError, TypeError):
+            logger.warn(f'Could not find {oid}')
             return  # object or parent of object was removed, ignore
         await self.migrator.index_object(obj, full=full)
 
