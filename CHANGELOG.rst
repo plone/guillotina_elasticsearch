@@ -1,4 +1,4 @@
-1.3.5 (unreleased)
+1.3.5 (2018-04-15)
 ------------------
 
 - Smaller bulk sizes for es vacuum
