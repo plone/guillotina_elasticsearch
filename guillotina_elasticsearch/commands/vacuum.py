@@ -26,7 +26,7 @@ SELECT_BY_KEYS = '''SELECT zoid from objects where zoid = ANY($1)'''
 BATCHED_GET_CHILDREN_BY_PARENT = """
 SELECT zoid
 FROM objects
-WHERE parent_id = ANY($1)
+WHERE of is NULL AND parent_id = ANY($1)
 ORDER BY parent_id
 LIMIT $2::int
 OFFSET $3::int
