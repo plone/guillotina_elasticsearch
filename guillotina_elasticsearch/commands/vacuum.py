@@ -46,7 +46,8 @@ class Vacuum:
         self.orphaned = []
         self.missing = []
         self.utility = getUtility(ICatalogUtility)
-        self.migrator = Migrator(self.utility, self.container, full=True)
+        self.migrator = Migrator(
+            self.utility, self.container, full=True, bulk_size=10)
         self.cache = LRU(200)
 
     async def iter_batched_es_keys(self):

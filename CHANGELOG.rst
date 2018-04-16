@@ -1,7 +1,8 @@
 1.3.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Smaller bulk sizes for es vacuum
+  [vangheem]
 
 
 1.3.4 (2018-04-15)
