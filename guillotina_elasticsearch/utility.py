@@ -4,7 +4,7 @@ from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IInteraction
-from guillotina.traversal import traverse
+from guillotina.utils import navigate_to
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
@@ -81,7 +81,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             request = get_current_request()
         interaction = IInteraction(request)
 
-        for user in interaction.participations:
+        for user in interaction.participations:  # pylint: disable=E1333
             users.append(user.principal.id)
             users.extend(user.principal.groups)
             roles_dict = interaction.global_principal_roles(
@@ -186,7 +186,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             raise AttributeError('Not found a unique object')
 
         path = result['members'][0]['path']
-        obj, tail = traverse(container, path)
+        obj = await navigate_to(container, path)
         return obj
 
     async def get_by_type(self, container, doc_type, query={}, size=10):

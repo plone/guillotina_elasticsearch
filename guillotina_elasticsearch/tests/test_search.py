@@ -1,5 +1,9 @@
+from guillotina.component import get_utility
+from guillotina.interfaces import ICatalogUtility
+from guillotina_elasticsearch.tests.utils import setup_txn_on_container
+
+import asyncio
 import json
-import time
 
 
 async def test_indexing_and_search(es_requester):
@@ -21,7 +25,7 @@ async def test_indexing_and_search(es_requester):
             })
         )
         assert status == 201
-        time.sleep(1)
+        await asyncio.sleep(1)
         resp, status = await requester(
             'POST',
             '/db/guillotina/@search',
@@ -32,7 +36,61 @@ async def test_indexing_and_search(es_requester):
 
         # try removing now...
         await requester('DELETE', '/db/guillotina/item1')
-        time.sleep(1)
+        await asyncio.sleep(1)
+
+        resp, status = await requester(
+            'POST',
+            '/db/guillotina/@search',
+            data=json.dumps({})
+        )
+        assert resp['items_count'] == 0
+
+
+async def test_removes_all_children(es_requester):
+    async with es_requester as requester:
+        container, request, txn, tm = await setup_txn_on_container(requester)  # pylint: disable=W0612
+        search = get_utility(ICatalogUtility)
+
+        resp, status = await requester(
+            'POST', '/db/guillotina/',
+            data=json.dumps({
+                '@type': 'Folder',
+                'title': 'Folder1',
+                'id': 'folder1'
+            })
+        )
+        assert status == 201
+        resp, status = await requester(
+            'POST', '/db/guillotina/folder1',
+            data=json.dumps({
+                '@type': 'Folder',
+                'title': 'Folder2',
+                'id': 'folder2'
+            })
+        )
+        assert status == 201
+        resp, status = await requester(
+            'POST', '/db/guillotina/folder1/folder2',
+            data=json.dumps({
+                '@type': 'Folder',
+                'title': 'Folder3',
+                'id': 'folder3'
+            })
+        )
+        assert status == 201
+        await asyncio.sleep(1)
+        await search.refresh(container)
+        resp, status = await requester(
+            'POST',
+            '/db/guillotina/@search',
+            data=json.dumps({})
+        )
+        assert resp['items_count'] == 3
+
+        # try removing now...
+        await requester('DELETE', '/db/guillotina/folder1')
+        await asyncio.sleep(1)
+        await search.refresh(container)
 
         resp, status = await requester(
             'POST',

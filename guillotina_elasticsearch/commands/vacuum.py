@@ -5,7 +5,7 @@ from guillotina.db.reader import reader
 from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
-from lru import LRU
+from lru import LRU  # pylint: disable=E0611
 
 import aioes
 import asyncio
