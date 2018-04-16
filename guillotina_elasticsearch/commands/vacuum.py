@@ -19,7 +19,7 @@ except ImportError:
     def clear_conn_statement_cache(conn):
         pass
 
-logger = logging.getLogger('guillotina_elasticsearch')
+logger = logging.getLogger('guillotina_elasticsearch_vacuum')
 
 
 SELECT_BY_KEYS = '''SELECT zoid from objects where zoid = ANY($1)'''
@@ -120,6 +120,7 @@ class Vacuum:
 
     async def process_missing(self, oid, full=True):
         # need to fill in parents in order for indexing to work...
+        logger.warn(f'Index missing {oid}')
         try:
             obj = await self.get_object(oid)
         except (KeyError, AttributeError, TypeError):
@@ -154,7 +155,8 @@ class Vacuum:
             for record in records:
                 db_batch.add(record['zoid'])
             orphaned = [k for k in (set(es_batch) - db_batch)]
-            logger.warn(f'Checked ophans: {checked}')
+            if checked % 10000 == 0:
+                logger.warn(f'Checked ophans: {checked}')
             if len(orphaned) > 0:
                 # these are keys that are in ES but not in DB so we should
                 # remove them..
@@ -175,6 +177,7 @@ class Vacuum:
                     }))
 
     async def check_missing(self):
+        checked = 0
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
             es_batch = []
             results = await self.utility.conn.search(
@@ -191,7 +194,7 @@ class Vacuum:
                 es_batch.append(result['_id'])
             missing = [k for k in (set(batch) - set(es_batch))]
             if len(missing) > 0:
-                logger.warn(f'indexing missing {len(missing)}')
+                logger.warn(f'indexing missing: {len(missing)}, total checked: {checked}')
                 # these are keys that are in DB but not in ES so we
                 # should index them..
                 self.missing.extend(missing)
