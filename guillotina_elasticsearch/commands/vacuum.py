@@ -33,7 +33,7 @@ OFFSET $3::int
 """
 
 
-PAGE_SIZE = 200
+PAGE_SIZE = 500
 
 
 class Vacuum:
@@ -48,6 +48,7 @@ class Vacuum:
         self.utility = getUtility(ICatalogUtility)
         self.migrator = Migrator(self.utility, self.container, full=True)
         self.cache = LRU(200)
+        self.conn_lock = asyncio.Lock()
 
     async def iter_batched_es_keys(self):
         index_name = await self.utility.get_index_name(self.container)
@@ -79,9 +80,11 @@ class Vacuum:
         conn = await self.txn.get_connection()
         clear_conn_statement_cache(conn)
         keys = []
-        for record in await conn.fetch(
-                BATCHED_GET_CHILDREN_BY_PARENT, oids, page_size, (page - 1) * page_size):
-            keys.append(record['zoid'])
+        async with self.conn_lock:
+            for record in await conn.fetch(
+                    BATCHED_GET_CHILDREN_BY_PARENT, oids,
+                    page_size, (page - 1) * page_size):
+                keys.append(record['zoid'])
         return keys
 
     async def iter_paged_db_keys(self, oids):
@@ -131,18 +134,24 @@ class Vacuum:
         #   - uses less memory rather than getting all keys in both.
         #   - this way should allow us handle VERY large datasets
 
-        index_name = await self.utility.get_index_name(self.container)
-        self.migrator.work_index_name = index_name
+        self.index_name = await self.utility.get_index_name(self.container)
+        self.migrator.work_index_name = self.index_name
+        logger.warn('Running vacuum...')
+        await asyncio.gather([self.check_orphans(), self.check_missing()])
 
+    async def check_orphans(self):
         conn = await self.txn.get_connection()
-        logger.warn('Checking orphaned elasticsearch entries')
+        checked = 0
         async for es_batch in self.iter_batched_es_keys():
+            checked += len(es_batch)
             clear_conn_statement_cache(conn)
-            records = await conn.fetch(SELECT_BY_KEYS, es_batch)
+            async with self.conn_lock:
+                records = await conn.fetch(SELECT_BY_KEYS, es_batch)
             db_batch = set()
             for record in records:
                 db_batch.add(record['zoid'])
             orphaned = [k for k in (set(es_batch) - db_batch)]
+            logger.warn(f'Checked ophans: {checked}')
             if len(orphaned) > 0:
                 # these are keys that are in ES but not in DB so we should
                 # remove them..
@@ -153,7 +162,7 @@ class Vacuum:
                 await conn_es._session.post(
                     '{}{}/_delete_by_query'.format(
                         conn_es._base_url.human_repr(),
-                        index_name),
+                        self.index_name),
                     data=json.dumps({
                         'query': {
                             'terms': {
@@ -162,11 +171,11 @@ class Vacuum:
                         }
                     }))
 
-        logger.warn('Checking missing elasticsearch entries')
+    async def check_missing(self):
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
             es_batch = []
             results = await self.utility.conn.search(
-                index_name, body={
+                self.index_name, body={
                     'query': {
                         'terms': {
                             'uuid': batch
