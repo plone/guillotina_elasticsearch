@@ -1,4 +1,4 @@
-1.3.6 (unreleased)
+1.3.6 (2018-04-18)
 ------------------
 
 - Work with store=true mappings
