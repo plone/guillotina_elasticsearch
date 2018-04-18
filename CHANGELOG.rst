@@ -1,7 +1,8 @@
 1.3.6 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Work with store=true mappings
+  [vangheem]
 
 
 1.3.5 (2018-04-15)
