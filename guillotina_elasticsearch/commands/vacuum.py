@@ -104,7 +104,7 @@ class Vacuum:
         try:
             result = self.txn._manager._hard_cache.get(oid, None)
         except AttributeError:
-            from guillotina.db.transaction import HARD_CACHE
+            from guillotina.db.transaction import HARD_CACHE  # pylint: disable=E0611
             result = HARD_CACHE.get(oid, None)
         if result is None:
             clear_conn_statement_cache(await self.txn.get_connection())
@@ -121,11 +121,11 @@ class Vacuum:
 
     async def process_missing(self, oid, full=True):
         # need to fill in parents in order for indexing to work...
-        logger.warn(f'Index missing {oid}')
+        logger.warning(f'Index missing {oid}')
         try:
             obj = await self.get_object(oid)
         except (KeyError, AttributeError, TypeError):
-            logger.warn(f'Could not find {oid}')
+            logger.warning(f'Could not find {oid}')
             return  # object or parent of object was removed, ignore
         await self.migrator.index_object(obj, full=full)
 
@@ -141,7 +141,7 @@ class Vacuum:
 
         self.index_name = await self.utility.get_index_name(self.container)
         self.migrator.work_index_name = self.index_name
-        logger.warn('Running vacuum...')
+        logger.warning('Running vacuum...')
         await asyncio.gather(self.check_orphans(), self.check_missing())
 
     async def check_orphans(self):
@@ -155,14 +155,14 @@ class Vacuum:
             db_batch = set()
             for record in records:
                 db_batch.add(record['zoid'])
-            orphaned = [k for k in (set(es_batch) - db_batch)]
+            orphaned = [k for k in set(es_batch) - db_batch]
             if checked % 10000 == 0:
-                logger.warn(f'Checked ophans: {checked}')
-            if len(orphaned) > 0:
+                logger.warning(f'Checked ophans: {checked}')
+            if orphaned:
                 # these are keys that are in ES but not in DB so we should
                 # remove them..
                 self.orphaned.extend(orphaned)
-                logger.warn(f'deleting orphaned {len(orphaned)}')
+                logger.warning(f'deleting orphaned {len(orphaned)}')
                 conn_es = await self.utility.conn.transport.get_connection()
                 # delete by query for orphaned keys...
                 await conn_es._session.post(
@@ -193,10 +193,11 @@ class Vacuum:
                 size=PAGE_SIZE)
             for result in results['hits']['hits']:
                 es_batch.append(result['_id'])
-            missing = [k for k in (set(batch) - set(es_batch))]
+            missing = [k for k in set(batch) - set(es_batch)]
             checked += len(batch)
-            if len(missing) > 0:
-                logger.warn(f'indexing missing: {len(missing)}, total checked: {checked}')
+            if missing:
+                logger.warning(
+                    f'indexing missing: {len(missing)}, total checked: {checked}')
                 # these are keys that are in DB but not in ES so we
                 # should index them..
                 self.missing.extend(missing)
@@ -208,8 +209,6 @@ class Vacuum:
 
 
 class VacuumCommand(Command):
-    '''
-    '''
     description = 'Run vacuum on elasticearch'
     vacuum_klass = Vacuum
 
@@ -232,18 +231,18 @@ class VacuumCommand(Command):
             else:
                 first_run = False
             async for txn, tm, container in get_containers(self.request):
-                logger.warn(f'Vacuuming container {container.id}', extra={
+                logger.warning(f'Vacuuming container {container.id}', extra={
                     'account': container.id
                 })
                 try:
                     vacuum = self.vacuum_klass(
                         txn, tm, self.request, container)
                     await vacuum()
-                    logger.warn(f'''Finished vacuuming with results:
+                    logger.warning(f'''Finished vacuuming with results:
 Orphaned cleaned: {len(vacuum.orphaned)}
 Missing added: {len(vacuum.missing)}
 ''')
-                except:
+                except Exception:
                     logger.error('Error vacuuming', exc_info=True)
                 finally:
                     await tm.abort(txn=txn)

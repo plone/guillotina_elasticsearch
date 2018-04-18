@@ -24,5 +24,4 @@ app_settings = {
 
 
 def includeme(root):
-    configure.scan('guillotina_elasticsearch.api')
     configure.scan('guillotina_elasticsearch.utility')

@@ -10,6 +10,7 @@ from guillotina.interfaces import IAnnotations
 from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.schema import get_mappings
+from guillotina_elasticsearch.utils import safe_es_call
 
 import asyncio
 import logging
@@ -115,45 +116,12 @@ class ElasticSearchManager(DefaultSearchUtility):
         await self.remove_catalog(container)
         index_name = await self.get_index_name(container)
         real_index_name = await self.get_real_index_name(container)
-        try:
-            await self.conn.indices.create(real_index_name)
-        except TransportError as e:
-            logger.warn('Transport Error', exc_info=e)
-        except ConnectionError:
-            logger.warn('elasticsearch not installed', exc_info=True)
-            pass
-        except RequestError:
-            pass
 
-        try:
-            await self.conn.indices.put_alias(index_name, real_index_name)
-        except TransportError as e:
-            logger.warn('Transport Error', exc_info=e)
-        except ConnectionError:
-            logger.warn('elasticsearch not installed', exc_info=True)
-            pass
-        except RequestError:
-            pass
+        await safe_es_call(self.conn.indices.create, real_index_name)
+        await safe_es_call(self.conn.indices.put_alias, index_name, real_index_name)
+        await safe_es_call(self.conn.indices.close, index_name)
+        await safe_es_call(self.install_mappings_on_index, index_name)
 
-        try:
-            await self.conn.indices.close(index_name)
-        except TransportError as e:
-            logger.warn('Transport Error', exc_info=e)
-        except ConnectionError:
-            logger.warn('elasticsearch not installed', exc_info=True)
-            pass
-        except RequestError:
-            pass
-
-        try:
-            await self.install_mappings_on_index(index_name)
-        except TransportError as e:
-            logger.warn('Transport Error', exc_info=e)
-        except ConnectionError:
-            logger.warn('elasticsearch not installed', exc_info=True)
-            return
-        except RequestError:
-            return
         await self.conn.indices.open(index_name)
         await self.conn.cluster.health(wait_for_status='yellow')
         await self.set_index_name(container, index_name)
@@ -163,53 +131,10 @@ class ElasticSearchManager(DefaultSearchUtility):
             return
         index_name = await self.get_index_name(container)
         real_index_name = await self.get_real_index_name(container)
-        try:
-            await self.conn.indices.close(real_index_name)
-        except NotFoundError:
-            pass
-        except TransportError as e:
-            logger.warn('Transport Error', exc_info=e)
-        except ConnectionError:
-            logger.warn('elasticsearch not installed', exc_info=True)
-            pass
-        except (RequestError, RuntimeError):
-            pass
-
-        try:
-            await self.conn.indices.delete_alias(real_index_name, index_name)
-        except NotFoundError:
-            pass
-        except TransportError as e:
-            logger.warn('Transport Error', exc_info=e)
-        except (ConnectionError, RuntimeError):
-            logger.warn('elasticsearch not installed', exc_info=True)
-            pass
-        except RequestError:
-            pass
-
-        try:
-            await self.conn.indices.delete(real_index_name)
-        except NotFoundError:
-            pass
-        except TransportError as e:
-            logger.warn('Transport Error', exc_info=e)
-        except (ConnectionError, RuntimeError):
-            logger.warn('elasticsearch not installed', exc_info=True)
-            pass
-        except RequestError:
-            pass
-
-        try:
-            await self.conn.indices.delete(index_name)
-        except NotFoundError:
-            pass
-        except TransportError as e:
-            logger.warn('Transport Error', exc_info=e)
-        except (ConnectionError, RuntimeError):
-            logger.warn('elasticsearch not installed', exc_info=True)
-            pass
-        except (RequestError, NotFoundError):
-            pass
+        await safe_es_call(self.conn.indices.close, real_index_name)
+        await safe_es_call(self.conn.indices.delete_alias, real_index_name, index_name)
+        await safe_es_call(self.conn.indices.delete, real_index_name)
+        await safe_es_call(self.conn.indices.delete, index_name)
 
     async def get_version(self, container, request=None):
         registry = await self.get_registry(container, request)
