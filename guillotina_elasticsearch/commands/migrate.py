@@ -38,7 +38,7 @@ class MigrateCommand(Command):
     async def migrate_all(self, arguments):
         search = getUtility(ICatalogUtility)
         await asyncio.sleep(1)  # since something initialize custom types...
-        async for txn, tm, container in get_containers(self.request):
+        async for _, tm, container in get_containers(self.request):
             try:
                 self.migrator = Migrator(
                     search, container, response=printer(), full=arguments.full,

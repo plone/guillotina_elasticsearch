@@ -81,7 +81,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             request = get_current_request()
         interaction = IInteraction(request)
 
-        for user in interaction.participations:  # pylint: disable=E1333
+        for user in interaction.participations:  # pylint: disable=E1133
             users.append(user.principal.id)
             users.extend(user.principal.groups)
             roles_dict = interaction.global_principal_roles(
@@ -130,7 +130,11 @@ class ElasticSearchUtility(ElasticSearchManager):
         items = []
         container_url = IAbsoluteURL(container, request)()
         for item in result['hits']['hits']:
-            data = item['_source']
+            data = item.pop('_source', {})
+            for key, val in item.get('fields', {}).items():
+                if isinstance(val, list) and len(val) == 1:
+                    val = val[0]
+                data[key] = val
             data.update({
                 '@absolute_url': container_url + data.get('path', ''),
                 '@type': data.get('type_name'),
@@ -152,7 +156,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             final['profile'] = result['profile']
 
         tdif = time.time() - t1
-        logger.debug('Time ELASTIC %f' % tdif)
+        logger.debug(f'Time ELASTIC {tdif}')
         await notify(SearchDoneEvent(
             query, result['hits']['total'], request, tdif))
         return final
@@ -189,12 +193,16 @@ class ElasticSearchUtility(ElasticSearchManager):
         obj = await navigate_to(container, path)
         return obj
 
-    async def get_by_type(self, container, doc_type, query={}, size=10):
+    async def get_by_type(self, container, doc_type, query=None, size=10):
+        if query is None:
+            query = {}
         return await self.query(container, query, doc_type=doc_type, size=size)
 
     async def get_by_path(
-            self, container, path, depth=-1, query={}, doc_type=None, size=10):
-        if type(path) is not str:
+            self, container, path, depth=-1, query=None, doc_type=None, size=10):
+        if query is None:
+            query = {}
+        if not isinstance(path, str):
             path = get_content_path(path)
 
         if path is not None and path != '/':
@@ -224,13 +232,13 @@ class ElasticSearchUtility(ElasticSearchManager):
                 data=json.dumps(path_query)) as resp:
             result = await resp.json()
             if 'deleted' in result:
-                logger.debug('Deleted %d children' % result['deleted'])
-                logger.debug('Deleted %s ' % json.dumps(path_query))
+                logger.debug(f'Deleted {result["deleted"]} children')
+                logger.debug(f'Deleted {json.dumps(path_query)}')
             else:
                 self.log_result(result, 'Deletion of children')
 
     async def get_path_query(self, resource, index_name=None, response=noop_response):
-        if type(resource) is str:
+        if isinstance(resource, str):
             path = resource
             depth = path.count('/') + 1
         else:
@@ -283,13 +291,15 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def _update_by_query(self, query, index_name):
         conn_es = await self.conn.transport.get_connection()
+        url = '{}{}/_update_by_query?conflicts=proceed'.format(
+            conn_es._base_url.human_repr(), index_name
+        )
         async with conn_es._session.post(
-                conn_es._base_url.human_repr() + index_name + '/_update_by_query?conflicts=proceed',
-                data=json.dumps(query)) as resp:
+                url, data=json.dumps(query)) as resp:
             result = await resp.json()
             if 'updated' in result:
-                logger.debug('Updated %d children' % result['updated'])
-                logger.debug('Updated %s ' % json.dumps(query))
+                logger.debug(f'Updated {result["updated"]} children')
+                logger.debug(f'Updated {json.dumps(query)} ')
             else:
                 self.log_result(result, 'Updating children')
 

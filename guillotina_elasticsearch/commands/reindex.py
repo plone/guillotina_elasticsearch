@@ -23,6 +23,7 @@ class printer:
 class ReindexCommand(Command):
     description = 'Reindex'
     migrator = None
+    reindexer = None
 
     def get_parser(self):
         parser = super(ReindexCommand, self).get_parser()
@@ -35,7 +36,7 @@ class ReindexCommand(Command):
     async def reindex_all(self, arguments):
         search = getUtility(ICatalogUtility)
         await asyncio.sleep(1)  # since something initialize custom types...
-        async for txn, tm, container in get_containers(self.request):
+        async for _, tm, container in get_containers(self.request):
             try:
                 self.reindexer = Reindexer(
                     search, container, response=printer(),
