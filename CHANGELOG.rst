@@ -1,7 +1,8 @@
-1.3.7 (unreleased)
+1.3.7
 ------------------
 
-- Nothing changed yet.
+- Add support for analysis character filter
+  [gitcarbs]
 
 
 1.3.6 (2018-04-18)

@@ -32,6 +32,8 @@ DEFAULT_SETTINGS = {
             }
         },
         "filter": {
+        },
+        "char_filter": {
         }
     },
     'index.mapper.dynamic': False
