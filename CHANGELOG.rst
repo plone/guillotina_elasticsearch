@@ -1,5 +1,8 @@
-1.3.7
+1.3.7 (unreleased)
 ------------------
+
+- change `@id` in search results to `@uid`
+  [vangheem]
 
 - Add support for analysis character filter
   [gitcarbs]

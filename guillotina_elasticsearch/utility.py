@@ -138,7 +138,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             data.update({
                 '@absolute_url': container_url + data.get('path', ''),
                 '@type': data.get('type_name'),
-                '@id': item['_id']
+                '@uid': item['_id']
             })
             sort_value = item.get('sort')
             if sort_value:
