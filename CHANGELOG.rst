@@ -1,4 +1,4 @@
-1.3.7 (unreleased)
+1.3.7 (2018-04-26)
 ------------------
 
 - change `@id` in search results to `@uid`
