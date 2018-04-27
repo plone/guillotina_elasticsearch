@@ -1,7 +1,8 @@
 1.3.8 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Provide `@name` in results
+  [vangheem]
 
 
 1.3.7 (2018-04-26)

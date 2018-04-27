@@ -86,6 +86,7 @@ async def test_removes_all_children(es_requester):
             data=json.dumps({})
         )
         assert resp['items_count'] == 3
+        assert resp['member'][0]['@name']
 
         # try removing now...
         await requester('DELETE', '/db/guillotina/folder1')
