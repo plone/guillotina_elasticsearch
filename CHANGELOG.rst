@@ -1,4 +1,4 @@
-1.3.8 (unreleased)
+1.3.8 (2018-04-27)
 ------------------
 
 - Provide `@name` in results
