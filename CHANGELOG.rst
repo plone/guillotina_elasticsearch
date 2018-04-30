@@ -1,4 +1,4 @@
-1.3.9 (unreleased)
+1.3.9 (2018-04-30)
 ------------------
 
 - Optimized vacuum script to use tid sorting which should prevent
