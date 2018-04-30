@@ -1,4 +1,5 @@
 from guillotina.commands import Command
+from guillotina.db import ROOT_ID, TRASHED_ID
 from guillotina.commands.utils import change_transaction_strategy
 from guillotina.component import getUtility
 from guillotina.db.reader import reader
@@ -32,13 +33,23 @@ LIMIT $2::int
 OFFSET $3::int
 """
 
-
 PAGE_SIZE = 500
+
+GET_OBS_BY_TID = f"""
+SELECT zoid, tid
+FROM objects
+WHERE
+    of is NULL AND
+    tid >= $1 AND
+    zoid > $2
+ORDER BY tid ASC, zoid ASC
+LIMIT {PAGE_SIZE}
+"""
 
 
 class Vacuum:
 
-    def __init__(self, txn, tm, request, container):
+    def __init__(self, txn, tm, request, container, last_tid=0, last_zoid='0'):
         self.txn = txn
         self.tm = tm
         self.request = request
@@ -49,6 +60,9 @@ class Vacuum:
         self.migrator = Migrator(
             self.utility, self.container, full=True, bulk_size=10)
         self.cache = LRU(200)
+        self.last_tid = last_tid
+        self.use_tid_query = True
+        self.last_zoid = last_zoid
 
     async def iter_batched_es_keys(self):
         index_name = await self.utility.get_index_name(self.container)
@@ -87,15 +101,34 @@ class Vacuum:
                 keys.append(record['zoid'])
         return keys
 
+    async def get_page_from_tid(self):
+        conn = await self.txn.get_connection()
+        clear_conn_statement_cache(conn)
+        keys = []
+        async with self.txn._lock:
+            for record in await conn.fetch(GET_OBS_BY_TID, self.last_tid, self.last_zoid):
+                if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
+                    continue
+                keys.append(record['zoid'])
+                self.last_tid = record['tid']
+                self.last_zoid = record['zoid']
+        return keys
+
     async def iter_paged_db_keys(self, oids):
-        page_num = 1
-        page = await self.get_db_page_of_keys(oids, page_num)
-        while page:
-            yield page
-            async for sub_page in self.iter_paged_db_keys(page):
-                yield sub_page
-            page_num += 1
+        if self.use_tid_query:
+            keys = await self.get_page_from_tid()
+            while len(keys) > 0:
+                yield keys
+                keys = await self.get_page_from_tid()
+        else:
+            page_num = 1
             page = await self.get_db_page_of_keys(oids, page_num)
+            while page:
+                yield page
+                async for sub_page in self.iter_paged_db_keys(page):
+                    yield sub_page
+                page_num += 1
+                page = await self.get_db_page_of_keys(oids, page_num)
 
     async def get_object(self, oid):
         if oid in self.cache:
@@ -178,6 +211,13 @@ class Vacuum:
                     }))
 
     async def check_missing(self):
+        conn = await self.txn.get_connection()
+        containers = await conn.fetch(
+            'select zoid from objects where parent_id = $1', ROOT_ID)
+        if len(containers) > 1:
+            # more than 1 container, we can't optimize by querying by tids
+            self.use_tid_query = False
+
         checked = 0
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
             es_batch = []
@@ -195,6 +235,7 @@ class Vacuum:
                 es_batch.append(result['_id'])
             missing = [k for k in set(batch) - set(es_batch)]
             checked += len(batch)
+            logger.warning(f'Checked missing: {checked}')
             if missing:
                 logger.warning(
                     f'indexing missing: {len(missing)}, total checked: {checked}')
@@ -211,6 +252,7 @@ class Vacuum:
 class VacuumCommand(Command):
     description = 'Run vacuum on elasticearch'
     vacuum_klass = Vacuum
+    state = {}
 
     def get_parser(self):
         parser = super(VacuumCommand, self).get_parser()
@@ -235,9 +277,16 @@ class VacuumCommand(Command):
                     'account': container.id
                 })
                 try:
+                    kwargs = {}
+                    if container._p_oid in self.state:
+                        kwargs = self.state[container._p_oid]
                     vacuum = self.vacuum_klass(
-                        txn, tm, self.request, container)
+                        txn, tm, self.request, container, **kwargs)
                     await vacuum()
+                    self.state[container._p_oid] = {
+                        'last_id': vacuum.last_tid,
+                        'last_zoid': vacuum.last_zoid,
+                    }
                     logger.warning(f'''Finished vacuuming with results:
 Orphaned cleaned: {len(vacuum.orphaned)}
 Missing added: {len(vacuum.missing)}
