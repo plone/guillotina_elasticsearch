@@ -284,7 +284,7 @@ class VacuumCommand(Command):
                         txn, tm, self.request, container, **kwargs)
                     await vacuum()
                     self.state[container._p_oid] = {
-                        'last_id': vacuum.last_tid,
+                        'last_tid': vacuum.last_tid,
                         'last_zoid': vacuum.last_zoid,
                     }
                     logger.warning(f'''Finished vacuuming with results:
