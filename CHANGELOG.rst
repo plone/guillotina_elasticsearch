@@ -1,7 +1,9 @@
 1.3.9 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Optimized vacuum script to use tid sorting which should prevent
+  needing to go through so many docs to do the vacuum check
+  [vangheem]
 
 
 1.3.8 (2018-04-27)

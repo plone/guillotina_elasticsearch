@@ -1,4 +1,5 @@
 from guillotina.commands import Command
+from guillotina.db import ROOT_ID, TRASHED_ID
 from guillotina.commands.utils import change_transaction_strategy
 from guillotina.component import getUtility
 from guillotina.db.reader import reader
@@ -32,13 +33,22 @@ LIMIT $2::int
 OFFSET $3::int
 """
 
+PAGE_SIZE = 1000
 
-PAGE_SIZE = 500
+GET_OBS_BY_TID = f"""
+SELECT zoid, tid
+FROM objects
+WHERE
+    of is NULL AND
+    tid >= $1 and zoid > $2
+ORDER BY tid ASC, zoid ASC
+LIMIT {PAGE_SIZE}
+"""
 
 
 class Vacuum:
 
-    def __init__(self, txn, tm, request, container):
+    def __init__(self, txn, tm, request, container, last_tid=-2, breaker_zoid='0'):
         self.txn = txn
         self.tm = tm
         self.request = request
@@ -49,6 +59,11 @@ class Vacuum:
         self.migrator = Migrator(
             self.utility, self.container, full=True, bulk_size=10)
         self.cache = LRU(200)
+        self.last_tid = last_tid
+        self.use_tid_query = True
+        self.last_zoid = None
+        self.breaker_zoid = breaker_zoid  # used to prevent really large tid sequences from holding us up
+        self.last_result_set = []  # for state tracking so we get boundries right
 
     async def iter_batched_es_keys(self):
         index_name = await self.utility.get_index_name(self.container)
@@ -87,15 +102,44 @@ class Vacuum:
                 keys.append(record['zoid'])
         return keys
 
+    async def get_page_from_tid(self):
+        conn = await self.txn.get_connection()
+        clear_conn_statement_cache(conn)
+        keys = []
+        queried_tid = self.last_tid
+        breaker_zoid = self.breaker_zoid
+        async with self.txn._lock:
+            records = await conn.fetch(GET_OBS_BY_TID, queried_tid, breaker_zoid)
+            for record in records:
+                if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
+                    continue
+                if record['zoid'] not in self.last_result_set:
+                    keys.append(record['zoid'])
+                self.last_tid = record['tid']
+                self.last_zoid = record['zoid']
+        if self.last_tid == queried_tid:
+            # we're stuck on same tid, add in breaker for zoid sorting
+            self.breaker_zoid = self.last_zoid
+        else:
+            self.breaker_zoid = '0'
+        self.last_result_set = keys
+        return keys
+
     async def iter_paged_db_keys(self, oids):
-        page_num = 1
-        page = await self.get_db_page_of_keys(oids, page_num)
-        while page:
-            yield page
-            async for sub_page in self.iter_paged_db_keys(page):
-                yield sub_page
-            page_num += 1
+        if self.use_tid_query:
+            keys = await self.get_page_from_tid()
+            while len(keys) > 0:
+                yield keys
+                keys = await self.get_page_from_tid()
+        else:
+            page_num = 1
             page = await self.get_db_page_of_keys(oids, page_num)
+            while page:
+                yield page
+                async for sub_page in self.iter_paged_db_keys(page):
+                    yield sub_page
+                page_num += 1
+                page = await self.get_db_page_of_keys(oids, page_num)
 
     async def get_object(self, oid):
         if oid in self.cache:
@@ -129,7 +173,7 @@ class Vacuum:
             return  # object or parent of object was removed, ignore
         await self.migrator.index_object(obj, full=full)
 
-    async def __call__(self):
+    async def setup(self):
         # how we're doing this...
         # 1) iterate through all es keys
         # 2) batch check obs exist in db
@@ -141,10 +185,11 @@ class Vacuum:
 
         self.index_name = await self.utility.get_index_name(self.container)
         self.migrator.work_index_name = self.index_name
-        logger.warning('Running vacuum...')
-        await asyncio.gather(self.check_orphans(), self.check_missing())
 
     async def check_orphans(self):
+        logger.warning(f'Checking orphans on container {self.container.id}', extra={
+            'account': self.container.id
+        })
         conn = await self.txn.get_connection()
         checked = 0
         async for es_batch in self.iter_batched_es_keys():
@@ -178,6 +223,17 @@ class Vacuum:
                     }))
 
     async def check_missing(self):
+        logger.warning(f'Checking missing on container {self.container.id}, '
+                       f'starting with TID: {self.last_tid}', extra={
+            'account': self.container.id
+        })
+        conn = await self.txn.get_connection()
+        containers = await conn.fetch(
+            'select zoid from objects where parent_id = $1', ROOT_ID)
+        if len(containers) > 1:
+            # more than 1 container, we can't optimize by querying by tids
+            self.use_tid_query = False
+
         checked = 0
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
             es_batch = []
@@ -195,6 +251,10 @@ class Vacuum:
                 es_batch.append(result['_id'])
             missing = [k for k in set(batch) - set(es_batch)]
             checked += len(batch)
+            status = f'Checked missing: {checked}: {self.last_tid}'
+            if self.breaker_zoid != '0':
+                status += f', {self.breaker_zoid}'
+            logger.warning(status)
             if missing:
                 logger.warning(
                     f'indexing missing: {len(missing)}, total checked: {checked}')
@@ -211,6 +271,7 @@ class Vacuum:
 class VacuumCommand(Command):
     description = 'Run vacuum on elasticearch'
     vacuum_klass = Vacuum
+    state = {}
 
     def get_parser(self):
         parser = super(VacuumCommand, self).get_parser()
@@ -224,6 +285,11 @@ class VacuumCommand(Command):
         change_transaction_strategy('none')
         self.request._db_write_enabled = True
         self.request._message.headers['Host'] = 'localhost'
+        await asyncio.gather(
+            self.do_check(arguments, 'check_missing'),
+            self.do_check(arguments, 'check_orphans'))
+
+    async def do_check(self, arguments, check_name):
         first_run = True
         while arguments.continuous or first_run:
             if not first_run:
@@ -231,13 +297,20 @@ class VacuumCommand(Command):
             else:
                 first_run = False
             async for txn, tm, container in get_containers(self.request):
-                logger.warning(f'Vacuuming container {container.id}', extra={
-                    'account': container.id
-                })
                 try:
+                    kwargs = {}
+                    if container._p_oid in self.state:
+                        kwargs = self.state[container._p_oid]
                     vacuum = self.vacuum_klass(
-                        txn, tm, self.request, container)
-                    await vacuum()
+                        txn, tm, self.request, container, **kwargs)
+                    await vacuum.setup()
+                    func = getattr(vacuum, check_name)
+                    await func()
+                    if vacuum.last_tid > 0:
+                        self.state[container._p_oid] = {
+                            'last_tid': vacuum.last_tid,
+                            'breaker_zoid': vacuum.breaker_zoid
+                        }
                     logger.warning(f'''Finished vacuuming with results:
 Orphaned cleaned: {len(vacuum.orphaned)}
 Missing added: {len(vacuum.missing)}
