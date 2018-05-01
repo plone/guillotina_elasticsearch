@@ -1,4 +1,4 @@
-1.3.10 (unreleased)
+1.3.10 (2018-04-30)
 -------------------
 
 - migrate script should not use transactions
