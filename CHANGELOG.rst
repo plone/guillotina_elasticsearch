@@ -1,4 +1,4 @@
-1.3.11 (unreleased)
+1.3.11 (2018-04-30)
 -------------------
 
 - More vacuum improvements
