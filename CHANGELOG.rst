@@ -1,8 +1,8 @@
 1.3.10 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- migrate script should not use transactions
+  [vangheem]
 
 1.3.9 (2018-04-30)
 ------------------
