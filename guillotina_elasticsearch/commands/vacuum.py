@@ -62,8 +62,10 @@ class Vacuum:
         self.last_tid = last_tid
         self.use_tid_query = True
         self.last_zoid = None
-        self.breaker_zoid = breaker_zoid  # used to prevent really large tid sequences from holding us up
-        self.last_result_set = []  # for state tracking so we get boundries right
+        # used to prevent really large tid sequences from holding us up
+        self.breaker_zoid = breaker_zoid
+        # for state tracking so we get boundries right
+        self.last_result_set = []
 
     async def iter_batched_es_keys(self):
         index_name = await self.utility.get_index_name(self.container)
@@ -117,9 +119,12 @@ class Vacuum:
                     keys.append(record['zoid'])
                 self.last_tid = record['tid']
                 self.last_zoid = record['zoid']
-        if self.last_tid == queried_tid:
+        if len(keys) == 0:
+            self.last_tid = self.last_tid + 1
+            self.breaker_zoid = '0'
+        elif self.last_tid == queried_tid:
             # we're stuck on same tid, add in breaker for zoid sorting
-            self.breaker_zoid = self.last_zoid
+            self.breaker_zoid = self.last_zoid or '0'
         else:
             self.breaker_zoid = '0'
         self.last_result_set = keys
@@ -168,8 +173,11 @@ class Vacuum:
         logger.warning(f'Index missing {oid}')
         try:
             obj = await self.get_object(oid)
-        except (KeyError, AttributeError, TypeError):
+        except KeyError:
             logger.warning(f'Could not find {oid}')
+            return
+        except (AttributeError, TypeError):
+            logger.warning(f'Could not find {oid}', exc_info=True)
             return  # object or parent of object was removed, ignore
         await self.migrator.index_object(obj, full=full)
 
@@ -223,8 +231,11 @@ class Vacuum:
                     }))
 
     async def check_missing(self):
-        logger.warning(f'Checking missing on container {self.container.id}, '
-                       f'starting with TID: {self.last_tid}', extra={
+        status = (f'Checking missing on container {self.container.id}, '
+                  f'starting with TID: {self.last_tid}')
+        if self.breaker_zoid != '0':
+            status += f', {self.breaker_zoid}'
+        logger.warning(status, extra={
             'account': self.container.id
         })
         conn = await self.txn.get_connection()

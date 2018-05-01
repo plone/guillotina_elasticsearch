@@ -1,8 +1,8 @@
 1.3.11 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- More vacuum improvements
+  [vangheem]
 
 1.3.10 (2018-04-30)
 -------------------
