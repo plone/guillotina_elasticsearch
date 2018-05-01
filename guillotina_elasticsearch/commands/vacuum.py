@@ -40,15 +40,25 @@ SELECT zoid, tid
 FROM objects
 WHERE
     of is NULL AND
-    tid >= $1 and zoid > $2
+    tid >= $1
 ORDER BY tid ASC, zoid ASC
+LIMIT {PAGE_SIZE}
+"""
+
+GET_ALL_FOR_TID = f"""
+SELECT zoid
+FROM objects
+WHERE
+    of is NULL AND
+    tid = $1 and zoid > $2
+ORDER BY zoid ASC
 LIMIT {PAGE_SIZE}
 """
 
 
 class Vacuum:
 
-    def __init__(self, txn, tm, request, container, last_tid=-2, breaker_zoid='0'):
+    def __init__(self, txn, tm, request, container, last_tid=-2):
         self.txn = txn
         self.tm = tm
         self.request = request
@@ -62,8 +72,6 @@ class Vacuum:
         self.last_tid = last_tid
         self.use_tid_query = True
         self.last_zoid = None
-        # used to prevent really large tid sequences from holding us up
-        self.breaker_zoid = breaker_zoid
         # for state tracking so we get boundries right
         self.last_result_set = []
 
@@ -109,33 +117,48 @@ class Vacuum:
         clear_conn_statement_cache(conn)
         keys = []
         queried_tid = self.last_tid
-        breaker_zoid = self.breaker_zoid
         async with self.txn._lock:
-            records = await conn.fetch(GET_OBS_BY_TID, queried_tid, breaker_zoid)
+            records = await conn.fetch(GET_OBS_BY_TID, queried_tid)
             for record in records:
                 if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
                     continue
-                if record['zoid'] not in self.last_result_set:
-                    keys.append(record['zoid'])
+                keys.append(record['zoid'])
                 self.last_tid = record['tid']
                 self.last_zoid = record['zoid']
         if len(keys) == 0:
-            self.last_tid = self.last_tid + 1
-            self.breaker_zoid = '0'
-        elif self.last_tid == queried_tid:
-            # we're stuck on same tid, add in breaker for zoid sorting
-            self.breaker_zoid = self.last_zoid or '0'
-        else:
-            self.breaker_zoid = '0'
+            if len(self.last_result_set) > 0:
+                # now we have zero, increment, but only once
+                self.last_tid = self.last_tid + 1
         self.last_result_set = keys
         return keys
 
     async def iter_paged_db_keys(self, oids):
         if self.use_tid_query:
+            queried_tid = self.last_tid
             keys = await self.get_page_from_tid()
             while len(keys) > 0:
                 yield keys
+                if self.last_tid == queried_tid:
+                    conn = await self.txn.get_connection()
+                    logger.warning(f'Getting all keys from tid {self.last_tid}')
+                    # we're stuck on same tid, get all for this tid
+                    # and then move on...
+                    records = await conn.fetch(
+                        GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
+                    while len(records) > 0:
+                        keys = []
+                        for record in records:
+                            if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
+                                continue
+                            keys.append(record['zoid'])
+                            self.last_zoid = record['zoid']
+                        yield keys
+                        records = await conn.fetch(
+                            GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
+                    self.last_tid = self.last_tid + 1
+                queried_tid = self.last_tid
                 keys = await self.get_page_from_tid()
+
         else:
             page_num = 1
             page = await self.get_db_page_of_keys(oids, page_num)
@@ -233,8 +256,6 @@ class Vacuum:
     async def check_missing(self):
         status = (f'Checking missing on container {self.container.id}, '
                   f'starting with TID: {self.last_tid}')
-        if self.breaker_zoid != '0':
-            status += f', {self.breaker_zoid}'
         logger.warning(status, extra={
             'account': self.container.id
         })
@@ -263,8 +284,6 @@ class Vacuum:
             missing = [k for k in set(batch) - set(es_batch)]
             checked += len(batch)
             status = f'Checked missing: {checked}: {self.last_tid}'
-            if self.breaker_zoid != '0':
-                status += f', {self.breaker_zoid}'
             logger.warning(status)
             if missing:
                 logger.warning(
@@ -319,8 +338,7 @@ class VacuumCommand(Command):
                     await func()
                     if vacuum.last_tid > 0:
                         self.state[container._p_oid] = {
-                            'last_tid': vacuum.last_tid,
-                            'breaker_zoid': vacuum.breaker_zoid
+                            'last_tid': vacuum.last_tid
                         }
                     logger.warning(f'''Finished vacuuming with results:
 Orphaned cleaned: {len(vacuum.orphaned)}

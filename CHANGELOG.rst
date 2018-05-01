@@ -1,7 +1,7 @@
 1.3.12 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- More vacuum improvements
 
 
 1.3.11 (2018-04-30)
