@@ -1,4 +1,4 @@
-1.3.13 (unreleased)
+1.3.13 (2018-05-02)
 -------------------
 
 - Format stored field results like source results
