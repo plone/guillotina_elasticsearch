@@ -1,7 +1,8 @@
 1.3.13 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Format stored field results like source results
+  [vangheem]
 
 
 1.3.12 (2018-05-01)

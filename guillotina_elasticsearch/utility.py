@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 from guillotina import configure
+from guillotina.browser import ErrorResponse
 from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IInteraction
-from guillotina.utils import navigate_to
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
 from guillotina.utils import merge_dicts
+from guillotina.utils import navigate_to
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.manager import ElasticSearchManager
 from guillotina_elasticsearch.utils import noop_response
@@ -114,6 +115,36 @@ class ElasticSearchUtility(ElasticSearchManager):
         logger.debug(q)
         return q
 
+    def _get_items_from_result(self, container, request, result):
+        items = []
+        container_url = IAbsoluteURL(container, request)()
+        for item in result['hits']['hits']:
+            data = item.pop('_source', {})
+            for key, val in item.get('fields', {}).items():
+                container_data = data
+                if isinstance(val, list):
+                    if len(val) == 1:
+                        val = val[0]
+                    else:
+                        val = None
+                if '.' in key:
+                    name, key = key.split('.', 1)
+                    if name not in container_data:
+                        container_data[name] = {}
+                    container_data = container_data[name]
+                container_data[key] = val
+            data.update({
+                '@absolute_url': container_url + data.get('path', ''),
+                '@type': data.get('type_name'),
+                '@uid': item['_id'],
+                '@name': data.get('id', data.get('path', '').split('/')[-1])
+            })
+            sort_value = item.get('sort')
+            if sort_value:
+                data.update({'sort': sort_value})
+            items.append(data)
+        return items
+
     async def query(
             self, container, query,
             doc_type=None, size=10, request=None):
@@ -127,24 +158,13 @@ class ElasticSearchUtility(ElasticSearchManager):
         q = await self._build_security_query(
             container, query, doc_type, size, request)
         result = await self.conn.search(**q)
-        items = []
-        container_url = IAbsoluteURL(container, request)()
-        for item in result['hits']['hits']:
-            data = item.pop('_source', {})
-            for key, val in item.get('fields', {}).items():
-                if isinstance(val, list) and len(val) == 1:
-                    val = val[0]
-                data[key] = val
-            data.update({
-                '@absolute_url': container_url + data.get('path', ''),
-                '@type': data.get('type_name'),
-                '@uid': item['_id'],
-                '@name': data.get('id', data.get('path', '').split('/')[-1])
-            })
-            sort_value = item.get('sort')
-            if sort_value:
-                data.update({'sort': sort_value})
-            items.append(data)
+        if result.get('_shards', {}).get('failed', 0) > 0:
+            logger.warning(f'Error running query: {result["_shards"]}')
+            error_message = 'Unknown'
+            for failure in result["_shards"].get('failures') or []:
+                error_message = failure['reason']
+            return ErrorResponse('QueryError', error_message, status=488)
+        items = self._get_items_from_result(container, request, result)
         final = {
             'items_count': result['hits']['total'],
             'member': items
