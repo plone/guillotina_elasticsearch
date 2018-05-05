@@ -470,21 +470,10 @@ class Migrator:
             except KeyError:
                 ob = None
             if ob is None:
-                # this is dumb... since we don't have the doc type on us, we
-                # need to ask elasticsearch for it again...
-                # elasticsearch does not allow deleting without the doc type
-                # even though you can query for a doc without it... argh
                 try:
-                    doc = await self.conn.get(
-                        index=self.work_index_name,
-                        doc_type=DOC_TYPE,
-                        id=uuid,
-                        params={
-                            '_source': 'false'
-                        })
                     self.batch[uuid] = {
                         'action': 'delete',
-                        'data': {'type_name': doc['_type']}
+                        'data': {}
                     }
                     await self.attempt_flush()
                     # no longer present on db, this was orphaned
@@ -492,7 +481,6 @@ class Migrator:
                 except aioelasticsearch.exceptions.NotFoundError:
                     # it was deleted in the meantime so we're actually okay
                     self.orphaned.append(uuid)
-                    pass
             else:
                 # XXX this should not happen so log it. Maybe we'll try doing something
                 # about it another time...
