@@ -3,8 +3,8 @@
 GUILLOTINA_ELASTICSEARCH
 ========================
 
-.. image:: https://travis-ci.org/onna/guillotina_elasticsearch.svg?branch=master
-   :target: https://travis-ci.org/onna/guillotina_elasticsearch
+.. image:: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch.svg?branch=master
+   :target: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch
 
 Elasticsearch integration for guillotina.
 
