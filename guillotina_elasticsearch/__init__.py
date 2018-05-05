@@ -7,8 +7,9 @@ app_settings = {
         "bulk_size": 50,
         "index_name_prefix": "guillotina-",
         "connection_settings": {
-            "endpoints": [],
-            "sniffer_timeout": 0.5
+            "hosts": [],
+            "sniffer_timeout": 0.5,
+            "sniff_on_start": True
         },
         "index": {},
         "mapping_overrides": {

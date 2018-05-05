@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
-from aioes import Elasticsearch
-from aioes.exception import ConnectionError
-from aioes.exception import NotFoundError
-from aioes.exception import RequestError
-from aioes.exception import TransportError
+from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
 from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.interfaces import IAnnotations
 from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.utils import get_current_request
+from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.schema import get_mappings
 from guillotina_elasticsearch.utils import safe_es_call
 
@@ -64,7 +61,7 @@ class ElasticSearchManager(DefaultSearchUtility):
 
     @property
     def enabled(self):
-        return len(self.settings.get('connection_settings', {}).get('endpoints', [])) > 0
+        return len(self.settings.get('connection_settings', {}).get('hosts', [])) > 0
 
     async def initialize(self, app):
         self.app = app
@@ -72,7 +69,7 @@ class ElasticSearchManager(DefaultSearchUtility):
 
     async def finalize(self, app):
         if self._conn is not None:
-            self._conn.close()
+            await self._conn.close()
 
     async def get_registry(self, container, request):
         if request is None:
@@ -119,10 +116,11 @@ class ElasticSearchManager(DefaultSearchUtility):
         index_name = await self.get_index_name(container)
         real_index_name = await self.get_real_index_name(container)
 
-        await safe_es_call(self.conn.indices.create, real_index_name)
-        await safe_es_call(self.conn.indices.put_alias, index_name, real_index_name)
-        await safe_es_call(self.conn.indices.close, index_name)
-        await safe_es_call(self.install_mappings_on_index, index_name)
+        await self.conn.indices.create(real_index_name)
+        await self.conn.indices.put_alias(
+            name=index_name, index=real_index_name)
+        await self.conn.indices.close(index_name)
+        await self.install_mappings_on_index(index_name)
 
         await self.conn.indices.open(index_name)
         await self.conn.cluster.health(wait_for_status='yellow')
@@ -163,9 +161,10 @@ class ElasticSearchManager(DefaultSearchUtility):
         index_settings = DEFAULT_SETTINGS.copy()
         index_settings.update(app_settings.get('index', {}))
         await self.conn.indices.close(index_name)
-        await self.conn.indices.put_settings(index_settings, index_name)
-        for key, value in mappings.items():
-            await self.conn.indices.put_mapping(index_name, key, value)
+        await self.conn.indices.put_settings(
+            body=index_settings, index=index_name)
+        await self.conn.indices.put_mapping(
+            doc_type=DOC_TYPE, body=mappings, index=index_name)
         await self.conn.indices.open(index_name)
 
     async def activate_next_index(self, container, version, request=None, force=False):

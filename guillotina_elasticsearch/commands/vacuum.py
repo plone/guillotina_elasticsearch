@@ -1,14 +1,16 @@
 from guillotina.commands import Command
-from guillotina.db import ROOT_ID, TRASHED_ID
 from guillotina.commands.utils import change_transaction_strategy
 from guillotina.component import getUtility
+from guillotina.db import ROOT_ID
+from guillotina.db import TRASHED_ID
 from guillotina.db.reader import reader
 from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
 from lru import LRU  # pylint: disable=E0611
+from os.path import join
 
-import aioes
+import aioelasticsearch
 import asyncio
 import json
 import logging
@@ -93,7 +95,7 @@ class Vacuum:
                     scroll_id=scroll_id,
                     scroll='5m'
                 )
-            except aioes.exception.TransportError:
+            except aioelasticsearch.exceptions.TransportError:
                 # no results
                 break
             if len(result['hits']['hits']) == 0:
@@ -241,17 +243,20 @@ class Vacuum:
                 logger.warning(f'deleting orphaned {len(orphaned)}')
                 conn_es = await self.utility.conn.transport.get_connection()
                 # delete by query for orphaned keys...
-                await conn_es._session.post(
-                    '{}{}/_delete_by_query'.format(
-                        conn_es._base_url.human_repr(),
-                        self.index_name),
-                    data=json.dumps({
-                        'query': {
-                            'terms': {
-                                'uuid': orphaned
+                async with conn_es.session.post(
+                        join(conn_es.base_url.human_repr(),
+                             self.index_name, '_delete_by_query'),
+                        headers={
+                            'Content-Type': 'application/json'
+                        },
+                        data=json.dumps({
+                            'query': {
+                                'terms': {
+                                    'uuid': orphaned
+                                }
                             }
-                        }
-                    }))
+                        })) as resp:
+                    pass
 
     async def check_missing(self):
         status = (f'Checking missing on container {self.container.id}, '

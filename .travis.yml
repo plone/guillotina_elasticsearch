@@ -3,6 +3,9 @@ dist: trusty
 language: python
 python: 3.6-dev
 sudo: required
+env:
+    - ES_VERSION=5
+    - ES_VERSION=6
 
 cache:
   directories:
