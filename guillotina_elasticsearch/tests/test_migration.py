@@ -73,6 +73,7 @@ async def test_migrate_get_all_uids(es_requester):
         await tm.abort(txn=txn)
 
 
+@pytest.mark.flaky(reruns=5)
 async def test_removes_orphans(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
