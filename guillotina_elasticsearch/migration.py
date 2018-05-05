@@ -491,6 +491,7 @@ class Migrator:
                     self.orphaned.append(uuid)
                 except aioelasticsearch.exceptions.NotFoundError:
                     # it was deleted in the meantime so we're actually okay
+                    self.orphaned.append(uuid)
                     pass
             else:
                 # XXX this should not happen so log it. Maybe we'll try doing something
