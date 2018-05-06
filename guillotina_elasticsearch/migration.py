@@ -16,15 +16,23 @@ from guillotina.transactions import managed_transaction
 from guillotina.utils import apply_coroutine
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
+from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.utils import noop_response
+from os.path import join
 
-import aioes
+import aioelasticsearch
 import asyncio
 import gc
 import json
 import logging
 import resource
 import time
+
+
+try:
+    from guillotina.async_util import IAsyncUtility
+except ImportError:
+    from guillotina.async import IAsyncUtility
 
 
 try:
@@ -197,10 +205,13 @@ class Migrator:
         conn_es = await self.conn.transport.get_connection()
         real_index_name = await self.utility.get_index_name(self.container,
                                                             self.request)
-        async with conn_es._session.post(
-                str(conn_es._base_url) + '_reindex',
+        async with conn_es.session.post(
+                join(str(conn_es.base_url), '_reindex'),
                 params={
                     'wait_for_completion': 'false'
+                },
+                headers={
+                    'Content-Type': 'application/json'
                 },
                 data=json.dumps({
                     "source": {
@@ -215,8 +226,11 @@ class Migrator:
             self.active_task_id = task_id = data['task']
             while True:
                 await asyncio.sleep(10)
-                async with conn_es._session.get(
-                        str(conn_es._base_url) + '_tasks/' + task_id) as resp:
+                async with conn_es.session.get(
+                        join(str(conn_es.base_url), '_tasks', task_id),
+                        headers={
+                            'Content-Type': 'application/json'
+                        }) as resp:
                     if resp.status in (400, 404):
                         break
                     data = await resp.json()
@@ -274,50 +288,18 @@ class Migrator:
         existing_index_name = await self.utility.get_real_index_name(
             self.container, self.request)
         existing_mappings = await self.conn.indices.get_mapping(existing_index_name)
-        existing_mappings = existing_mappings[existing_index_name]['mappings']
+        existing_mappings = existing_mappings[existing_index_name]['mappings'][DOC_TYPE]['properties']  # noqa
         next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
-        next_mappings = next_mappings[self.work_index_name]['mappings']
+        next_mappings = next_mappings[self.work_index_name]['mappings'][DOC_TYPE]['properties']  # noqa
 
-        changes = False
-        for type_name in existing_mappings.keys():
-            if type_name not in next_mappings:
-                # copy over orphaned type otherwise move will potentially not work
-                # any orphaned doc types will need to be manually deleted for now...
-                mapping = existing_mappings[type_name]
-                properties = mapping['properties']
-                # need to make sure to normalize field definitions so they are inline
-                # with new mappings otherwise you could get conflicting definitions
-                for field_name in properties.keys():
-                    for check_type_name in next_mappings.keys():
-                        if field_name in next_mappings[check_type_name]['properties']:
-                            properties[field_name] = next_mappings[
-                                check_type_name]['properties'][field_name]
-                            break
-                # and install new mapping
-                await self.utility.conn.indices.put_mapping(
-                    self.work_index_name, type_name, mapping)
-                changes = True
-        if changes:
-            # we add to the mappings so we need to update...
-            next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
-            next_mappings = next_mappings[self.work_index_name]['mappings']
-
-        for type_name, schema in get_utilities_for(IResourceFactory):
-            new_definitions = {}
-            if type_name not in existing_mappings:
-                diffs[type_name] = next_mappings[type_name]['properties']
-                continue
-
-            existing_mapping = existing_mappings[type_name]['properties']
-            next_mapping = next_mappings[type_name]['properties']
-
-            for field_name, definition in next_mapping.items():
-                definition = _clean_mapping(definition)
-                if (field_name not in existing_mapping or
-                        definition != _clean_mapping(existing_mapping[field_name])):
-                    new_definitions[field_name] = definition
-            if len(new_definitions) > 0:
-                diffs[type_name] = new_definitions
+        new_definitions = {}
+        for field_name, definition in next_mappings.items():
+            definition = _clean_mapping(definition)
+            if (field_name not in existing_mappings or
+                    definition != _clean_mapping(existing_mappings[field_name])):
+                new_definitions[field_name] = definition
+        if len(new_definitions) > 0:
+            diffs[DOC_TYPE] = new_definitions
 
         for type_name, mapping in existing_mappings.items():
             if type_name not in next_mappings:
@@ -326,7 +308,7 @@ class Migrator:
                 self.response.write(f'Backporting mapping of {type_name} to new '
                                     f'even though it is not defined anymore')
                 await self.conn.indices.put_mapping(
-                    self.work_index_name, type_name, mapping)
+                    index=self.work_index_name, doc_type=type_name, body=mapping)
 
         return diffs
 
@@ -434,10 +416,8 @@ class Migrator:
     async def _index_batch(self, batch):
         bulk_data = []
         for _id, payload in batch.items():
-            doc_type = payload['data']['type_name']
             action_data = {
                 '_index': self.work_index_name,
-                '_type': doc_type,
                 '_id': _id
             }
             data = payload['data']
@@ -450,7 +430,7 @@ class Migrator:
             if payload['action'] != 'delete':
                 bulk_data.append(data)
         results = await self.utility.conn.bulk(
-            index=self.work_index_name, doc_type=None,
+            index=self.work_index_name, doc_type=DOC_TYPE,
             body=bulk_data)
         if results['errors']:
             errors = []
@@ -464,7 +444,7 @@ class Migrator:
 
                         if value['status'] == 409:  # retry conflict errors
                             self.batch[_id] = batch[_id]
-            logger.warn(f'Error bulk putting: {results}')
+            logger.warning(f'Error bulk putting: {results}')
 
     async def flush(self):
         if len(self.batch) == 0:
@@ -490,23 +470,17 @@ class Migrator:
             except KeyError:
                 ob = None
             if ob is None:
-                # this is dumb... since we don't have the doc type on us, we
-                # need to ask elasticsearch for it again...
-                # elasticsearch does not allow deleting without the doc type
-                # even though you can query for a doc without it... argh
                 try:
-                    doc = await self.conn.get(self.work_index_name, uuid,
-                                              _source=False)
                     self.batch[uuid] = {
                         'action': 'delete',
-                        'data': {'type_name': doc['_type']}
+                        'data': {}
                     }
                     await self.attempt_flush()
                     # no longer present on db, this was orphaned
                     self.orphaned.append(uuid)
-                except aioes.exception.NotFoundError:
+                except aioelasticsearch.exceptions.NotFoundError:
                     # it was deleted in the meantime so we're actually okay
-                    pass
+                    self.orphaned.append(uuid)
             else:
                 # XXX this should not happen so log it. Maybe we'll try doing something
                 # about it another time...
@@ -514,13 +488,6 @@ class Migrator:
                     'type': 'unprocessed',
                     'uuid': uuid
                 })
-                # we re-query es to get full path of ob
-                # doc = self.utility.conn.get(
-                #     await self.utility.get_index_name(), fields='path'
-                # )
-                # ob = await traverse(self.request, self.container,
-                #                        doc['_source']['path'].strip('/').split('/'))
-                # await self.index_object(ob, full=True)
 
     async def setup_next_index(self):
         self.response.write(b'Creating new index')
@@ -543,8 +510,12 @@ class Migrator:
         if self.active_task_id is not None:
             self.response.write('Canceling copy of index task')
             conn_es = await self.conn.transport.get_connection()
-            async with conn_es._session.post(
-                    str(conn_es._base_url) + '_tasks/' + self.active_task_id + '/_cancel'):
+            async with conn_es.session.post(
+                    join(str(conn_es.base_url),
+                        '_tasks', self.active_task_id, '_cancel'),
+                    headers={
+                        'Content-Type': 'application/json'
+                    }):
                 asyncio.sleep(5)
         if self.work_index_name:
             self.response.write('Deleting new index')

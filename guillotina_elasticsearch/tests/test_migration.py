@@ -8,13 +8,15 @@ from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.tests.utils import create_content
 from guillotina.transactions import managed_transaction
 from guillotina.utils import get_content_path
+from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.manager import DEFAULT_SETTINGS
 from guillotina_elasticsearch.migration import Migrator
 from guillotina_elasticsearch.schema import get_mappings
 from guillotina_elasticsearch.tests.utils import add_content
+from guillotina_elasticsearch.tests.utils import run_with_retries
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
-import aioes
+import aioelasticsearch
 import aiotask_context
 import asyncio
 import pytest
@@ -71,6 +73,7 @@ async def test_migrate_get_all_uids(es_requester):
         await tm.abort(txn=txn)
 
 
+@pytest.mark.flaky(reruns=5)
 async def test_removes_orphans(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -85,20 +88,22 @@ async def test_removes_orphans(es_requester):
 
         index_name = await search.get_index_name(container)  # alias
 
-        doc = await search.conn.get(index_name, 'foobar')
+        doc = await search.conn.get(
+            index=index_name, doc_type=DOC_TYPE, id='foobar')
         assert doc['found']
 
         migrator = Migrator(search, container, force=True)
         await migrator.run_migration()
-        await asyncio.sleep(1)
-        await search.refresh(container, index_name)
-        await asyncio.sleep(1)
 
-        with pytest.raises(aioes.exception.NotFoundError):
-            doc = await search.conn.get(index_name, 'foobar')
+        async def _test():
+            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+                await search.conn.get(
+                    index=index_name, doc_type=DOC_TYPE, id='foobar')
 
-        assert len(migrator.orphaned) == 1
-        assert migrator.orphaned[0] == 'foobar'
+            assert len(migrator.orphaned) == 1
+            assert migrator.orphaned[0] == 'foobar'
+
+        await run_with_retries(_test, requester)
 
 
 @pytest.mark.flaky(reruns=5)
@@ -185,7 +190,8 @@ async def test_updates_index_data(es_requester):
         await asyncio.sleep(1)
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
-        doc = await search.conn.get(new_index_name, ob._p_oid)
+        doc = await search.conn.get(
+            index=new_index_name, doc_type=DOC_TYPE, id=ob._p_oid)
         assert doc['_source']['title'] == 'foobar-new'
 
 
@@ -203,21 +209,19 @@ async def test_calculate_mapping_diff(es_requester):
         index_settings.update(app_settings.get('index', {}))
 
         # tweak mappings so we can get the diff...
-        for key, value in mappings.items():
-            # need to modify on *all* or it won't work with ES..
-            if 'creators' in value['properties']:
-                value['properties']['creators']['type'] = 'text'
-        mappings['Item']['properties']['foobar'] = {'type': 'keyword', 'index': True}
+        if 'creators' in mappings['properties']:
+            mappings['properties']['creators']['type'] = 'text'
+        mappings['properties']['foobar'] = {'type': 'keyword', 'index': True}
 
         await search.conn.indices.close(new_index_name)
-        await search.conn.indices.put_settings(index_settings, new_index_name)
-        for key, value in mappings.items():
-            await search.conn.indices.put_mapping(new_index_name, key, value)
+        await search.conn.indices.put_settings(
+            body=index_settings, index=new_index_name)
+        await search.conn.indices.put_mapping(
+            index=new_index_name, doc_type=DOC_TYPE, body=mappings)
         await search.conn.indices.open(new_index_name)
 
         diff = await migrator.calculate_mapping_diff()
-        assert len(diff['Folder']) == 1
-        assert len(diff['Item']) == 2
+        assert len(diff[DOC_TYPE]) == 2
 
 
 async def test_updates_index_name(es_requester):
@@ -229,7 +233,7 @@ async def test_updates_index_name(es_requester):
         migrator = Migrator(search, container, force=True, request=request)
         await migrator.run_migration()
         assert not await search.conn.indices.exists(existing_index)
-        assert search.conn.indices.exists(migrator.work_index_name)
+        assert await search.conn.indices.exists(migrator.work_index_name)
         assert await search.get_real_index_name(container) == migrator.work_index_name
 
 

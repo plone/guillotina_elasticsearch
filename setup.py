@@ -12,7 +12,7 @@ test_requires = [
     'pytest-cov',
     'pytest-aiohttp',
     'pytest-rerunfailures',
-    'pytest-docker-fixtures>=1.1.0'
+    'pytest-docker-fixtures>=1.2.2'
 ]
 
 
@@ -39,7 +39,7 @@ setup(
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
         'guillotina>=3.1.6',
-        'aioes>=0.7.0',
+        'aioelasticsearch',
         'ujson',
         'lru-dict'
     ],

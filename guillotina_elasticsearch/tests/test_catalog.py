@@ -1,5 +1,6 @@
 from guillotina.component import getUtility
 from guillotina.interfaces import ICatalogUtility
+from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
 
@@ -38,7 +39,9 @@ async def test_update(es_requester):
             }
         })
         await search.refresh(container)
-        doc = await search.conn.get(await search.get_index_name(container), 'foobar')
+        doc = await search.conn.get(
+            index=await search.get_index_name(container),
+            doc_type=DOC_TYPE, id='foobar')
         assert doc['_source']['title'] == 'foobar-updated'
 
 

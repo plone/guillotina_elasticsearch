@@ -17,8 +17,9 @@ config.json can include elasticsearch section::
     "elasticsearch": {
         "index_name_prefix": "guillotina-",
         "connection_settings": {
-            "endpoints": ["localhost:9200"],
-            "sniffer_timeout": 0.5
+            "hosts": ["localhost:9200"],
+            "sniffer_timeout": 0.5,
+            "sniff_on_start": true
         }
     }
 
@@ -53,3 +54,20 @@ New index and delete requests are performed on both indexes during live migratio
 
 It is also smart about how to migrate, doing a diff on the mapping and only
 reindexing the fields that changed.
+
+
+Breaking changes in 2.0
+-----------------------
+
+- ES 6 does not have doc types support
+- aioes deprecated
+- IElasticSearchUtility changes:
+    - query: doc_type param no longer used
+- IElasticSearchUtility.conn changes:
+    - put_mapping
+    - put_settings
+    - put_alias
+    - get: needs doc_type=DOC_TYPE
+    - bulk: needs doc_type=DOC_TYPE
+    - conn.transport.get_connection(): ._session -> .session, ._base_url -> .base_url
+    - conn.transport.get_connection().[method] -> need to include content-type: application/json

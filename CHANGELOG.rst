@@ -1,7 +1,11 @@
-1.3.14 (unreleased)
+2.0.0 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- replace aioes(unsupported) with aioelasticsearch
+  [vangheem]
+
+- Elasticsearch 6 compatibility.
+  [vangheem]
 
 
 1.3.13 (2018-05-02)

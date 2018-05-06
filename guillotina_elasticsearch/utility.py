@@ -3,7 +3,6 @@ from guillotina import configure
 from guillotina.browser import ErrorResponse
 from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
-from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IInteraction
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
@@ -11,8 +10,11 @@ from guillotina.utils import get_current_request
 from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina_elasticsearch.events import SearchDoneEvent
+from guillotina_elasticsearch.interfaces import DOC_TYPE
+from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.manager import ElasticSearchManager
 from guillotina_elasticsearch.utils import noop_response
+from os.path import join
 
 import aiohttp
 import asyncio
@@ -21,20 +23,11 @@ import logging
 import time
 
 
-try:
-    from guillotina.async_util import IAsyncUtility
-except ImportError:
-    from guillotina.async import IAsyncUtility
-
-
 logger = logging.getLogger('guillotina_elasticsearch')
 
 MAX_RETRIES_ON_REINDEX = 5
 MAX_MEMORY = 0.9
 
-
-class IElasticSearchUtility(ICatalogUtility, IAsyncUtility):
-    pass
 
 
 @configure.utility(provides=IElasticSearchUtility)
@@ -69,9 +62,6 @@ class ElasticSearchUtility(ElasticSearchManager):
         q = {
             'index': await self.get_index_name(container)
         }
-
-        if doc_type is not None:
-            q['doc_type'] = doc_type
 
         # The users who has plone.AccessContent permission by prinperm
         # The roles who has plone.AccessContent permission by roleperm
@@ -248,9 +238,13 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def call_unindex_all_children(self, index_name, path_query):
         conn_es = await self.conn.transport.get_connection()
-        async with conn_es._session.post(
-                conn_es._base_url.human_repr() + index_name + '/_delete_by_query',
-                data=json.dumps(path_query)) as resp:
+        async with conn_es.session.post(
+                join(conn_es.base_url.human_repr(),
+                     index_name, '_delete_by_query'),
+                data=json.dumps(path_query),
+                headers={
+                    'Content-Type': 'application/json'
+                }) as resp:
             result = await resp.json()
             if 'deleted' in result:
                 logger.debug(f'Deleted {result["deleted"]} children')
@@ -312,11 +306,13 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def _update_by_query(self, query, index_name):
         conn_es = await self.conn.transport.get_connection()
-        url = '{}{}/_update_by_query?conflicts=proceed'.format(
-            conn_es._base_url.human_repr(), index_name
-        )
-        async with conn_es._session.post(
-                url, data=json.dumps(query)) as resp:
+        url = join(conn_es.base_url.human_repr(), index_name,
+                   '_update_by_query?conflicts=proceed')
+        async with conn_es.session.post(
+                url, data=json.dumps(query),
+                headers={
+                    'Content-Type': 'application/json'
+                }) as resp:
             result = await resp.json()
             if 'updated' in result:
                 logger.debug(f'Updated {result["updated"]} children')
@@ -349,7 +345,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         try:
             response.write(b'Indexing %d' % (len(idents),))
             result = await self.conn.bulk(
-                index=index_name, doc_type=None,
+                index=index_name, doc_type=DOC_TYPE,
                 body=bulk_data)
         except aiohttp.client_exceptions.ClientResponseError as e:
             count += 1
@@ -388,7 +384,6 @@ class ElasticSearchUtility(ElasticSearchManager):
             bulk_data.extend([{
                 'index': {
                     '_index': index_name,
-                    '_type': data['type_name'],
                     '_id': ident
                 }
             }, data])
@@ -430,7 +425,6 @@ class ElasticSearchUtility(ElasticSearchManager):
                 bulk_data.extend([{
                     'update': {
                         '_index': index_name,
-                        '_type': data['type_name'],
                         '_id': ident,
                         '_retry_on_conflict': 3
                     }
@@ -478,12 +472,12 @@ class ElasticSearchUtility(ElasticSearchManager):
                 bulk_data.append({
                     'delete': {
                         '_index': index_name,
-                        '_id': uid,
-                        '_type': type_name
+                        '_id': uid
                     }
                 })
                 await self.unindex_all_children(content_path, index_name=index_name)
-            await self.conn.bulk(index=index_name, body=bulk_data)
+            await self.conn.bulk(
+                index=index_name, body=bulk_data, doc_type=DOC_TYPE)
 
         if check_next:
             # also need to call on next index while it's running...
