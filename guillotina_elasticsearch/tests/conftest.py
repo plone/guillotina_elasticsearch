@@ -4,7 +4,7 @@ import os
 if os.environ.get('ES_VERSION', '6') == '6':
     images.configure(
         'elasticsearch',
-        'docker.elastic.co/elasticsearch/elasticsearch-platinum', '6.2.4')
+        'docker.elastic.co/elasticsearch/elasticsearch-oss', '6.2.4')
 
 
 pytest_plugins = [
