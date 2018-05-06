@@ -12,7 +12,7 @@ test_requires = [
     'pytest-cov',
     'pytest-aiohttp',
     'pytest-rerunfailures',
-    'pytest-docker-fixtures>=1.2.1'
+    'pytest-docker-fixtures>=1.2.2'
 ]
 
 
