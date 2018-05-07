@@ -53,3 +53,14 @@ New index and delete requests are performed on both indexes during live migratio
 
 It is also smart about how to migrate, doing a diff on the mapping and only
 reindexing the fields that changed.
+
+
+Testing
+--------
+
+If container es (elasticsearch) fails to start when running tests,
+you should increase max_map_count. command::
+
+    # Linux
+    sudo sysctl -w vm.max_map_count=262144
+

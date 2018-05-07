@@ -1,5 +1,6 @@
 from guillotina import app_settings
 from guillotina.component import getUtility
+from guillotina.component import globalregistry as gr
 from guillotina.event import notify
 from guillotina.events import ObjectRemovedEvent
 from guillotina.interfaces import IAnnotations
@@ -8,17 +9,21 @@ from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.tests.utils import create_content
 from guillotina.transactions import managed_transaction
 from guillotina.utils import get_content_path
+from guillotina_elasticsearch.events import IIndexProgress
+from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.manager import DEFAULT_SETTINGS
 from guillotina_elasticsearch.migration import Migrator
+from guillotina_elasticsearch.reindex import Reindexer
 from guillotina_elasticsearch.schema import get_mappings
 from guillotina_elasticsearch.tests.utils import add_content
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
 import aioes
-import aiotask_context
 import asyncio
-import pytest
+import json
 import random
+import aiotask_context
+import pytest
 
 
 @pytest.mark.flaky(reruns=5)
@@ -304,3 +309,61 @@ async def test_apply_next_index_does_not_cause_conflict_error(es_requester):
                                        adopt_parent_txn=True) as txn:
             await migrator.utility.apply_next_index(migrator.container,
                                                     migrator.request)
+
+
+class FakeEventHandler:
+    called = None
+
+    async def subscribe(self, event):
+        self.called = True
+        self.event = event
+
+
+@pytest.fixture(scope='function')
+def event_handler():
+    return FakeEventHandler()
+
+
+async def test_migrator_emit_events_during_indexing(es_requester, event_handler):
+    async with es_requester as requester:
+        container, req, txn, tm = await setup_txn_on_container(requester)  # pylint: disable=W0612
+        search = getUtility(ICatalogUtility)
+
+        gr.base.adapters.subscribe([IIndexProgress], None, event_handler.subscribe)
+        migrator = Reindexer(
+            search, {}, force=True, request=req, reindex_security=True
+        )
+        migrator.bulk_size = 0
+        migrator.batch = {}
+        migrator.existing = {}
+        migrator.processed = 1
+        migrator.missing = {'xx': 1}
+        await migrator.attempt_flush()
+        assert event_handler.called == True
+        assert isinstance(event_handler.event, IndexProgress)
+
+
+async def test_migrator_emmits_events_on_end(es_requester, event_handler):
+    async with es_requester as requester:
+        resp, status = await requester(
+            'POST',
+            '/db/guillotina/',
+            data=json.dumps({
+                '@type': 'Folder',
+                'title': 'Folder',
+                'id': 'foobar'
+            })
+        )
+
+        container, req, txn, tm = await setup_txn_on_container(requester)
+        search = getUtility(ICatalogUtility)
+
+        gr.base.adapters.subscribe([IIndexProgress], None, event_handler.subscribe)
+        migrator = Reindexer(
+            search, container, force=True, request=req, reindex_security=True
+        )
+
+        ob = await container.async_get('foobar')
+        await migrator.reindex(ob)
+        assert event_handler.called == True
+        assert event_handler.event.completed == True

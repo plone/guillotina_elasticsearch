@@ -1,7 +1,8 @@
 1.3.14 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Added IIndexProgress to hook on reindex process
+  [jordic]
 
 
 1.3.13 (2018-05-02)
