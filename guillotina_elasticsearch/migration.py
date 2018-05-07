@@ -18,6 +18,8 @@ from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.utils import noop_response
+from guillotina.event import notify
+from guillotina_elasticsearch.events import IndexProgress
 from os.path import join
 
 import aioelasticsearch
@@ -403,8 +405,10 @@ class Migrator:
             self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
                 self.indexed, int(self.per_sec()),
             ))
-
         if len(self.batch) >= self.bulk_size:
+            await notify(IndexProgress(
+                self.request, self.processed, (len(self.existing) + len(self.missing))
+            ))
             await self.flush()
 
     async def join_futures(self):

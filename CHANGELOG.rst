@@ -1,7 +1,8 @@
 2.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Added IIndexProgress to hook on reindex process
+  [jordic]
 
 
 2.0.0 (2018-05-06)
