@@ -406,11 +406,10 @@ class Migrator:
                 self.indexed, int(self.per_sec()),
             ))
 
-        await notify(IndexProgress(
-            self.request, self.processed, (len(self.existing) + len(self.missing))
-        ))
-
         if len(self.batch) >= self.bulk_size:
+            await notify(IndexProgress(
+                self.request, self.processed, (len(self.existing) + len(self.missing))
+            ))
             await self.flush()
 
     async def join_futures(self):

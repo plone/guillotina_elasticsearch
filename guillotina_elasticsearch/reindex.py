@@ -1,5 +1,6 @@
 from guillotina_elasticsearch.migration import Migrator
-
+from guillotina_elasticsearch.events import IndexProgress
+from guillotina.event import notify
 
 class Reindexer(Migrator):
 
@@ -13,3 +14,6 @@ class Reindexer(Migrator):
         self.work_index_name = await self.utility.get_index_name(self.request.container)
         await self.process_object(obj)
         await self.flush()
+        await notify(IndexProgress(
+            self.request, self.processed, self.processed, completed=True
+        ))

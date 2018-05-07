@@ -28,12 +28,14 @@ class IIndexProgress(Interface):
     request = Attribute('Request responsible')
     processed = Attribute('Docs finished indexing')
     total = Attribute('Amount of docs to index')
+    completed = Attribute("Flag if IndexAction is completed")
 
 
 @implementer(IIndexProgress)
 class IndexProgress(object):
 
-    def __init__(self, request, processed, total):
+    def __init__(self, request, processed, total, completed=None):
         self.request = request
         self.processed = processed
         self.total = total
+        self.completed = completed
