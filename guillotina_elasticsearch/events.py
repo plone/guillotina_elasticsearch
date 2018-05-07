@@ -22,3 +22,18 @@ class SearchDoneEvent(object):
         self.total = total
         self.request = request
         self.time = time
+
+
+class IIndexProgress(Interface):
+    request = Attribute('Request responsible')
+    processed = Attribute('Docs finished indexing')
+    total = Attribute('Amount of docs to index')
+
+
+@implementer(IIndexProgress)
+class IndexProgress(object):
+
+    def __init__(self, request, processed, total):
+        self.request = request
+        self.processed = processed
+        self.total = total

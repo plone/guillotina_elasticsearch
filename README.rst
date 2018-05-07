@@ -71,3 +71,15 @@ Breaking changes in 2.0
     - bulk: needs doc_type=DOC_TYPE
     - conn.transport.get_connection(): ._session -> .session, ._base_url -> .base_url
     - conn.transport.get_connection().[method] -> need to include content-type: application/json
+
+
+Testing
+--------
+
+If container es (elasticsearch) fails to start when running tests,
+you should increase max_map_count. command::
+
+   # Linux
+   sudo sysctl -w vm.max_map_count=262144
+
+
