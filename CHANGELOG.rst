@@ -1,4 +1,4 @@
-1.3.14 (unreleased)
+1.3.14 (2018-05-07)
 -------------------
 
 - Added IIndexProgress to hook on reindex process
