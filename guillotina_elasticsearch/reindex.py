@@ -17,7 +17,6 @@ class Reindexer(Migrator):
         await notify(IndexProgress(self.request, 0, self.processed))
         await self.process_object(obj)
         await self.flush()
-
         await notify(IndexProgress(
             self.request, self.processed, self.processed, completed=True
         ))
