@@ -320,7 +320,9 @@ class FakeEventHandler:
 
     async def subscribe(self, event):
         self.called = True
-        self.event = event
+        if not getattr(self, "event", None):
+            self.event = []
+        self.event.append(event)
 
 
 @pytest.fixture(scope='function')
@@ -344,7 +346,7 @@ async def test_migrator_emit_events_during_indexing(es_requester, event_handler)
         migrator.missing = {'xx': 1}
         await migrator.attempt_flush()
         assert event_handler.called == True
-        assert isinstance(event_handler.event, IndexProgress)
+        assert isinstance(event_handler.event[0], IndexProgress)
 
 
 async def test_migrator_emmits_events_on_end(es_requester, event_handler):
@@ -370,4 +372,7 @@ async def test_migrator_emmits_events_on_end(es_requester, event_handler):
         ob = await container.async_get('foobar')
         await migrator.reindex(ob)
         assert event_handler.called == True
-        assert event_handler.event.completed == True
+        assert len(event_handler.event) == 2
+        assert event_handler.event[0].completed == None
+        assert event_handler.event[0].processed == 0
+        assert event_handler.event[1].completed == True
