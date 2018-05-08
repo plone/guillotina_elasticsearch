@@ -1,4 +1,10 @@
-1.3.14 (unreleased)
+1.3.15
+------
+
+- Added new event on reindex start.
+  [jordic]
+
+1.3.14
 -------------------
 
 - Added IIndexProgress to hook on reindex process
