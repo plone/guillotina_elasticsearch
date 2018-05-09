@@ -1,4 +1,4 @@
-1.3.17 (unreleased)
+1.3.17 (2018-05-09)
 -------------------
 
 - Do not set db write enabled on migrate
