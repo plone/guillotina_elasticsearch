@@ -1,7 +1,8 @@
 1.3.17 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Do not set db write enabled on migrate
+  [vangheem]
 
 
 1.3.16 (2018-05-09)

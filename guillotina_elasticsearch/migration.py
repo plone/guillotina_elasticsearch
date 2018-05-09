@@ -151,7 +151,6 @@ class Migrator:
 
         if request is None:
             self.request = get_current_request()
-            self.request._db_write_enabled = False
         else:
             self.request = request
         # make sure that we don't cache requests...
