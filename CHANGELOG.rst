@@ -1,14 +1,14 @@
+1.3.16 (unreleased)
+-------------------
+
+- More logging
+
+
 1.3.15
 ------
 
 - Added new event on reindex start.
   [jordic]
-
-
-1.3.16 (unreleased)
--------------------
-
-- Nothing changed yet.
 
 
 1.3.15 (2018-05-08)

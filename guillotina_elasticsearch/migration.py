@@ -592,7 +592,9 @@ class Migrator:
                 await self.utility.apply_next_index(self.container, self.request)
             self.status = 'done'
 
-            self.response.write('Update aliases')
+            self.response.write(f'''Update alias({alias_index_name}):
+{existing_index} -> {self.work_index_name}
+''')
             await self.conn.indices.update_aliases({
                 "actions": [
                     {"remove": {
