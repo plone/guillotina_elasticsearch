@@ -426,7 +426,8 @@ class Migrator:
             ))
         if len(self.batch) >= self.bulk_size:
             await notify(IndexProgress(
-                self.request, self.processed, (len(self.existing) + len(self.missing))
+                self.request, self.context, self.processed,
+                (len(self.existing) + len(self.missing))
             ))
             await self.flush()
 
@@ -469,7 +470,7 @@ class Migrator:
 
                         if value['status'] == 409:  # retry conflict errors
                             self.batch[_id] = batch[_id]
-            logger.warn(f'Error bulk putting: {results}')
+            logger.warning(f'Error bulk putting: {results}')
 
     async def flush(self):
         if len(self.batch) == 0:

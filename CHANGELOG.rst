@@ -1,3 +1,8 @@
+1.3.16
+------
+
+- Added context to the IIndexProgress event
+
 1.3.15
 ------
 
