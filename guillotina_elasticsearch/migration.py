@@ -158,7 +158,6 @@ class Migrator:
 
         if request is None:
             self.request = get_current_request()
-            self.request._db_write_enabled = False
         else:
             self.request = request
         # make sure that we don't cache requests...
@@ -563,7 +562,10 @@ class Migrator:
                 await self.utility.apply_next_index(self.container, self.request)
             self.status = 'done'
 
-            self.response.write('Update aliases')
+            self.response.write(f'''Update alias({alias_index_name}):
+{existing_index} -> {self.work_index_name}
+''')
+
             await self.conn.indices.update_aliases({
                 "actions": [
                     {"remove": {

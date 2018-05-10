@@ -1,6 +1,9 @@
 2.0.1 (unreleased)
 ------------------
 
+- Add more logging for migrations
+  [vangheem]
+
 - Added IIndexProgress to hook on reindex process
 - Added new event on reindex start.
 - Added context to the IIndexProgress event
