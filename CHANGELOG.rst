@@ -1,8 +1,8 @@
-1.3.18 (unreleased)
--------------------
+1.3.18 (2018-05-10)
+------
 
-- Nothing changed yet.
-
+- Added context to the IIndexProgress event
+  [jordic]
 
 1.3.17 (2018-05-09)
 -------------------

@@ -14,9 +14,11 @@ class Reindexer(Migrator):
     async def reindex(self, obj):
         self.work_index_name = await self.utility.get_index_name(self.request.container)
 
-        await notify(IndexProgress(self.request, 0, self.processed))
+        await notify(IndexProgress(
+            self.request, self.context, 0, self.processed))
         await self.process_object(obj)
         await self.flush()
         await notify(IndexProgress(
-            self.request, self.processed, self.processed, completed=True
+            self.request, self.context, self.processed,
+            self.processed, completed=True
         ))
