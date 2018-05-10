@@ -1,4 +1,4 @@
-2.0.1 (unreleased)
+2.0.1 (2018-05-10)
 ------------------
 
 - Add more logging for migrations
