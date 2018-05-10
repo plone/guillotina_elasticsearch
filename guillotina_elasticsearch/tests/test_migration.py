@@ -335,9 +335,10 @@ async def test_migrator_emit_events_during_indexing(es_requester, event_handler)
         container, req, txn, tm = await setup_txn_on_container(requester)  # pylint: disable=W0612
         search = getUtility(ICatalogUtility)
 
+        _marker = {}
         gr.base.adapters.subscribe([IIndexProgress], None, event_handler.subscribe)
         migrator = Reindexer(
-            search, {}, force=True, request=req, reindex_security=True
+            search, _marker, force=True, request=req, reindex_security=True
         )
         migrator.bulk_size = 0
         migrator.batch = {}
@@ -347,6 +348,7 @@ async def test_migrator_emit_events_during_indexing(es_requester, event_handler)
         await migrator.attempt_flush()
         assert event_handler.called == True
         assert isinstance(event_handler.event[0], IndexProgress)
+        assert event_handler.event[0].context == _marker
 
 
 async def test_migrator_emmits_events_on_end(es_requester, event_handler):
@@ -376,3 +378,4 @@ async def test_migrator_emmits_events_on_end(es_requester, event_handler):
         assert event_handler.event[0].completed == None
         assert event_handler.event[0].processed == 0
         assert event_handler.event[1].completed == True
+        assert event_handler.event[0].context == container

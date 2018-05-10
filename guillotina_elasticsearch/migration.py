@@ -407,7 +407,8 @@ class Migrator:
             ))
         if len(self.batch) >= self.bulk_size:
             await notify(IndexProgress(
-                self.request, self.processed, (len(self.existing) + len(self.missing))
+                self.request, self.context, self.processed,
+                (len(self.existing) + len(self.missing))
             ))
             await self.flush()
 
