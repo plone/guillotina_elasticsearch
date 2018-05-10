@@ -3,6 +3,7 @@
 
 - Added IIndexProgress to hook on reindex process
 - Added new event on reindex start.
+- Added context to the IIndexProgress event
   [jordic]
 
 
