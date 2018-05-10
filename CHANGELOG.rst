@@ -1,5 +1,5 @@
 1.3.18 (2018-05-10)
-------
+-------------------
 
 - Added context to the IIndexProgress event
   [jordic]
