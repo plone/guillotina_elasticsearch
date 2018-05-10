@@ -1,7 +1,21 @@
-1.3.16
+1.3.18 (2018-05-10)
 ------
 
 - Added context to the IIndexProgress event
+  [jordic]
+
+1.3.17 (2018-05-09)
+-------------------
+
+- Do not set db write enabled on migrate
+  [vangheem]
+
+
+1.3.16 (2018-05-09)
+-------------------
+
+- More logging
+
 
 1.3.15
 ------
@@ -10,7 +24,7 @@
   [jordic]
 
 
-1.3.14 (2018-05-07)
+1.3.15 (2018-05-08)
 -------------------
 
 - Added IIndexProgress to hook on reindex process
