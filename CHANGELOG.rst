@@ -1,4 +1,4 @@
-1.3.19 (unreleased)
+1.3.19 (2018-05-14)
 -------------------
 
 - Raise an exception instead of returning an ErrorResponse object
