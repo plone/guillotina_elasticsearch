@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from guillotina import configure
-from guillotina.browser import ErrorResponse
 from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import IInteraction
@@ -10,6 +9,7 @@ from guillotina.utils import get_current_request
 from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina_elasticsearch.events import SearchDoneEvent
+from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.manager import ElasticSearchManager
@@ -153,7 +153,7 @@ class ElasticSearchUtility(ElasticSearchManager):
             error_message = 'Unknown'
             for failure in result["_shards"].get('failures') or []:
                 error_message = failure['reason']
-            return ErrorResponse('QueryError', error_message, status=488)
+            return QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         final = {
             'items_count': result['hits']['total'],

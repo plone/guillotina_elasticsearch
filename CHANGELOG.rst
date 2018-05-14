@@ -1,7 +1,8 @@
 2.0.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Raise exception instead of returning ErrorResponse
+  [vangheem]
 
 
 2.0.1 (2018-05-10)
