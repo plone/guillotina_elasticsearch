@@ -1,7 +1,8 @@
 1.3.19 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Raise an exception instead of returning an ErrorResponse object
+  [vangheem]
 
 
 1.3.18 (2018-05-10)
