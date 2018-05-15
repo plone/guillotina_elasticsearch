@@ -1,3 +1,4 @@
+from _pytest.outcomes import Failed
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests import utils
@@ -72,7 +73,9 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
             times += 1
             return await func()
         except (AssertionError, KeyError,
-                aioelasticsearch.exceptions.NotFoundError) as ex:
+                aioelasticsearch.exceptions.NotFoundError,
+                aioelasticsearch.exceptions.TransportError,
+                Failed) as ex:
             exception = ex
             await asyncio.sleep(retry_wait)
             if requester is not None:

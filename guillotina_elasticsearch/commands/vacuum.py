@@ -1,14 +1,18 @@
 from guillotina.commands import Command
 from guillotina.commands.utils import change_transaction_strategy
-from guillotina.component import getUtility
+from guillotina.component import get_adapter
+from guillotina.component import get_utility
 from guillotina.db import ROOT_ID
 from guillotina.db import TRASHED_ID
 from guillotina.db.reader import reader
 from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
+from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator
 from lru import LRU  # pylint: disable=E0611
 from os.path import join
+from guillotina_elasticsearch.utils import get_content_sub_indexes
+from guillotina_elasticsearch.utils import get_installed_sub_indexes
 
 import aioelasticsearch
 import asyncio
@@ -58,6 +62,19 @@ LIMIT {PAGE_SIZE}
 """
 
 
+async def clean_orphan_indexes(container):
+    search = get_utility(ICatalogUtility)
+    installed_indexes = await get_installed_sub_indexes(container)
+    content_indexes = [val['index'] for val in
+                       await get_content_sub_indexes(container)]
+    for alias_name, index in installed_indexes.items():
+        if alias_name not in content_indexes:
+            # delete, no longer content available
+            await search.conn.indices.close(alias_name)
+            await search.conn.indices.delete_alias(index, alias_name)
+            await search.conn.indices.delete(index)
+
+
 class Vacuum:
 
     def __init__(self, txn, tm, request, container, last_tid=-2):
@@ -67,9 +84,10 @@ class Vacuum:
         self.container = container
         self.orphaned = []
         self.missing = []
-        self.utility = getUtility(ICatalogUtility)
+        self.utility = get_utility(ICatalogUtility)
         self.migrator = Migrator(
             self.utility, self.container, full=True, bulk_size=10)
+        self.index_manager = get_adapter(self.container, IIndexManager)
         self.cache = LRU(200)
         self.last_tid = last_tid
         self.use_tid_query = True
@@ -78,9 +96,9 @@ class Vacuum:
         self.last_result_set = []
 
     async def iter_batched_es_keys(self):
-        index_name = await self.utility.get_index_name(self.container)
+        index_name = await self.index_manager.get_index_name()
         result = await self.utility.conn.search(
-            index=index_name,
+            index='{},{}__*'.format(index_name, index_name),
             scroll='15m',
             size=PAGE_SIZE,
             _source=False,
@@ -145,6 +163,7 @@ class Vacuum:
                     logger.warning(f'Getting all keys from tid {self.last_tid}')
                     # we're stuck on same tid, get all for this tid
                     # and then move on...
+                    clear_conn_statement_cache(conn)
                     records = await conn.fetch(
                         GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
                     while len(records) > 0:
@@ -155,6 +174,7 @@ class Vacuum:
                             keys.append(record['zoid'])
                             self.last_zoid = record['zoid']
                         yield keys
+                        clear_conn_statement_cache(conn)
                         records = await conn.fetch(
                             GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
                     self.last_tid = self.last_tid + 1
@@ -216,7 +236,7 @@ class Vacuum:
         #   - uses less memory rather than getting all keys in both.
         #   - this way should allow us handle VERY large datasets
 
-        self.index_name = await self.utility.get_index_name(self.container)
+        self.index_name = await self.index_manager.get_index_name()
         self.migrator.work_index_name = self.index_name
 
     async def check_orphans(self):
@@ -243,9 +263,10 @@ class Vacuum:
                 logger.warning(f'deleting orphaned {len(orphaned)}')
                 conn_es = await self.utility.conn.transport.get_connection()
                 # delete by query for orphaned keys...
+                index_path = '{},{}__*'.format(self.index_name, self.index_name)
                 async with conn_es.session.post(
                         join(conn_es.base_url.human_repr(),
-                             self.index_name, '_delete_by_query'),
+                             index_path, '_delete_by_query'),
                         headers={
                             'Content-Type': 'application/json'
                         },
@@ -275,7 +296,7 @@ class Vacuum:
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
             es_batch = []
             results = await self.utility.conn.search(
-                self.index_name, body={
+                '{},{}__*'.format(self.index_name, self.index_name), body={
                     'query': {
                         'terms': {
                             'uuid': batch
@@ -349,6 +370,7 @@ class VacuumCommand(Command):
 Orphaned cleaned: {len(vacuum.orphaned)}
 Missing added: {len(vacuum.missing)}
 ''')
+                    await clean_orphan_indexes(container)
                 except Exception:
                     logger.error('Error vacuuming', exc_info=True)
                 finally:

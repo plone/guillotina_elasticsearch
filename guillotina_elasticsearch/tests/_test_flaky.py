@@ -1,4 +1,4 @@
-from guillotina.component import getUtility
+from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_content_path
 from guillotina_elasticsearch.migration import Migrator
@@ -16,7 +16,7 @@ async def _test_new_indexes_are_performed_during_migration(es_requester):
         await add_content(requester)
         container, request, txn, tm = await setup_txn_on_container(requester)
 
-        search = getUtility(ICatalogUtility)
+        search = get_utility(ICatalogUtility)
         migrator = Migrator(search, container, force=True, request=request)
         await migrator.setup_next_index()
         await migrator.copy_to_next_index()
@@ -44,7 +44,7 @@ async def _test_new_deletes_are_performed_during_migration(es_requester):
         await add_content(requester)
         container, request, txn, tm = await setup_txn_on_container(requester)
 
-        search = getUtility(ICatalogUtility)
+        search = get_utility(ICatalogUtility)
         migrator = Migrator(search, container, force=True, request=request)
         await migrator.setup_next_index()
         await migrator.copy_to_next_index()

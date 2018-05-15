@@ -1,9 +1,11 @@
 from guillotina import directives
 from guillotina.catalog.catalog import DefaultCatalogDataAdapter
+from guillotina.component import get_adapter
 from guillotina.component import get_utilities_for
 from guillotina.content import iter_schemata_for_type
 from guillotina.db.cache.dummy import DummyCache
 from guillotina.directives import merged_tagged_value_dict
+from guillotina.event import notify
 from guillotina.exceptions import NoIndexField
 from guillotina.interfaces import IAsyncBehavior
 from guillotina.interfaces import ICatalogDataAdapter
@@ -16,10 +18,12 @@ from guillotina.transactions import managed_transaction
 from guillotina.utils import apply_coroutine
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
-from guillotina_elasticsearch.interfaces import DOC_TYPE
-from guillotina_elasticsearch.utils import noop_response
-from guillotina.event import notify
 from guillotina_elasticsearch.events import IndexProgress
+from guillotina_elasticsearch.interfaces import DOC_TYPE
+from guillotina_elasticsearch.interfaces import IIndexManager
+from guillotina_elasticsearch.utils import get_migration_lock
+from guillotina_elasticsearch.utils import noop_response
+from guillotina_elasticsearch.interfaces import IIndexActive
 from os.path import join
 
 import aioelasticsearch
@@ -132,16 +136,12 @@ class Migrator:
     10. Refresh db container ob
     11. Point alias at next index
     12. Delete old index
-
-
-    TODO:
-        - optionally fill metadata in indexing
-            - requires more work...
     '''
 
     def __init__(self, utility, context, response=noop_response, force=False,
                  log_details=False, memory_tracking=False, request=None,
-                 bulk_size=40, full=False, reindex_security=False, mapping_only=False):
+                 bulk_size=40, full=False, reindex_security=False, mapping_only=False,
+                 index_manager=None, children_only=False):
         self.utility = utility
         self.conn = utility.conn
         self.context = context
@@ -152,6 +152,7 @@ class Migrator:
         self.memory_tracking = memory_tracking
         self.bulk_size = bulk_size
         self.reindex_security = reindex_security
+        self.children_only = children_only
         if mapping_only and full:
             raise Exception('Can not do a full reindex and a mapping only migration')
         self.mapping_only = mapping_only
@@ -163,6 +164,12 @@ class Migrator:
         # make sure that we don't cache requests...
         self.request._txn._cache = DummyCache(self.request._txn)
         self.container = self.request.container
+
+        if index_manager is None:
+            self.index_manager = get_adapter(self.container, IIndexManager)
+        else:
+            self.index_manager = index_manager
+
         self.interaction = IInteraction(self.request)
         self.indexer = Indexer()
 
@@ -182,17 +189,14 @@ class Migrator:
         self.copied_docs = 0
 
         self.work_index_name = None
+        self.sub_indexes = []
 
     def per_sec(self):
         return self.processed / (time.time() - self.index_start_time)
 
     async def create_next_index(self):
-        version = await self.utility.get_version(self.container,
-                                                 request=self.request)
-        next_version = version + 1
-        index_name = await self.utility.get_index_name(self.container,
-                                                       request=self.request)
-        next_index_name = index_name + '_' + str(next_version)
+        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+            next_index_name = await self.index_manager.start_migration()
         if await self.conn.indices.exists(next_index_name):
             if self.force:
                 # delete and recreate
@@ -200,12 +204,11 @@ class Migrator:
                 resp = await self.conn.indices.delete(next_index_name)
                 assert resp['acknowledged']
         await self.conn.indices.create(next_index_name)
-        return next_version, next_index_name
+        return next_index_name
 
     async def copy_to_next_index(self):
         conn_es = await self.conn.transport.get_connection()
-        real_index_name = await self.utility.get_index_name(self.container,
-                                                            self.request)
+        real_index_name = await self.index_manager.get_index_name()
         async with conn_es.session.post(
                 join(str(conn_es.base_url), '_reindex'),
                 params={
@@ -256,12 +259,13 @@ class Migrator:
         self.response.write('Retrieving existing doc ids')
         page_size = 3000
         ids = []
-        index_name = await self.utility.get_index_name(self.container)
+        index_name = await self.index_manager.get_index_name()
         result = await self.conn.search(
             index=index_name,
             scroll='2m',
             size=page_size,
             stored_fields='',
+            _source=False,
             body={
                 "sort": ["_doc"]
             })
@@ -285,13 +289,13 @@ class Migrator:
         all we care about is new fields...
         Missing ones are ignored and we don't care about it.
         '''
-        diffs = {}
-        existing_index_name = await self.utility.get_real_index_name(
-            self.container, self.request)
+        existing_index_name = await self.index_manager.get_real_index_name()
         existing_mappings = await self.conn.indices.get_mapping(existing_index_name)
-        existing_mappings = existing_mappings[existing_index_name]['mappings'][DOC_TYPE]['properties']  # noqa
+        existing_mappings = existing_mappings[existing_index_name]['mappings']
+        existing_mappings = existing_mappings[DOC_TYPE]['properties']
         next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
-        next_mappings = next_mappings[self.work_index_name]['mappings'][DOC_TYPE]['properties']  # noqa
+        next_mappings = next_mappings[self.work_index_name]['mappings']
+        next_mappings = next_mappings[DOC_TYPE]['properties']
 
         new_definitions = {}
         for field_name, definition in next_mappings.items():
@@ -299,19 +303,7 @@ class Migrator:
             if (field_name not in existing_mappings or
                     definition != _clean_mapping(existing_mappings[field_name])):
                 new_definitions[field_name] = definition
-        if len(new_definitions) > 0:
-            diffs[DOC_TYPE] = new_definitions
-
-        for type_name, mapping in existing_mappings.items():
-            if type_name not in next_mappings:
-                # special case here... we need to import this mapping still
-                # in order for the index copy to work correctly if docs ref it
-                self.response.write(f'Backporting mapping of {type_name} to new '
-                                    f'even though it is not defined anymore')
-                await self.conn.indices.put_mapping(
-                    index=self.work_index_name, doc_type=type_name, body=mapping)
-
-        return diffs
+        return new_definitions
 
     async def process_folder(self, ob):
         for key in await ob.async_keys():
@@ -347,12 +339,15 @@ class Migrator:
         await self.index_object(ob, full=full)
         self.processed += 1
 
-        if IFolder.providedBy(ob):
-            await self.process_folder(ob)
+        if IIndexActive.providedBy(ob):
+            self.sub_indexes.append(ob)
+        else:
+            if IFolder.providedBy(ob):
+                await self.process_folder(ob)
 
-        if not IContainer.providedBy(ob):
-            del ob.__annotations__
-        del ob
+            if not IContainer.providedBy(ob):
+                del ob.__annotations__
+            del ob
 
     async def index_object(self, ob, full=False):
         batch_type = 'update'
@@ -362,17 +357,10 @@ class Migrator:
             data = await ICatalogDataAdapter(ob)()
             batch_type = 'index'
         else:
-            if ob.type_name not in self.mapping_diff:
-                # no fields change, ignore this guy...
-                if self.log_details:
-                    self.response.write(f'({self.processed} {int(self.per_sec())}) '
-                                        f'(skipped) Object: {get_content_path(ob)}, '
-                                        f'Type: {batch_type}, Buffer: {len(self.batch)}')
-                return
             data = {
                 'type_name': ob.type_name  # always need this one...
             }
-            for index_name in self.mapping_diff[ob.type_name].keys():
+            for index_name in self.mapping_diff.keys():
                 val = await self.indexer.get_value(ob, index_name)
                 if val is not None:
                     data[index_name] = val
@@ -399,8 +387,9 @@ class Migrator:
             if self.memory_tracking:
                 total_memory = round(
                     resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)
-                self.response.write(b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (
-                    total_memory, num, len(gc.get_objects())))
+                self.response.write(
+                    b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (
+                        total_memory, num, len(gc.get_objects())))
             self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
                 self.indexed, int(self.per_sec()),
             ))
@@ -495,21 +484,19 @@ class Migrator:
 
     async def setup_next_index(self):
         self.response.write(b'Creating new index')
-        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
-            await self.utility.disable_next_index(self.context, request=self.request)
-
-        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
-            self.next_index_version, self.work_index_name = await self.create_next_index()
-            await self.utility.install_mappings_on_index(self.work_index_name)
-            await self.utility.activate_next_index(
-                self.container, self.next_index_version, request=self.request,
-                force=self.force)
+        async with get_migration_lock(await self.index_manager.get_index_name()):
+            self.work_index_name = await self.create_next_index()
+            await self.utility.install_mappings_on_index(
+                self.work_index_name,
+                await self.index_manager.get_index_settings(),
+                await self.index_manager.get_mappings())
+            return self.work_index_name
 
     async def cancel_migration(self):
         # canceling the migration, clearing index
         self.response.write('Canceling migration')
         async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
-            await self.utility.disable_next_index(self.context, request=self.request)
+            await self.index_manager.cancel_migration()
             self.response.write('Next index disabled')
         if self.active_task_id is not None:
             self.response.write('Canceling copy of index task')
@@ -520,17 +507,15 @@ class Migrator:
                     headers={
                         'Content-Type': 'application/json'
                     }):
-                asyncio.sleep(5)
+                await asyncio.sleep(5)
         if self.work_index_name:
             self.response.write('Deleting new index')
             await self.conn.indices.delete(self.work_index_name)
         self.response.write('Migration canceled')
 
     async def run_migration(self):
-        alias_index_name = await self.utility.get_index_name(self.container,
-                                                             request=self.request)
-        existing_index = await self.utility.get_real_index_name(self.container,
-                                                                request=self.request)
+        alias_index_name = await self.index_manager.get_index_name()
+        existing_index = await self.index_manager.get_real_index_name()
 
         await self.setup_next_index()
 
@@ -549,17 +534,20 @@ class Migrator:
             self.existing = await self.get_all_uids()
 
             self.index_start_time = time.time()
-            await self.process_object(self.context)  # this is recursive
+            if self.children_only or IContainer.providedBy(self.context):
+                await self.process_folder(self.context)  # this is recursive
+            else:
+                await self.process_object(self.context)  # this is recursive
 
             await self.check_existing()
 
             await self.flush()
             await self.join_futures()
 
-        async with self.utility._migration_lock:
+        async with get_migration_lock(await self.index_manager.get_index_name()):
             self.response.write('Activating new index')
             async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
-                await self.utility.apply_next_index(self.container, self.request)
+                await self.index_manager.finish_migration()
             self.status = 'done'
 
             self.response.write(f'''Update alias({alias_index_name}):
@@ -582,3 +570,16 @@ class Migrator:
         self.response.write('Delete old index')
         await self.conn.indices.close(existing_index)
         await self.conn.indices.delete(existing_index)
+
+        if len(self.sub_indexes) > 0:
+            self.response.write(f'Migrating sub indexes: {len(self.sub_indexes)}')
+            for ob in self.sub_indexes:
+                im = get_adapter(ob, IIndexManager)
+                migrator = Migrator(
+                    self.utility, ob, response=self.response, force=self.force,
+                    log_details=self.log_details, memory_tracking=self.memory_tracking,
+                    request=self.request, bulk_size=self.bulk_size, full=self.full,
+                    reindex_security=self.reindex_security, mapping_only=self.mapping_only,
+                    index_manager=im, children_only=True)
+                self.response.write(f'Migrating index for: {ob}')
+                await migrator.run_migration()

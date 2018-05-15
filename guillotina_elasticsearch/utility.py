@@ -1,7 +1,12 @@
 # -*- coding: utf-8 -*-
+from aioelasticsearch import Elasticsearch
+from guillotina import app_settings
 from guillotina import configure
+from guillotina.catalog.catalog import DefaultSearchUtility
+from guillotina.component import get_adapter
 from guillotina.event import notify
 from guillotina.interfaces import IAbsoluteURL
+from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
@@ -12,12 +17,17 @@ from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility
-from guillotina_elasticsearch.manager import ElasticSearchManager
+from guillotina_elasticsearch.interfaces import IIndexActive
+from guillotina_elasticsearch.interfaces import IIndexManager
+from guillotina_elasticsearch.utils import find_index_manager
+from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
+from guillotina_elasticsearch.utils import safe_es_call
 from os.path import join
 
 import aiohttp
 import asyncio
+import elasticsearch.exceptions
 import json
 import logging
 import time
@@ -26,21 +36,104 @@ import time
 logger = logging.getLogger('guillotina_elasticsearch')
 
 MAX_RETRIES_ON_REINDEX = 5
-MAX_MEMORY = 0.9
-
 
 
 @configure.utility(provides=IElasticSearchUtility)
-class ElasticSearchUtility(ElasticSearchManager):
+class ElasticSearchUtility(DefaultSearchUtility):
 
-    bulk_size = 75
     index_count = 0
 
+    def __init__(self, settings={}, loop=None):
+        self.loop = loop
+        self._conn = None
+
+    @property
+    def bulk_size(self):
+        return self.settings.get('bulk_size', 50)
+
+    @property
+    def settings(self):
+        return app_settings.get('elasticsearch', {})
+
+    @property
+    def conn(self):
+        if self._conn is None:
+            self._conn = Elasticsearch(
+                loop=self.loop, **self.settings['connection_settings'])
+        return self._conn
+
+    @property
+    def enabled(self):
+        return len(self.settings.get('connection_settings', {}).get('hosts', [])) > 0
+
+    async def initialize(self, app):
+        self.app = app
+
+    async def finalize(self, app):
+        if self._conn is not None:
+            await self._conn.close()
+
+    async def initialize_catalog(self, container):
+        if not self.enabled:
+            return
+        await self.remove_catalog(container)
+        index_manager = get_adapter(container, IIndexManager)
+
+        index_name = await index_manager.get_index_name()
+        real_index_name = await index_manager.get_real_index_name()
+
+        await self.conn.indices.create(real_index_name)
+        await self.conn.indices.put_alias(
+            name=index_name, index=real_index_name)
+        await self.conn.indices.close(real_index_name)
+        await self.install_mappings_on_index(
+            real_index_name,
+            await index_manager.get_index_settings(),
+            await index_manager.get_mappings())
+
+        await self.conn.indices.open(real_index_name)
+        await self.conn.cluster.health(wait_for_status='yellow')  # pylint: disable=E1123
+
+    async def _delete_index(self, im):
+        index_name = await im.get_index_name()
+        real_index_name = await im.get_real_index_name()
+        await safe_es_call(self.conn.indices.close, real_index_name)
+        await safe_es_call(self.conn.indices.delete_alias, real_index_name, index_name)
+        await safe_es_call(self.conn.indices.delete, real_index_name)
+        await safe_es_call(self.conn.indices.delete, index_name)
+        migration_index = await im.get_migration_index_name()
+        if migration_index:
+            await safe_es_call(self.conn.indices.close, migration_index)
+            await safe_es_call(self.conn.indices.delete, migration_index)
+
+    async def remove_catalog(self, container):
+        if not self.enabled:
+            return
+        index_manager = get_adapter(container, IIndexManager)
+        await self._delete_index(index_manager)
+
+    async def get_container_index_name(self, container):
+        index_manager = get_adapter(container, IIndexManager)
+        return await index_manager.get_index_name()
+    get_index_name = get_container_index_name  # b/w
+
+    async def stats(self, container):
+        return await self.conn.indices.stats(
+            await self.get_container_index_name(container))
+
+    async def install_mappings_on_index(self, index_name, index_settings, mappings):
+        await self.conn.indices.close(index_name)
+        await self.conn.indices.put_settings(
+            body=index_settings, index=index_name)
+        await self.conn.indices.put_mapping(
+            doc_type=DOC_TYPE, body=mappings, index=index_name)
+        await self.conn.indices.open(index_name)
+
     async def reindex_all_content(
-            self, obj, security=False, response=noop_response):
+            self, obj, security=False, response=noop_response, request=None):
         from guillotina_elasticsearch.reindex import Reindexer
         reindexer = Reindexer(self, obj, response=response,
-                              reindex_security=security)
+                              reindex_security=security, request=request)
         await reindexer.reindex(obj)
 
     async def search(self, container, query):
@@ -60,9 +153,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         if query is None:
             query = {}
 
-        q = {
-            'index': await self.get_index_name(container)
-        }
+        q = {}
 
         # The users who has plone.AccessContent permission by prinperm
         # The roles who has plone.AccessContent permission by roleperm
@@ -142,18 +233,19 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def query(
             self, container, query,
-            doc_type=None, size=10, request=None,
-            scroll=None):
+            doc_type=None, size=10, request=None, scroll=None, index=None):
         """
         transform into query...
         right now, it's just passing through into elasticsearch
         """
+        if index is None:
+            index = await self.get_container_index_name(container)
         t1 = time.time()
         if request is None:
             request = get_current_request()
         q = await self._build_security_query(
             container, query, doc_type, size, request, scroll)
-        result = await self.conn.search(**q)
+        result = await self.conn.search(index=index, **q)
         if result.get('_shards', {}).get('failed', 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
             error_message = 'Unknown'
@@ -246,23 +338,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         return await self.query(container, query, doc_type,
                                 size=size, scroll=scroll)
 
-    async def call_unindex_all_children(self, index_name, path_query):
-        conn_es = await self.conn.transport.get_connection()
-        async with conn_es.session.post(
-                join(conn_es.base_url.human_repr(),
-                     index_name, '_delete_by_query'),
-                data=json.dumps(path_query),
-                headers={
-                    'Content-Type': 'application/json'
-                }) as resp:
-            result = await resp.json()
-            if 'deleted' in result:
-                logger.debug(f'Deleted {result["deleted"]} children')
-                logger.debug(f'Deleted {json.dumps(path_query)}')
-            else:
-                self.log_result(result, 'Deletion of children')
-
-    async def get_path_query(self, resource, index_name=None, response=noop_response):
+    async def get_path_query(self, resource, response=noop_response):
         if isinstance(resource, str):
             path = resource
             depth = path.count('/') + 1
@@ -270,12 +346,6 @@ class ElasticSearchUtility(ElasticSearchManager):
             path = get_content_path(resource)
             depth = get_content_depth(resource)
             depth += 1
-        response.write(b'Removing all children of %s' % path.encode('utf-8'))
-
-        request = None
-        if index_name is None:
-            request = get_current_request()
-            index_name = await self.get_index_name(request.container)
 
         path_query = {
             'query': {
@@ -296,22 +366,54 @@ class ElasticSearchUtility(ElasticSearchManager):
             })
         return path_query
 
-    async def unindex_all_children(self, resource, index_name=None,
-                                   response=noop_response):
-        path_query = await self.get_path_query(resource, index_name, response)
-        await self.call_unindex_all_children(index_name, path_query)
+    async def unindex_all_children(self, container, resource,
+                                   index_name=None, response=noop_response):
+        content_path = get_content_path(resource)
+        response.write(b'Removing all children of %s' % content_path.encode('utf-8'))
+        # use future here because this can potentially take some
+        # time to clean up indexes, etc
+        asyncio.ensure_future(
+            self.call_unindex_all_children(container, index_name, content_path))
+
+    async def call_unindex_all_children(self, container, index_name, content_path):
+        # first, find any indexes connected with this path so we can delete them.
+        for index_data in await get_content_sub_indexes(container, content_path):
+            try:
+                all_aliases = await self.conn.indices.get_alias(
+                    name=index_data['index'])
+            except elasticsearch.exceptions.NotFoundError:
+                continue
+            for index, data in all_aliases.items():
+                for name in data['aliases'].keys():
+                    # delete alias
+                    try:
+                        await self.conn.indices.close(index)
+                        await self.conn.indices.delete_alias(index, name)
+                        await self.conn.indices.delete(index)
+                    except elasticsearch.exceptions.NotFoundError:
+                        pass
+
+        path_query = await self.get_path_query(content_path)
+        conn_es = await self.conn.transport.get_connection()
+        async with conn_es.session.post(
+                join(conn_es.base_url.human_repr(),
+                     index_name, '_delete_by_query'),
+                data=json.dumps(path_query),
+                headers={
+                    'Content-Type': 'application/json'
+                }) as resp:
+            result = await resp.json()
+            if 'deleted' in result:
+                logger.debug(f'Deleted {result["deleted"]} children')
+                logger.debug(f'Deleted {json.dumps(path_query)}')
+            else:
+                self.log_result(result, 'Deletion of children')
 
     async def update_by_query(self, query):
         request = get_current_request()
-        index_name = await self.get_index_name(request.container)
+        indexes = await self.get_current_indexes(request.container)
         resp = None
-        resp = await self._update_by_query(query, index_name)
-
-        next_index_name = await self.get_next_index_name(
-            request.container, request=request)
-        if next_index_name:
-            async with self._migration_lock:
-                await self._update_by_query(query, next_index_name)
+        resp = await self._update_by_query(query, ','.join(indexes))
         return resp
 
     async def _update_by_query(self, query, index_name):
@@ -376,48 +478,45 @@ class ElasticSearchUtility(ElasticSearchManager):
 
         return result
 
+    async def get_current_indexes(self, container):
+        index_manager = get_adapter(container, IIndexManager)
+        return await index_manager.get_indexes()
+
     async def index(self, container, datas, response=noop_response, flush_all=False,
                     index_name=None, request=None):
         """ If there is request we get the container from there """
         if not self.enabled or len(datas) == 0:
             return
 
-        check_next = False
         if index_name is None:
-            check_next = True
-            index_name = await self.get_index_name(container, request=request)
+            indexes = await self.get_current_indexes(container)
+        else:
+            indexes = [index_name]
 
         bulk_data = []
         idents = []
         result = {}
         for ident, data in datas.items():
-            bulk_data.extend([{
-                'index': {
-                    '_index': index_name,
-                    '_id': ident
-                }
-            }, data])
+            item_indexes = data.pop('__indexes__', indexes)
+            for index in item_indexes:
+                bulk_data.extend([{
+                    'index': {
+                        '_index': index,
+                        '_id': ident
+                    }
+                }, data])
             idents.append(ident)
             if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
                 result = await self.bulk_insert(
-                    index_name, bulk_data, idents, response=response)
+                    indexes[0], bulk_data, idents, response=response)
                 idents = []
                 bulk_data = []
 
         if len(bulk_data) > 0:
             result = await self.bulk_insert(
-                index_name, bulk_data, idents, response=response)
+                indexes[0], bulk_data, idents, response=response)
 
         self.log_result(result)
-
-        if check_next:
-            # also need to call on next index while it's running...
-            next_index_name = await self.get_next_index_name(container, request=request)
-            if next_index_name:
-                async with self._migration_lock:
-                    await self.index(
-                        container, datas, response=response, flush_all=flush_all,
-                        index_name=next_index_name, request=request)
 
         return result
 
@@ -429,26 +528,28 @@ class ElasticSearchUtility(ElasticSearchManager):
             bulk_data = []
             idents = []
             result = {}
-            index_name = await self.get_index_name(container)
+            indexes = await self.get_current_indexes(container)
 
             for ident, data in datas.items():
-                bulk_data.extend([{
-                    'update': {
-                        '_index': index_name,
-                        '_id': ident,
-                        '_retry_on_conflict': 3
-                    }
-                }, {'doc': data}])
+                item_indexes = data.pop('__indexes__', indexes)
+                for index in item_indexes:
+                    bulk_data.extend([{
+                        'update': {
+                            '_index': index,
+                            '_id': ident,
+                            '_retry_on_conflict': 3
+                        }
+                    }, {'doc': data}])
                 idents.append(ident)
                 if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
                     result = await self.bulk_insert(
-                        index_name, bulk_data, idents, response=response)
+                        indexes[0], bulk_data, idents, response=response)
                     idents = []
                     bulk_data = []
 
             if len(bulk_data) > 0:
                 result = await self.bulk_insert(
-                    index_name, bulk_data, idents, response=response)
+                    indexes[0], bulk_data, idents, response=response)
             self.log_result(result)
             return result
 
@@ -464,47 +565,65 @@ class ElasticSearchUtility(ElasticSearchManager):
         else:
             logger.debug(label + ': ' + json.dumps(result))
 
-    async def remove(self, container, uids, index_name=None, request=None):
+    async def remove(self, container, objects, index_name=None, request=None):
         """List of UIDs to remove from index.
 
         It will remove all the children on the index"""
         if not self.enabled:
             return
 
-        check_next = False
-        if index_name is None:
-            check_next = True
-            index_name = await self.get_index_name(container, request=request)
+        if len(objects) > 0:
+            if index_name is None:
+                indexes = await self.get_current_indexes(container)
+            else:
+                indexes = [index_name]
 
-        if len(uids) > 0:
             bulk_data = []
-            for uid, type_name, content_path in uids:
-                bulk_data.append({
-                    'delete': {
-                        '_index': index_name,
-                        '_id': uid
-                    }
-                })
-                await self.unindex_all_children(content_path, index_name=index_name)
+            for obj in objects:
+                item_indexes = indexes
+                im = find_index_manager(obj)
+                if im:
+                    item_indexes = await im.get_indexes()
+                for index in item_indexes:
+                    bulk_data.append({
+                        'delete': {
+                            '_index': index,
+                            '_id': obj.uuid
+                        }
+                    })
+                if IFolder.providedBy(obj):
+                    # only folders need to have children cleaned
+                    if IIndexActive.providedBy(obj):
+                        # delete this index...
+                        im = get_adapter(obj, IIndexManager)
+                        await self._delete_index(im)
+                    else:
+                        await self.unindex_all_children(
+                            container, obj, index_name=','.join(item_indexes))
             await self.conn.bulk(
-                index=index_name, body=bulk_data, doc_type=DOC_TYPE)
-
-        if check_next:
-            # also need to call on next index while it's running...
-            next_index_name = await self.get_next_index_name(container,
-                                                             request=request)
-            if next_index_name:
-                async with self._migration_lock:
-                    await self.remove(container, uids, next_index_name,
-                                      request=request)
+                index=indexes[0], body=bulk_data, doc_type=DOC_TYPE)
 
     async def get_doc_count(self, container, index_name=None):
         if index_name is None:
-            index_name = await self.get_real_index_name(container)
+            index_manager = get_adapter(container, IIndexManager)
+            index_name = await index_manager.get_real_index_name()
         result = await self.conn.count(index=index_name)
         return result['count']
 
     async def refresh(self, container, index_name=None):
         if index_name is None:
-            index_name = await self.get_real_index_name(container)
+            index_manager = get_adapter(container, IIndexManager)
+            index_name = await index_manager.get_real_index_name()
         await self.conn.indices.refresh(index=index_name)
+
+    async def get_data(self, content, indexes=None):
+        im = find_index_manager(content)
+        # attempt to find index manager on parent of object we're
+        # indexing and mark the object with the indexes we want
+        # to store it in
+        if im is not None:
+            data = await super().get_data(content, indexes, im.get_schemas())
+            data['__indexes__'] = await im.get_indexes()
+        else:
+            data = await super().get_data(content, indexes)
+        return data

@@ -74,7 +74,7 @@ Breaking changes in 2.0
 
 
 Testing
---------
+-------
 
 If container es (elasticsearch) fails to start when running tests,
 you should increase max_map_count. command::
@@ -82,4 +82,39 @@ you should increase max_map_count. command::
    # Linux
    sudo sysctl -w vm.max_map_count=262144
 
+
+
+Using sub indexes
+-----------------
+
+Sub indexes are a way to split up your index data. Any children
+of an object that implements the sub index will be indexed on
+a different elasticsearch index.
+
+Example::
+
+        from guillotina import configure
+        from guillotina.content import Folder
+        from guillotina.interfaces import IResource
+        from guillotina_elasticsearch.directives import index
+        from guillotina_elasticsearch.interfaces import IContentIndex
+        from guillotina.behaviors.dublincore import IDublinCore
+
+
+        class IUniqueIndexContent(IResource, IContentIndex):
+            pass
+
+
+        @configure.contenttype(
+            type_name="UniqueIndexContent",
+            schema=IUniqueIndexContent)
+        class UniqueIndexContent(Folder):
+            index(
+                # Overriden schema to use for sub index.
+                # if you want additional behavior indexes, etc. You need to provide
+                schemas=[IResource, IDublinCore],
+                settings={
+                    # index settings
+                }
+            )
 
