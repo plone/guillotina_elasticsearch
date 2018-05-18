@@ -44,10 +44,11 @@ class ElasticSearchUtility(ElasticSearchManager):
     index_count = 0
 
     async def reindex_all_content(
-            self, obj, security=False, response=noop_response):
+            self, obj, security=False, response=noop_response,
+            request=None):
         from guillotina_elasticsearch.reindex import Reindexer
         reindexer = Reindexer(self, obj, response=response,
-                              reindex_security=security)
+                              reindex_security=security, request=request)
         await reindexer.reindex(obj)
 
     async def search(self, container, query):
