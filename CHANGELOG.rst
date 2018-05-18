@@ -4,6 +4,8 @@
 - Raise exception instead of returning ErrorResponse
   [vangheem]
 
+- Add scroll support to query
+  [gitcarbs]
 
 2.0.1 (2018-05-10)
 ------------------
