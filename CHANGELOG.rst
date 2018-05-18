@@ -1,4 +1,4 @@
-1.3.21 (unreleased)
+1.3.21 (2018-05-18)
 -------------------
 
 - reindex_all_content accepts request object
