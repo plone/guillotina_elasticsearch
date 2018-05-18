@@ -1,5 +1,11 @@
 # -*- coding: utf-8 -*-
 from guillotina import configure
+from guillotina import directives
+from guillotina.catalog.utils import get_index_fields
+from guillotina.component import get_utilities_for
+from guillotina.content import IResourceFactory
+from guillotina.interfaces import IResource
+from guillotina.utils import get_dotted_name
 
 
 app_settings = {
@@ -11,10 +17,7 @@ app_settings = {
             "sniffer_timeout": 0.5,
             "sniff_on_start": True
         },
-        "index": {},
-        "mapping_overrides": {
-            "*": {}
-        }
+        "index": {}
     },
     'commands': {
         'es-migrate': 'guillotina_elasticsearch.commands.migrate.MigrateCommand',
@@ -26,3 +29,12 @@ app_settings = {
 
 def includeme(root):
     configure.scan('guillotina_elasticsearch.utility')
+    configure.scan('guillotina_elasticsearch.manager')
+
+    # add store true to guillotina indexes
+    for name, utility in get_utilities_for(IResourceFactory):
+        if not get_dotted_name(utility._callable).startswith('guillotina.'):
+            continue
+        for field_name, catalog_info in get_index_fields(name).items():
+            if field_name in ('id', 'path', 'uuid', 'type_name', 'tid'):
+                catalog_info['store'] = True

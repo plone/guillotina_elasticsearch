@@ -1,8 +1,11 @@
+from aioelasticsearch import Elasticsearch
+from aioelasticsearch import exceptions
 from guillotina import testing
-from guillotina.component import getUtility
+from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import ContainerRequesterAsyncContextManager
 
+import aiohttp
 import os
 import pytest
 
@@ -12,6 +15,9 @@ def base_settings_configurator(settings):
         settings['applications'].append('guillotina_elasticsearch')
     else:
         settings['applications'] = ['guillotina_elasticsearch']
+
+    settings['applications'].append(
+        'guillotina_elasticsearch.tests.package')
 
     settings['elasticsearch'] = {
         "index_name_prefix": "guillotina-",
@@ -44,7 +50,7 @@ class ESRequester(ContainerRequesterAsyncContextManager):
         super().__init__(guillotina)
 
         # aioelasticsearch caches loop, we need to continue to reset it
-        search = getUtility(ICatalogUtility)
+        search = get_utility(ICatalogUtility)
         search.loop = loop
         if search._conn:
             search._conn.close()
@@ -61,4 +67,14 @@ class ESRequester(ContainerRequesterAsyncContextManager):
 
 @pytest.fixture(scope='function')
 async def es_requester(elasticsearch, guillotina, loop):
+    # clean up all existing indexes
+    es_host = '{}:{}'.format(
+        elasticsearch[0], elasticsearch[1])
+    conn = Elasticsearch(hosts=[es_host])
+    for alias in (await conn.cat.aliases()).splitlines():
+        name, index = alias.split()[:2]
+        await conn.indices.delete_alias(index, name)
+    for index in (await conn.cat.indices()).splitlines():
+        _, _, index_name = index.split()[:3]
+        await conn.indices.delete(index_name)
     return ESRequester(guillotina, loop)

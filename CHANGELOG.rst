@@ -1,5 +1,8 @@
-2.0.2 (unreleased)
+3.0.0 (unreleased)
 ------------------
+
+- Add support for sub indexes
+  [vangheem]
 
 - Raise exception instead of returning ErrorResponse
   [vangheem]

@@ -1,6 +1,6 @@
 from guillotina.commands import Command
 from guillotina.commands.utils import change_transaction_strategy
-from guillotina.component import getUtility
+from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
@@ -37,7 +37,7 @@ class MigrateCommand(Command):
         return parser
 
     async def migrate_all(self, arguments):
-        search = getUtility(ICatalogUtility)
+        search = get_utility(ICatalogUtility)
         change_transaction_strategy('none')
         await asyncio.sleep(1)  # since something initialize custom types...
         async for _, tm, container in get_containers(self.request):
