@@ -62,7 +62,8 @@ class ElasticSearchUtility(ElasticSearchManager):
             query,
             doc_type=None,
             size=10,
-            request=None):
+            request=None,
+            scroll=None):
         if query is None:
             query = {}
 
@@ -112,6 +113,10 @@ class ElasticSearchUtility(ElasticSearchManager):
         # query.update(permission_query)
         q['body'] = query
         q['size'] = size
+
+        if scroll:
+            q['scroll'] = scroll
+
         logger.debug(q)
         return q
 
@@ -147,7 +152,8 @@ class ElasticSearchUtility(ElasticSearchManager):
 
     async def query(
             self, container, query,
-            doc_type=None, size=10, request=None):
+            doc_type=None, size=10, request=None,
+            scroll=None):
         """
         transform into query...
         right now, it's just passing through into elasticsearch
@@ -156,7 +162,7 @@ class ElasticSearchUtility(ElasticSearchManager):
         if request is None:
             request = get_current_request()
         q = await self._build_security_query(
-            container, query, doc_type, size, request)
+            container, query, doc_type, size, request, scroll)
         result = await self.conn.search(**q)
         if result.get('_shards', {}).get('failed', 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
@@ -175,6 +181,8 @@ class ElasticSearchUtility(ElasticSearchManager):
             final['suggest'] = result['suggest']
         if 'profile' in result:
             final['profile'] = result['profile']
+        if '_scroll_id' in result:
+            final['_scroll_id'] = result['_scroll_id']
 
         tdif = time.time() - t1
         logger.debug(f'Time ELASTIC {tdif}')
@@ -220,7 +228,8 @@ class ElasticSearchUtility(ElasticSearchManager):
         return await self.query(container, query, doc_type=doc_type, size=size)
 
     async def get_by_path(
-            self, container, path, depth=-1, query=None, doc_type=None, size=10):
+            self, container, path, depth=-1, query=None,
+            doc_type=None, size=10, scroll=None):
         if query is None:
             query = {}
         if not isinstance(path, str):
@@ -244,7 +253,8 @@ class ElasticSearchUtility(ElasticSearchManager):
             query = merge_dicts(query, path_query)
             # We need the local roles
 
-        return await self.query(container, query, doc_type, size=size)
+        return await self.query(container, query, doc_type,
+                                size=size, scroll=scroll)
 
     async def call_unindex_all_children(self, index_name, path_query):
         conn_es = await self.conn.transport.get_connection()

@@ -1,7 +1,8 @@
-1.3.20 (unreleased)
+1.3.20 (2018-05-18)
 -------------------
 
-- Nothing changed yet.
+-  Add scroll support to query
+  [gitcarbs]
 
 
 1.3.19 (2018-05-14)
