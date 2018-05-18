@@ -1,7 +1,8 @@
 1.3.21 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- reindex_all_content accepts request object
+  [vangheem]
 
 
 1.3.20 (2018-05-18)
