@@ -1,4 +1,4 @@
-3.0.0 (unreleased)
+3.0.0 (2018-05-19)
 ------------------
 
 - Add support for sub indexes
