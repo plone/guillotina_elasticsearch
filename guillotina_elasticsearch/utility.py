@@ -412,9 +412,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def update_by_query(self, query):
         request = get_current_request()
         indexes = await self.get_current_indexes(request.container)
-        resp = None
-        resp = await self._update_by_query(query, ','.join(indexes))
-        return resp
+        return await self._update_by_query(query, ','.join(indexes))
 
     async def _update_by_query(self, query, index_name):
         conn_es = await self.conn.transport.get_connection()
@@ -431,7 +429,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 logger.debug(f'Updated {json.dumps(query)} ')
             else:
                 self.log_result(result, 'Updating children')
-
+            import pdb; pdb.set_trace()
             return result
 
     async def get_folder_contents(self, container, parent_uuid, doc_type=None):

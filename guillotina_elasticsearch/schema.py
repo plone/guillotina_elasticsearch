@@ -43,7 +43,7 @@ CATALOG_TYPES = {
 }
 
 
-def get_mappings(schemas=None):
+def get_mappings(schemas=None, schema_info=False):
 
     if schemas is None:
         schemas = []
@@ -65,6 +65,11 @@ def get_mappings(schemas=None):
                 field_mapping = CATALOG_TYPES[catalog_type].copy()
             if 'store' in catalog_info:
                 field_mapping['store'] = catalog_info['store']
+            if schema_info:
+                if '_schemas' not in field_mapping:
+                    field_mapping['_schemas'] = []
+                if schema.__identifier__ not in field_mapping['_schemas']:
+                    field_mapping['_schemas'].append(schema.__identifier__)
             mappings[index_name] = field_mapping
 
     return {

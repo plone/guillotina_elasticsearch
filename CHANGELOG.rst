@@ -1,7 +1,8 @@
 3.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Add `es-fields` command to inspect configured fields
+  [vangheem]
 
 
 3.0.0 (2018-05-19)
