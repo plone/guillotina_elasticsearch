@@ -165,10 +165,6 @@ async def test_updates_index_data(es_requester):
         new_index_name = await migrator.create_next_index()
         migrator.work_index_name = new_index_name
         index_manager = get_adapter(container, IIndexManager)
-        await search.install_mappings_on_index(
-            new_index_name,
-            await index_manager.get_index_settings(),
-            await index_manager.get_mappings())
 
         ob = create_content()
         ob.title = 'foobar'
@@ -212,25 +208,20 @@ async def test_calculate_mapping_diff(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
 
+        index_manager = get_adapter(container, IIndexManager)
         migrator = Migrator(search, container, force=True, request=request)
-        new_index_name = await migrator.create_next_index()
+        new_index_name = await index_manager.start_migration()
         migrator.work_index_name = new_index_name
 
-        index_manager = get_adapter(container, IIndexManager)
         mappings = await index_manager.get_mappings()
-        index_settings = await index_manager.get_index_settings()
 
         # tweak mappings so we can get the diff...
         if 'creators' in mappings['properties']:
             mappings['properties']['creators']['type'] = 'text'
         mappings['properties']['foobar'] = {'type': 'keyword', 'index': True}
 
-        await search.conn.indices.close(new_index_name)
-        await search.conn.indices.put_settings(
-            body=index_settings, index=new_index_name)
-        await search.conn.indices.put_mapping(
-            index=new_index_name, doc_type=DOC_TYPE, body=mappings)
-        await search.conn.indices.open(new_index_name)
+        await search.create_index(
+            new_index_name, index_manager, mappings=mappings)
 
         diff = await migrator.calculate_mapping_diff()
         assert len(diff) == 2
@@ -288,11 +279,7 @@ async def test_unindex_during_next_index(es_requester):
         search = get_utility(ICatalogUtility)
         index_manager = get_adapter(container, IIndexManager)
         work_index_name = await index_manager.start_migration()
-        await search.conn.indices.create(work_index_name)
-        await search.install_mappings_on_index(
-            work_index_name,
-            await index_manager.get_index_settings(),
-            await index_manager.get_mappings())
+        await search.create_index(work_index_name, index_manager)
         await tm.commit(txn=txn)
         container, request, txn, tm = await setup_txn_on_container(requester)
         keys = await container.async_keys()
