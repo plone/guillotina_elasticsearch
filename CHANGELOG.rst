@@ -1,7 +1,8 @@
 3.0.6 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix bug in reindexing security for children of sub indexes
+  [vangheem]
 
 
 3.0.5 (2018-05-21)
