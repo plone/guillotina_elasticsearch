@@ -312,7 +312,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def get_by_path(
             self, container, path, depth=-1, query=None,
-            doc_type=None, size=10, scroll=None):
+            doc_type=None, size=10, scroll=None, index=None):
         if query is None:
             query = {}
         if not isinstance(path, str):
@@ -337,7 +337,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             # We need the local roles
 
         return await self.query(container, query, doc_type,
-                                size=size, scroll=scroll)
+                                size=size, scroll=scroll, index=index)
 
     async def get_path_query(self, resource, response=noop_response):
         if isinstance(resource, str):

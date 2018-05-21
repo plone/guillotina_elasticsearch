@@ -1,7 +1,8 @@
 3.0.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- get_by_path should accept index param
+  [vangheem]
 
 
 3.0.2 (2018-05-21)
