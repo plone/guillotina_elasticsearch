@@ -1,4 +1,4 @@
-from _pytest.outcomes import Failed
+from aioelasticsearch import Elasticsearch
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests import utils
@@ -68,6 +68,9 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
     start = time.time()
     exception = None
     times = 0
+
+    from _pytest.outcomes import Failed
+
     while (time.time() - start) < timeout:
         try:
             times += 1
@@ -85,3 +88,13 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
         raise exception  # pylint: disable=E0702
     else:
         raise AssertionError("unknown assertion error")
+
+
+async def cleanup_es(es_host):
+    conn = Elasticsearch(hosts=[es_host])
+    for alias in (await conn.cat.aliases()).splitlines():
+        name, index = alias.split()[:2]
+        await conn.indices.delete_alias(index, name)
+    for index in (await conn.cat.indices()).splitlines():
+        _, _, index_name = index.split()[:3]
+        await conn.indices.delete(index_name)

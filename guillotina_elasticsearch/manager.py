@@ -25,6 +25,7 @@ from guillotina_elasticsearch.utils import get_migration_lock
 from zope.interface import alsoProvides
 from zope.interface.interface import TAGGED_DATA
 
+import elasticsearch
 import logging
 
 
@@ -189,7 +190,7 @@ class ContentIndexManager(ContainerIndexManager):
         if (refresh and self.object_settings is not None):
             txn = get_transaction(self.request)
             await txn.refresh(self.object_settings)
-        annotations_container = IAnnotations(self.container)
+        annotations_container = IAnnotations(self.context)
         self.object_settings = await annotations_container.async_get('default')
         if self.object_settings is None:
             # need to create annotation...
@@ -234,6 +235,11 @@ class ContentIndexManager(ContainerIndexManager):
             return set(schemas)
 
 
+async def _teardown_failed_request_with_index(im):
+    utility = get_utility(ICatalogUtility)
+    await utility._delete_index(im)
+
+
 # make sure it is run before indexers
 @configure.subscriber(
     for_=(IContentIndex, IObjectAddedEvent), priority=0)
@@ -252,6 +258,12 @@ async def init_index(context, subscriber):
         await utility.conn.cluster.health(wait_for_status='yellow')  # pylint: disable=E1123
 
         alsoProvides(context, IIndexActive)
+
+        request = get_current_request()
+        request.add_future(
+            'cleanup-' + context.uuid,
+            _teardown_failed_request_with_index, scope='failure',
+            args=[im])
     except Exception:
         logger.error('Error creating index for content', exc_info=True)
         raise

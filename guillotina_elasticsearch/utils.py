@@ -1,6 +1,7 @@
 from aioelasticsearch import exceptions
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
+from guillotina.utils import get_current_request
 from guillotina.interfaces import ICatalogUtility
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
@@ -40,8 +41,11 @@ def get_migration_lock(name):
     return getattr(loop, key)
 
 
-def find_index_manager(content):
-    content = content.__parent__
+def find_index_manager(content=None, parent=None):
+    if parent is None:
+        content = content.__parent__
+    else:
+        content = parent
     while content:
         if IIndexActive.providedBy(content):
             return get_adapter(content, IIndexManager)
@@ -114,3 +118,14 @@ async def get_all_indexes_identifier(container=None, index_manager=None):
     index_name = await index_manager.get_index_name()
     return '{},{}{}*'.format(
         index_name, index_name, SUB_INDEX_SEPERATOR)
+
+
+async def get_index_for(context, container=None, request=None):
+    im = find_index_manager(parent=context)
+    if im is None:
+        if container is None:
+            if request is None:
+                request = get_current_request()
+            container = request.container
+        im = get_adapter(container, IIndexManager)
+    return await im.get_index_name()

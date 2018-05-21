@@ -1,6 +1,15 @@
 3.0.3 (unreleased)
 ------------------
 
+- provide get_index_for util
+  [vangheem]
+
+- provide cleanup_es test util
+  [vangheem]
+
+- fix storing annotation data on sub index
+  [vangheem]
+
 - get_by_path should accept index param
   [vangheem]
 

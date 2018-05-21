@@ -1,11 +1,9 @@
-from aioelasticsearch import Elasticsearch
-from aioelasticsearch import exceptions
 from guillotina import testing
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
+from guillotina_elasticsearch.tests.utils import cleanup_es
 from guillotina.tests.utils import ContainerRequesterAsyncContextManager
 
-import aiohttp
 import os
 import pytest
 
@@ -70,11 +68,5 @@ async def es_requester(elasticsearch, guillotina, loop):
     # clean up all existing indexes
     es_host = '{}:{}'.format(
         elasticsearch[0], elasticsearch[1])
-    conn = Elasticsearch(hosts=[es_host])
-    for alias in (await conn.cat.aliases()).splitlines():
-        name, index = alias.split()[:2]
-        await conn.indices.delete_alias(index, name)
-    for index in (await conn.cat.indices()).splitlines():
-        _, _, index_name = index.split()[:3]
-        await conn.indices.delete(index_name)
+    await cleanup_es(es_host)
     return ESRequester(guillotina, loop)
