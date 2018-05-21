@@ -1,4 +1,4 @@
-3.0.4 (unreleased)
+3.0.4 (2018-05-21)
 ------------------
 
 - cleanup_es accepts a prefix value
