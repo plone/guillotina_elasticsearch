@@ -1,4 +1,4 @@
-3.0.1 (unreleased)
+3.0.1 (2018-05-21)
 ------------------
 
 - Create index with mappings/indexes instead of updating them after creation
