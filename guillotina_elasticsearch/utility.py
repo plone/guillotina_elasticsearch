@@ -430,7 +430,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 logger.debug(f'Updated {json.dumps(query)} ')
             else:
                 self.log_result(result, 'Updating children')
-            import pdb; pdb.set_trace()
             return result
 
     async def get_folder_contents(self, container, parent_uuid, doc_type=None):

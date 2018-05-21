@@ -9,6 +9,7 @@ except ImportError:
 
 
 DOC_TYPE = 'doc'
+SUB_INDEX_SEPERATOR = '__'
 
 
 class IElasticSearchUtility(ICatalogUtility, IAsyncUtility):

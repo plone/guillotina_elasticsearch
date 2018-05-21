@@ -1,8 +1,10 @@
 from aioelasticsearch import exceptions
+from guillotina.component import get_adapter
+from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
-from guillotina.component import get_adapter, get_utility
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
+from guillotina_elasticsearch.interfaces import SUB_INDEX_SEPERATOR
 
 import asyncio
 import logging
@@ -104,3 +106,11 @@ async def get_content_sub_indexes(container, path=None):
             'index': item['fields']['elastic_index'][0]
         })
     return indexes
+
+
+async def get_all_indexes_identifier(container=None, index_manager=None):
+    if index_manager is None:
+        index_manager = get_adapter(container, IIndexManager)
+    index_name = await index_manager.get_index_name()
+    return '{},{}{}*'.format(
+        index_name, index_name, SUB_INDEX_SEPERATOR)

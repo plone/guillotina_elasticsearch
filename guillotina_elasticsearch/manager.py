@@ -19,6 +19,7 @@ from guillotina_elasticsearch.directives import index
 from guillotina_elasticsearch.interfaces import IContentIndex
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
+from guillotina_elasticsearch.interfaces import SUB_INDEX_SEPERATOR
 from guillotina_elasticsearch.schema import get_mappings
 from guillotina_elasticsearch.utils import get_migration_lock
 from zope.interface import alsoProvides
@@ -202,8 +203,9 @@ class ContentIndexManager(ContainerIndexManager):
         - {settings-prefix}{container id}__{type}-{short uid}
         '''
         container_name = super()._generate_new_index_name()
-        return '{}__{}-{}'.format(
-            container_name, self.context.type_name.lower(), get_short_oid(self.context._p_oid)
+        return '{}{}{}-{}'.format(
+            container_name, SUB_INDEX_SEPERATOR,
+            self.context.type_name.lower(), get_short_oid(self.context._p_oid)
         )
 
     def _get_index_name(self, index_name, version):

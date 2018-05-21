@@ -1,7 +1,11 @@
 3.0.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix release
+  [vangheem]
+
+- add utils.get_all_indexes_identifier
+  [vangheem]
 
 
 3.0.1 (2018-05-21)
