@@ -1,4 +1,4 @@
-3.0.3 (unreleased)
+3.0.3 (2018-05-21)
 ------------------
 
 - provide get_index_for util
