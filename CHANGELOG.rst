@@ -1,6 +1,9 @@
 3.0.1 (unreleased)
 ------------------
 
+- Create index with mappings/indexes instead of updating them after creation
+  [vangheem]
+
 - Add `es-fields` command to inspect configured fields
   [vangheem]
 

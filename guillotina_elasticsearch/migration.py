@@ -203,7 +203,7 @@ class Migrator:
                 self.response.write('Clearing index')
                 resp = await self.conn.indices.delete(next_index_name)
                 assert resp['acknowledged']
-        await self.conn.indices.create(next_index_name)
+        await self.utility.create_index(next_index_name, self.index_manager)
         return next_index_name
 
     async def copy_to_next_index(self):
@@ -486,10 +486,6 @@ class Migrator:
         self.response.write(b'Creating new index')
         async with get_migration_lock(await self.index_manager.get_index_name()):
             self.work_index_name = await self.create_next_index()
-            await self.utility.install_mappings_on_index(
-                self.work_index_name,
-                await self.index_manager.get_index_settings(),
-                await self.index_manager.get_mappings())
             return self.work_index_name
 
     async def cancel_migration(self):

@@ -82,17 +82,26 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_name = await index_manager.get_index_name()
         real_index_name = await index_manager.get_real_index_name()
 
-        await self.conn.indices.create(real_index_name)
+        await self.create_index(real_index_name, index_manager)
         await self.conn.indices.put_alias(
             name=index_name, index=real_index_name)
         await self.conn.indices.close(real_index_name)
-        await self.install_mappings_on_index(
-            real_index_name,
-            await index_manager.get_index_settings(),
-            await index_manager.get_mappings())
 
         await self.conn.indices.open(real_index_name)
         await self.conn.cluster.health(wait_for_status='yellow')  # pylint: disable=E1123
+
+    async def create_index(self, real_index_name, index_manager, settings=None, mappings=None):
+        if settings is None:
+            settings = await index_manager.get_index_settings()
+        if mappings is None:
+            mappings = await index_manager.get_mappings()
+        settings = {
+            'settings': settings,
+            'mappings': {
+                DOC_TYPE: mappings
+            }
+        }
+        await self.conn.indices.create(real_index_name, settings)
 
     async def _delete_index(self, im):
         index_name = await im.get_index_name()
@@ -120,14 +129,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def stats(self, container):
         return await self.conn.indices.stats(
             await self.get_container_index_name(container))
-
-    async def install_mappings_on_index(self, index_name, index_settings, mappings):
-        await self.conn.indices.close(index_name)
-        await self.conn.indices.put_settings(
-            body=index_settings, index=index_name)
-        await self.conn.indices.put_mapping(
-            doc_type=DOC_TYPE, body=mappings, index=index_name)
-        await self.conn.indices.open(index_name)
 
     async def reindex_all_content(
             self, obj, security=False, response=noop_response, request=None):

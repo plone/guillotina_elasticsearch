@@ -226,7 +226,7 @@ class ContentIndexManager(ContainerIndexManager):
     def get_schemas(self):
         index_data = getattr(
             type(self.context), TAGGED_DATA, {}).get(index.key)
-        if 'schemas' in index_data:
+        if index_data and 'schemas' in index_data:
             schemas = [IResource]  # require basic index fields on everything...
             schemas.extend(index_data.get('schemas') or [])
             return set(schemas)
@@ -236,12 +236,6 @@ class ContentIndexManager(ContainerIndexManager):
 @configure.subscriber(
     for_=(IContentIndex, IObjectAddedEvent), priority=0)
 async def init_index(context, subscriber):
-    '''
-    XXX issues here!?
-    - should it be after commit? Then we can't index the data
-    - should we not error if already created(say request retry or something)
-    - need something to clean up indexes that no longer have content connected with them
-    '''
     try:
         im = get_adapter(context, IIndexManager)
         utility = get_utility(ICatalogUtility)
@@ -249,16 +243,10 @@ async def init_index(context, subscriber):
         index_name = await im.get_index_name()
         real_index_name = await im.get_real_index_name()
 
-        await utility.conn.indices.create(real_index_name)
+        await utility.create_index(real_index_name, im)
         await utility.conn.indices.put_alias(
             name=index_name, index=real_index_name)
-        await utility.conn.indices.close(real_index_name)
-        await utility.install_mappings_on_index(
-            real_index_name,
-            await im.get_index_settings(),
-            await im.get_mappings())
 
-        await utility.conn.indices.open(real_index_name)
         await utility.conn.cluster.health(wait_for_status='yellow')  # pylint: disable=E1123
 
         alsoProvides(context, IIndexActive)
