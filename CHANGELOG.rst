@@ -1,4 +1,4 @@
-3.0.6 (unreleased)
+3.0.6 (2018-05-21)
 ------------------
 
 - Fix bug in reindexing security for children of sub indexes
