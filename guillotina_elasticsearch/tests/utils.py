@@ -93,8 +93,8 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
 async def cleanup_es(es_host, prefix=''):
     conn = Elasticsearch(hosts=[es_host])
     for alias in (await conn.cat.aliases()).splitlines():
+        name, index = alias.split()[:2]
         if name.startswith(prefix):
-            name, index = alias.split()[:2]
             await conn.indices.delete_alias(index, name)
             await conn.indices.delete(index)
     for index in (await conn.cat.indices()).splitlines():

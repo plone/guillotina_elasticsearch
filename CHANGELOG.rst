@@ -1,7 +1,8 @@
 3.0.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix release
+  [vangheem]
 
 
 3.0.4 (2018-05-21)
