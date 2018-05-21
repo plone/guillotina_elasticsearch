@@ -1,7 +1,8 @@
 3.0.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- cleanup_es accepts a prefix value
+  [vangheem]
 
 
 3.0.3 (2018-05-21)

@@ -90,11 +90,14 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
         raise AssertionError("unknown assertion error")
 
 
-async def cleanup_es(es_host):
+async def cleanup_es(es_host, prefix=''):
     conn = Elasticsearch(hosts=[es_host])
     for alias in (await conn.cat.aliases()).splitlines():
-        name, index = alias.split()[:2]
-        await conn.indices.delete_alias(index, name)
+        if name.startswith(prefix):
+            name, index = alias.split()[:2]
+            await conn.indices.delete_alias(index, name)
+            await conn.indices.delete(index)
     for index in (await conn.cat.indices()).splitlines():
         _, _, index_name = index.split()[:3]
-        await conn.indices.delete(index_name)
+        if index_name.startswith(prefix):
+            await conn.indices.delete(index_name)
