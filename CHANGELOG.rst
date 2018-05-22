@@ -1,4 +1,4 @@
-3.0.7 (unreleased)
+3.0.7 (2018-05-21)
 ------------------
 
 - Handle missing __parent__
