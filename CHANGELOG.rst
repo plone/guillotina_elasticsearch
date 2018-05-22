@@ -1,4 +1,4 @@
-3.0.8 (unreleased)
+3.0.8 (2018-05-22)
 ------------------
 
 - make IIndexManager.get_schemas async
