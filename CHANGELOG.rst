@@ -1,7 +1,8 @@
 3.0.8 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- make IIndexManager.get_schemas async
+  [vangheem]
 
 
 3.0.7 (2018-05-21)

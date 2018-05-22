@@ -601,7 +601,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             await self.conn.bulk(
                 index=indexes[0], body=bulk_data, doc_type=DOC_TYPE)
 
-    async def get_doc_count(self, container, index_name=None):
+    async def get_doc_count(self, container=None, index_name=None):
         if index_name is None:
             index_manager = get_adapter(container, IIndexManager)
             index_name = await index_manager.get_real_index_name()
@@ -620,7 +620,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         # indexing and mark the object with the indexes we want
         # to store it in
         if im is not None:
-            data = await super().get_data(content, indexes, im.get_schemas())
+            data = await super().get_data(content, indexes, await im.get_schemas())
             data['__indexes__'] = await im.get_indexes()
         else:
             data = await super().get_data(content, indexes)

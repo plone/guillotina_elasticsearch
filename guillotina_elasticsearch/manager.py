@@ -15,6 +15,7 @@ from guillotina.interfaces import IResource
 from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_current_request
+from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.directives import index
 from guillotina_elasticsearch.interfaces import IContentIndex
 from guillotina_elasticsearch.interfaces import IIndexActive
@@ -25,7 +26,6 @@ from guillotina_elasticsearch.utils import get_migration_lock
 from zope.interface import alsoProvides
 from zope.interface.interface import TAGGED_DATA
 
-import elasticsearch
 import logging
 
 
@@ -170,7 +170,7 @@ class ContainerIndexManager:
         registry['el_next_index_version'] = None
         registry._p_register()
 
-    def get_schemas(self):
+    async def get_schemas(self):
         pass
 
 
@@ -221,17 +221,19 @@ class ContentIndexManager(ContainerIndexManager):
         return index_settings
 
     async def get_mappings(self):
-        schemas = self.get_schemas()
+        schemas = await self.get_schemas()
         if schemas is not None:
             return get_mappings(schemas)
         return get_mappings()
 
-    def get_schemas(self):
+    async def get_schemas(self):
         index_data = getattr(
             type(self.context), TAGGED_DATA, {}).get(index.key)
         if index_data and 'schemas' in index_data:
             schemas = [IResource]  # require basic index fields on everything...
-            schemas.extend(index_data.get('schemas') or [])
+            schemas.extend(
+                [resolve_dotted_name(s) for s in
+                 index_data.get('schemas') or []])
             return set(schemas)
 
 
