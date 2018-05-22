@@ -522,7 +522,8 @@ class Migrator:
 
         if not self.full:
             # if full, we're reindexing everything does not matter what anyways, so skip
-            self.response.write('Copying initial index data from existing index into new')
+            self.response.write(f'Copying initial index {existing_index} '
+                                f'into {self.work_index_name}')
             await self.copy_to_next_index()
             self.response.write('Copying initial index data finished')
 
