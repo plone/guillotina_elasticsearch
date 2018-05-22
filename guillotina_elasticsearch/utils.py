@@ -43,13 +43,13 @@ def get_migration_lock(name):
 
 def find_index_manager(content=None, parent=None):
     if parent is None:
-        content = content.__parent__
+        content = getattr(content, '__parent__', None)
     else:
         content = parent
     while content:
         if IIndexActive.providedBy(content):
             return get_adapter(content, IIndexManager)
-        content = content.__parent__
+        content = getattr(content, '__parent__', None)
 
 
 async def get_installed_sub_indexes(container):

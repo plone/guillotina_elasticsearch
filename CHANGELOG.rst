@@ -1,7 +1,8 @@
 3.0.7 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Handle missing __parent__
+  [vangheem]
 
 
 3.0.6 (2018-05-21)
