@@ -1,4 +1,6 @@
 from guillotina import directives
+import elasticsearch.exceptions
+import backoff
 from guillotina.catalog.catalog import DefaultCatalogDataAdapter
 from guillotina.component import get_adapter
 from guillotina.component import get_utilities_for
@@ -35,17 +37,7 @@ import resource
 import time
 
 
-try:
-    from guillotina.async_util import IAsyncUtility
-except ImportError:
-    from guillotina.async import IAsyncUtility
-
-
-try:
-    from guillotina.utils import clear_conn_statement_cache
-except ImportError:
-    def clear_conn_statement_cache(conn):
-        pass
+from guillotina.utils import clear_conn_statement_cache
 
 
 logger = logging.getLogger('guillotina_elasticsearch')
@@ -406,6 +398,9 @@ class Migrator:
                 await asyncio.wait_for(future, None)
         self.reindex_futures = []
 
+    @backoff.on_exception(
+        backoff.constant,
+        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
     async def _index_batch(self, batch):
         bulk_data = []
         for _id, payload in batch.items():

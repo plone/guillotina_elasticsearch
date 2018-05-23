@@ -24,8 +24,9 @@ from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
 from os.path import join
+import elasticsearch.exceptions
 
-import aiohttp
+import aiohttp, backoff
 import asyncio
 import elasticsearch.exceptions
 import json
@@ -376,6 +377,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         asyncio.ensure_future(
             self.call_unindex_all_children(container, index_name, content_path))
 
+    @backoff.on_exception(
+        backoff.constant,
+        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
     async def call_unindex_all_children(self, container, index_name, content_path):
         # first, find any indexes connected with this path so we can delete them.
         for index_data in await get_content_sub_indexes(container, content_path):
@@ -415,6 +419,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         indexes = await self.get_current_indexes(request.container)
         return await self._update_by_query(query, ','.join(indexes))
 
+    @backoff.on_exception(
+        backoff.constant,
+        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
     async def _update_by_query(self, query, index_name):
         conn_es = await self.conn.transport.get_connection()
         url = join(conn_es.base_url.human_repr(), index_name,
@@ -449,6 +456,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         }
         return await self.query(container, query, doc_type)
 
+    @backoff.on_exception(
+        backoff.constant,
+        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
     async def bulk_insert(self, index_name, bulk_data, idents, count=0,
                           response=noop_response):
         result = {}

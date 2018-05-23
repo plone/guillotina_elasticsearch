@@ -41,7 +41,8 @@ setup(
         'guillotina>=3.3.0',
         'aioelasticsearch',
         'ujson',
-        'lru-dict'
+        'lru-dict',
+        'backoff'
     ],
     tests_require=test_requires,
     extras_require={

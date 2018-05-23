@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 from guillotina import configure
-from guillotina import directives
 from guillotina.catalog.utils import get_index_fields
 from guillotina.component import get_utilities_for
 from guillotina.content import IResourceFactory
-from guillotina.interfaces import IResource
 from guillotina.utils import get_dotted_name
 
 
@@ -14,8 +12,7 @@ app_settings = {
         "index_name_prefix": "guillotina-",
         "connection_settings": {
             "hosts": [],
-            "sniffer_timeout": 0.5,
-            "sniff_on_start": True
+            "timeout": 2
         },
         "index": {}
     },

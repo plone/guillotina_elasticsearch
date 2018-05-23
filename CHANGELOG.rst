@@ -1,7 +1,8 @@
 3.0.9 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- add backoff for some elasticsearch operations
+  [vangheem]
 
 
 3.0.8 (2018-05-22)
