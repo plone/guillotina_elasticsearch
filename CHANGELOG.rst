@@ -1,4 +1,4 @@
-3.0.9 (unreleased)
+3.0.9 (2018-05-23)
 ------------------
 
 - add backoff for some elasticsearch operations
