@@ -58,7 +58,7 @@ LIMIT {PAGE_SIZE}
 
 class Vacuum:
 
-    def __init__(self, txn, tm, request, container, last_tid=-2):
+    def __init__(self, txn, tm, request, container, last_tid=-2, index_scroll='15m', hits_scroll='5m'):
         self.txn = txn
         self.tm = tm
         self.request = request
@@ -74,12 +74,14 @@ class Vacuum:
         self.last_zoid = None
         # for state tracking so we get boundries right
         self.last_result_set = []
+        self.index_scroll = index_scroll
+        self.hits_scroll = hits_scroll
 
     async def iter_batched_es_keys(self):
         index_name = await self.utility.get_index_name(self.container)
         result = await self.utility.conn.search(
             index=index_name,
-            scroll='15m',
+            scroll=self.index_scroll,
             size=PAGE_SIZE,
             _source=False,
             body={
@@ -91,7 +93,7 @@ class Vacuum:
             try:
                 result = await self.utility.conn.scroll(
                     scroll_id=scroll_id,
-                    scroll='5m'
+                    scroll=self.hits_scroll
                 )
             except aioes.exception.TransportError:
                 # no results
