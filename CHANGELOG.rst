@@ -1,7 +1,8 @@
 3.0.10 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Add more stored fields
+  [vangheem]
 
 
 3.0.9 (2018-05-23)

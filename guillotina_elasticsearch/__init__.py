@@ -34,5 +34,7 @@ def includeme(root):
         if not get_dotted_name(utility._callable).startswith('guillotina.'):
             continue
         for field_name, catalog_info in get_index_fields(name).items():
-            if field_name in ('id', 'path', 'uuid', 'type_name', 'tid'):
+            if field_name in ('id', 'path', 'uuid', 'type_name', 'tid',
+                              'creators', 'contributors', 'access_roles',
+                              'access_users', 'parent_uuid', 'title'):
                 catalog_info['store'] = True
