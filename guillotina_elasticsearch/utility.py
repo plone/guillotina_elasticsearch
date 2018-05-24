@@ -20,14 +20,15 @@ from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.utils import find_index_manager
+from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
 from os.path import join
-import elasticsearch.exceptions
 
-import aiohttp, backoff
+import aiohttp
 import asyncio
+import backoff
 import elasticsearch.exceptions
 import json
 import logging
@@ -207,20 +208,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         items = []
         container_url = IAbsoluteURL(container, request)()
         for item in result['hits']['hits']:
-            data = item.pop('_source', {})
-            for key, val in item.get('fields', {}).items():
-                container_data = data
-                if isinstance(val, list):
-                    if len(val) == 1:
-                        val = val[0]
-                    else:
-                        val = None
-                if '.' in key:
-                    name, key = key.split('.', 1)
-                    if name not in container_data:
-                        container_data[name] = {}
-                    container_data = container_data[name]
-                container_data[key] = val
+            data = format_hit(item)
             data.update({
                 '@absolute_url': container_url + data.get('path', ''),
                 '@type': data.get('type_name'),

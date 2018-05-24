@@ -1,7 +1,8 @@
 3.0.11 (unreleased)
 -------------------
 
-- change
+- Provide format_hit util
+  [vangheem]
 
 
 3.0.10 (2018-05-23)

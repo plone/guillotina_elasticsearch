@@ -1,8 +1,8 @@
 from aioelasticsearch import exceptions
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
-from guillotina.utils import get_current_request
 from guillotina.interfaces import ICatalogUtility
+from guillotina.utils import get_current_request
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.interfaces import SUB_INDEX_SEPERATOR
@@ -77,8 +77,8 @@ async def get_content_sub_indexes(container, path=None):
     query = {
         "query": {
             "constant_score": {
-                "filter" : {
-                    "bool" : {
+                "filter": {
+                    "bool": {
                         "must": [{
                             "exists": {
                                 "field": "elastic_index"
@@ -129,3 +129,21 @@ async def get_index_for(context, container=None, request=None):
             container = request.container
         im = get_adapter(container, IIndexManager)
     return await im.get_index_name()
+
+
+def format_hit(item):
+    data = item.pop('_source', {})
+    for key, val in item.get('fields', {}).items():
+        container_data = data
+        if isinstance(val, list):
+            if len(val) == 1:
+                val = val[0]
+            else:
+                val = None
+        if '.' in key:
+            name, key = key.split('.', 1)
+            if name not in container_data:
+                container_data[name] = {}
+            container_data = container_data[name]
+        container_data[key] = val
+    return data
