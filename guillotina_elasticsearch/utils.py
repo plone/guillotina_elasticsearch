@@ -1,13 +1,18 @@
 from aioelasticsearch import exceptions
 from guillotina.component import get_adapter
+from guillotina.component import get_utilities_for
 from guillotina.component import get_utility
+from guillotina.content import get_all_possible_schemas_for_type
+from guillotina.content import IResourceFactory
 from guillotina.interfaces import ICatalogUtility
+from guillotina.schema.interfaces import ICollection
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.interfaces import SUB_INDEX_SEPERATOR
 
 import asyncio
+import guillotina.directives
 import logging
 
 
@@ -131,15 +136,40 @@ async def get_index_for(context, container=None, request=None):
     return await im.get_index_name()
 
 
+_stored_multi_valued = {}
+
+
+def _is_multi_valued(check_field_name):
+    if len(_stored_multi_valued) == 0:
+        # load types and cache, once
+        for name, _ in get_utilities_for(IResourceFactory):
+            # For each type
+            for schema in get_all_possible_schemas_for_type(name):
+                index_fields = guillotina.directives.merged_tagged_value_dict(
+                    schema, guillotina.directives.index.key)
+                for field_name, catalog_info in index_fields.items():
+                    index_name = catalog_info.get('index_name', field_name)
+                    try:
+                        field = schema[field_name]
+                        _stored_multi_valued[index_name] = ICollection.providedBy(field)
+                    except KeyError:
+                        _stored_multi_valued[index_name] = False
+
+    if check_field_name in _stored_multi_valued:
+        return _stored_multi_valued[check_field_name]
+    return False
+
+
 def format_hit(item):
     data = item.pop('_source', {})
     for key, val in item.get('fields', {}).items():
         container_data = data
         if isinstance(val, list):
-            if len(val) == 1:
-                val = val[0]
-            else:
-                val = None
+            if not _is_multi_valued(key):
+                if len(val) == 1:
+                    val = val[0]
+                elif len(val) == 0:
+                    val = None
         if '.' in key:
             name, key = key.split('.', 1)
             if name not in container_data:

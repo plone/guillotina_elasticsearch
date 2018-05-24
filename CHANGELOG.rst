@@ -1,7 +1,8 @@
 3.0.12 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- fix format_hit handling of list fields better
+  [vangheem]
 
 
 3.0.11 (2018-05-24)
