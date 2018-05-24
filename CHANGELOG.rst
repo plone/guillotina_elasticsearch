@@ -1,7 +1,8 @@
 1.3.22 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- be able to customize scroll timeout for ES
+  [vangheem]
 
 
 1.3.21 (2018-05-18)
