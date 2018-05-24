@@ -1,8 +1,7 @@
 3.0.11 (unreleased)
 -------------------
 
-- add string type(not analyzed)
-  [vangheem]
+- change
 
 
 3.0.10 (2018-05-23)
