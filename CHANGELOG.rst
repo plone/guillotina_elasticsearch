@@ -1,4 +1,4 @@
-3.0.11 (unreleased)
+3.0.11 (2018-05-24)
 -------------------
 
 - Provide format_hit util
