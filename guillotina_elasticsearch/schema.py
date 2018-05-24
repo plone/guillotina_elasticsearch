@@ -39,6 +39,10 @@ CATALOG_TYPES = {
     'path': {
         'type': 'text',
         'analyzer': 'path_analyzer'
+    },
+    'string': {
+        "type": "string",
+        "index": "not_analyzed"
     }
 }
 
