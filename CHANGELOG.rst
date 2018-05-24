@@ -1,4 +1,4 @@
-3.0.12 (unreleased)
+3.0.12 (2018-05-24)
 -------------------
 
 - fix format_hit handling of list fields better
