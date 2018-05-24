@@ -1,4 +1,4 @@
-3.0.10 (unreleased)
+3.0.10 (2018-05-23)
 -------------------
 
 - Add more stored fields
