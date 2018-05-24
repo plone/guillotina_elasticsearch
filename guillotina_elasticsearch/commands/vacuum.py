@@ -13,7 +13,6 @@ import asyncio
 import json
 import logging
 
-
 try:
     from guillotina.utils import clear_conn_statement_cache
 except ImportError:
@@ -21,7 +20,6 @@ except ImportError:
         pass
 
 logger = logging.getLogger('guillotina_elasticsearch_vacuum')
-
 
 SELECT_BY_KEYS = '''SELECT zoid from objects where zoid = ANY($1)'''
 BATCHED_GET_CHILDREN_BY_PARENT = """
@@ -333,6 +331,13 @@ class VacuumCommand(Command):
                     kwargs = {}
                     if container._p_oid in self.state:
                         kwargs = self.state[container._p_oid]
+
+                    if arguments.scroll:
+                        kwargs.update({
+                            'index_scroll': arguments.scroll,
+                            'hits_scroll': arguments.scroll
+                        })
+
                     vacuum = self.vacuum_klass(
                         txn, tm, self.request, container, **kwargs)
                     await vacuum.setup()
