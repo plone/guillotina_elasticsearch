@@ -1,4 +1,4 @@
-1.3.22 (unreleased)
+1.3.22 (2018-05-23)
 -------------------
 
 - be able to customize scroll timeout for ES
