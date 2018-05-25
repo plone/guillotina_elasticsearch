@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
-from guillotina.exceptions import RequestNotFound
-from guillotina.transactions import get_transaction
 from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
 from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.event import notify
+from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
+from guillotina.transactions import get_transaction
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
@@ -372,7 +372,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
     async def call_unindex_all_children(self, container, index_name, content_path):
         # first, find any indexes connected with this path so we can delete them.
-        for index_data in await get_content_sub_indexes(container, content_path):
+        sub_indexes = await get_content_sub_indexes(container, content_path)
+        for index_data in sub_indexes:
             try:
                 all_aliases = await self.conn.indices.get_alias(
                     name=index_data['index'])
@@ -630,7 +631,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         result = await self.conn.count(index=index_name)
         return result['count']
 
-    async def refresh(self, container, index_name=None):
+    async def refresh(self, container=None, index_name=None):
         if index_name is None:
             index_manager = get_adapter(container, IIndexManager)
             index_name = await index_manager.get_real_index_name()

@@ -9,16 +9,16 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator
-from lru import LRU  # pylint: disable=E0611
-from os.path import join
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import get_installed_sub_indexes
+from lru import LRU  # pylint: disable=E0611
+from os.path import join
 
 import aioelasticsearch
+import aiotask_context
 import asyncio
 import json
 import logging
-import aiotask_context
 
 
 try:
@@ -231,7 +231,7 @@ class Vacuum:
         except (AttributeError, TypeError):
             logger.warning(f'Could not find {oid}', exc_info=True)
             return  # object or parent of object was removed, ignore
-        await self.migrator.index_object(obj, full=full)
+        await self.migrator.index_object(obj, full=full, lookup_index=True)
 
     async def setup(self):
         # how we're doing this...
@@ -303,7 +303,7 @@ class Vacuum:
         indexes = [self.index_name]
         for index in self.sub_indexes:
             # check if tid inside sub index...
-            prefix = index['oid'].rsplit('|', 1)
+            prefix = index['oid'].rsplit('|', 1)[0]
             if prefix:
                 for tid in tids:
                     if tid.startswith(prefix):

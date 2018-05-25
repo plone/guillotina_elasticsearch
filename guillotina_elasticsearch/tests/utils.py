@@ -2,9 +2,6 @@ from aioelasticsearch import Elasticsearch
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests import utils
-from guillotina.tests.utils import get_container
-from guillotina.tests.utils import get_mocked_request
-from guillotina.transactions import managed_transaction
 
 import aioelasticsearch.exceptions
 import asyncio
@@ -12,8 +9,8 @@ import json
 import time
 
 
-async def add_content(requester, num_folders=10, num_items=10, base_id='es-'):
-    path = '/db/guillotina/'
+async def add_content(requester, num_folders=10, num_items=10, base_id='es-',
+                      path='/db/guillotina/'):
     created = 0
     for fidx in range(num_folders):
         folder_id = f'{base_id}folder{str(fidx)}'
@@ -40,7 +37,6 @@ async def add_content(requester, num_folders=10, num_items=10, base_id='es-'):
             )
             created += 1
             assert status == 201
-    await asyncio.sleep(1)  # make sure async index tasks finish
     return created
 
 
@@ -53,15 +49,6 @@ async def setup_txn_on_container(requester):
     tm = request._tm
     txn = await tm.begin(request)
     return container, request, txn, tm
-
-
-async def refresh_index(requester):
-    search = get_utility(ICatalogUtility)
-    request = get_mocked_request(requester.db)
-    container = await get_container(request=request)
-    async with managed_transaction(
-            request=request, adopt_parent_txn=True, abort_when_done=True):
-        await search.refresh(container)
 
 
 async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
@@ -82,7 +69,8 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
             exception = ex
             await asyncio.sleep(retry_wait)
             if requester is not None:
-                await refresh_index(requester)
+                search = get_utility(ICatalogUtility)
+                await search.refresh(index_name='')
     print(f'failed after trying {times} times')
     if exception is not None:
         raise exception  # pylint: disable=E0702
