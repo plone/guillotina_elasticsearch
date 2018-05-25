@@ -17,6 +17,7 @@ DATABASE = os.environ.get('DATABASE', 'DUMMY')
 
 
 @pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
+@pytest.mark.flaky(reruns=5)
 async def test_adds_missing_elasticsearch_entry(es_requester):
     async with es_requester as requester:
         await add_content(requester)
@@ -57,6 +58,7 @@ async def test_adds_missing_elasticsearch_entry(es_requester):
 
 
 @pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
+@pytest.mark.flaky(reruns=5)
 async def test_updates_out_of_data_es_entries(es_requester):
     async with es_requester as requester:
         await add_content(requester)
@@ -94,6 +96,7 @@ async def test_updates_out_of_data_es_entries(es_requester):
 
 
 @pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
+@pytest.mark.flaky(reruns=5)
 async def test_removes_orphaned_es_entry(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -128,6 +131,7 @@ async def test_removes_orphaned_es_entry(es_requester):
 
 
 @pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
+@pytest.mark.flaky(reruns=5)
 async def test_vacuum_with_sub_indexes(es_requester):
     async with es_requester as requester:
         await add_content(requester, num_folders=2, num_items=5, path='/db/guillotina/')
@@ -147,15 +151,14 @@ async def test_vacuum_with_sub_indexes(es_requester):
         content_index_name = 'guillotina-db-guillotina__uniqueindexcontent-{}'.format(
             get_short_oid(cresp['@uid'])
         )
+        container, request, txn, tm = await setup_txn_on_container(requester)
+        aiotask_context.set('request', request)
 
         async def _test():
             assert await search.get_doc_count(container) == 13
             assert await search.get_doc_count(index_name=content_index_name) == 12
 
         await run_with_retries(_test, requester)
-
-        container, request, txn, tm = await setup_txn_on_container(requester)
-        aiotask_context.set('request', request)
 
         for key in await container.async_keys():
             if key == 'foobar':
