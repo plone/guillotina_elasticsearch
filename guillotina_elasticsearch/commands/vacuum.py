@@ -9,12 +9,13 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator
-from lru import LRU  # pylint: disable=E0611
-from os.path import join
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import get_installed_sub_indexes
+from lru import LRU  # pylint: disable=E0611
+from os.path import join
 
 import aioelasticsearch
+import aiotask_context
 import asyncio
 import json
 import logging
@@ -31,7 +32,7 @@ logger = logging.getLogger('guillotina_elasticsearch_vacuum')
 
 SELECT_BY_KEYS = '''SELECT zoid from objects where zoid = ANY($1)'''
 BATCHED_GET_CHILDREN_BY_PARENT = """
-SELECT zoid
+SELECT zoid, tid
 FROM objects
 WHERE of is NULL AND parent_id = ANY($1)
 ORDER BY parent_id
@@ -82,8 +83,9 @@ class Vacuum:
         self.tm = tm
         self.request = request
         self.container = container
-        self.orphaned = []
-        self.missing = []
+        self.orphaned = set()
+        self.missing = set()
+        self.out_of_date = set()
         self.utility = get_utility(ICatalogUtility)
         self.migrator = Migrator(
             self.utility, self.container, full=True, bulk_size=10)
@@ -96,53 +98,58 @@ class Vacuum:
         self.last_result_set = []
 
     async def iter_batched_es_keys(self):
-        index_name = await self.index_manager.get_index_name()
-        result = await self.utility.conn.search(
-            index='{},{}__*'.format(index_name, index_name),
-            scroll='15m',
-            size=PAGE_SIZE,
-            _source=False,
-            body={
-                "sort": ["_doc"]
-            })
-        yield [r['_id'] for r in result['hits']['hits']]
-        scroll_id = result['_scroll_id']
-        while scroll_id:
-            try:
-                result = await self.utility.conn.scroll(
-                    scroll_id=scroll_id,
-                    scroll='5m'
-                )
-            except aioelasticsearch.exceptions.TransportError:
-                # no results
-                break
-            if len(result['hits']['hits']) == 0:
-                break
-            yield [r['_id'] for r in result['hits']['hits']]
+        # go through one index at a time...
+        indexes = [self.index_name]
+        for index in self.sub_indexes:
+            indexes.append(index['index'])
+
+        for index_name in indexes:
+            result = await self.utility.conn.search(
+                index=index_name,
+                scroll='15m',
+                size=PAGE_SIZE,
+                _source=False,
+                body={
+                    "sort": ["_doc"]
+                })
+            yield [r['_id'] for r in result['hits']['hits']], index_name
             scroll_id = result['_scroll_id']
+            while scroll_id:
+                try:
+                    result = await self.utility.conn.scroll(
+                        scroll_id=scroll_id,
+                        scroll='5m'
+                    )
+                except aioelasticsearch.exceptions.TransportError:
+                    # no results
+                    break
+                if len(result['hits']['hits']) == 0:
+                    break
+                yield [r['_id'] for r in result['hits']['hits']], index_name
+                scroll_id = result['_scroll_id']
 
     async def get_db_page_of_keys(self, oids, page=1, page_size=PAGE_SIZE):
         conn = await self.txn.get_connection()
         clear_conn_statement_cache(conn)
-        keys = []
+        keys = {}
         async with self.txn._lock:
             for record in await conn.fetch(
                     BATCHED_GET_CHILDREN_BY_PARENT, oids,
                     page_size, (page - 1) * page_size):
-                keys.append(record['zoid'])
+                keys[record['zoid']] = record['tid']
         return keys
 
     async def get_page_from_tid(self):
         conn = await self.txn.get_connection()
         clear_conn_statement_cache(conn)
-        keys = []
+        keys = {}
         queried_tid = self.last_tid
         async with self.txn._lock:
             records = await conn.fetch(GET_OBS_BY_TID, queried_tid)
             for record in records:
                 if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
                     continue
-                keys.append(record['zoid'])
+                keys[record['zoid']] = record['tid']
                 self.last_tid = record['tid']
                 self.last_zoid = record['zoid']
         if len(keys) == 0:
@@ -167,11 +174,11 @@ class Vacuum:
                     records = await conn.fetch(
                         GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
                     while len(records) > 0:
-                        keys = []
+                        keys = {}
                         for record in records:
                             if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
                                 continue
-                            keys.append(record['zoid'])
+                            keys[record['zoid']] = record['tid']
                             self.last_zoid = record['zoid']
                         yield keys
                         clear_conn_statement_cache(conn)
@@ -213,9 +220,9 @@ class Vacuum:
             obj.__parent__ = await self.get_object(result['parent_id'])
         return obj
 
-    async def process_missing(self, oid, full=True):
+    async def process_missing(self, oid, full=True, index_type='missing'):
         # need to fill in parents in order for indexing to work...
-        logger.warning(f'Index missing {oid}')
+        logger.warning(f'Index {index_type} {oid}')
         try:
             obj = await self.get_object(oid)
         except KeyError:
@@ -224,7 +231,7 @@ class Vacuum:
         except (AttributeError, TypeError):
             logger.warning(f'Could not find {oid}', exc_info=True)
             return  # object or parent of object was removed, ignore
-        await self.migrator.index_object(obj, full=full)
+        await self.migrator.index_object(obj, full=full, lookup_index=True)
 
     async def setup(self):
         # how we're doing this...
@@ -237,6 +244,7 @@ class Vacuum:
         #   - this way should allow us handle VERY large datasets
 
         self.index_name = await self.index_manager.get_index_name()
+        self.sub_indexes = await get_content_sub_indexes(self.container)
         self.migrator.work_index_name = self.index_name
 
     async def check_orphans(self):
@@ -245,7 +253,7 @@ class Vacuum:
         })
         conn = await self.txn.get_connection()
         checked = 0
-        async for es_batch in self.iter_batched_es_keys():
+        async for es_batch, index_name in self.iter_batched_es_keys():
             checked += len(es_batch)
             clear_conn_statement_cache(conn)
             async with self.txn._lock:
@@ -259,25 +267,49 @@ class Vacuum:
             if orphaned:
                 # these are keys that are in ES but not in DB so we should
                 # remove them..
-                self.orphaned.extend(orphaned)
+                self.orphaned |= set(orphaned)
                 logger.warning(f'deleting orphaned {len(orphaned)}')
                 conn_es = await self.utility.conn.transport.get_connection()
                 # delete by query for orphaned keys...
-                index_path = '{},{}__*'.format(self.index_name, self.index_name)
                 async with conn_es.session.post(
                         join(conn_es.base_url.human_repr(),
-                             index_path, '_delete_by_query'),
+                             index_name, '_delete_by_query'),
                         headers={
                             'Content-Type': 'application/json'
                         },
                         data=json.dumps({
-                            'query': {
-                                'terms': {
-                                    'uuid': orphaned
+                            "query": {
+                                "terms": {
+                                    "_id": orphaned
                                 }
                             }
-                        })) as resp:
-                    pass
+                        })) as resp:  # noqa
+                    try:
+                        data = await resp.json()
+                        if data['deleted'] != len(orphaned):
+                            logger.warning(
+                                f'Was only able to clean up {len(data["deleted"])} '
+                                f'instead of {len(orphaned)}')
+                    except Exception:
+                        logger.warning(
+                            'Could not parse delete by query response. '
+                            'Vacuuming might not be working')
+
+    def get_indexes_for_tids(self, tids):
+        '''
+        is there something clever here to do this faster
+        than iterating over all the data?
+        '''
+        indexes = [self.index_name]
+        for index in self.sub_indexes:
+            # check if tid inside sub index...
+            prefix = index['oid'].rsplit('|', 1)[0]
+            if prefix:
+                for tid in tids:
+                    if tid.startswith(prefix):
+                        indexes.append(index['index'])
+                        break
+        return indexes
 
     async def check_missing(self):
         status = (f'Checking missing on container {self.container.id}, '
@@ -294,31 +326,38 @@ class Vacuum:
 
         checked = 0
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
-            es_batch = []
+            indexes = self.get_indexes_for_tids(batch.keys())
             results = await self.utility.conn.search(
-                '{},{}__*'.format(self.index_name, self.index_name), body={
+                ','.join(indexes), body={
                     'query': {
                         'terms': {
-                            'uuid': batch
+                            'uuid': list(batch.keys())
                         }
                     }
                 },
-                _source=False,
+                stored_fields='tid',
                 size=PAGE_SIZE)
+
+            es_batch = {}
             for result in results['hits']['hits']:
-                es_batch.append(result['_id'])
-            missing = [k for k in set(batch) - set(es_batch)]
-            checked += len(batch)
-            status = f'Checked missing: {checked}: {self.last_tid}'
-            logger.warning(status)
-            if missing:
-                logger.warning(
-                    f'indexing missing: {len(missing)}, total checked: {checked}')
-                # these are keys that are in DB but not in ES so we
-                # should index them..
-                self.missing.extend(missing)
-                for oid in missing:
+                oid = result['_id']
+                tid = result.get('fields', {}).get('tid') or [-1]
+                es_batch[oid] = int(tid[0])
+
+            for oid, tid in batch.items():
+                if oid == self.container._p_oid:
+                    continue
+                if oid not in es_batch:
+                    self.missing.add(oid)
                     await self.process_missing(oid)
+                elif tid > es_batch[oid]:
+                    self.out_of_date.add(oid)
+                    await self.process_missing(oid, index_type='out of date')
+
+            checked += len(batch)
+            logger.warning(
+                f'Checked missing: {checked}: {self.last_tid}, '
+                f'missing: {len(self.missing)}, out of date: {len(self.out_of_date)}')
 
         await self.migrator.flush()
         await self.migrator.join_futures()
@@ -346,6 +385,7 @@ class VacuumCommand(Command):
             self.do_check(arguments, 'check_orphans'))
 
     async def do_check(self, arguments, check_name):
+        aiotask_context.set('request', self.request)
         first_run = True
         while arguments.continuous or first_run:
             if not first_run:
@@ -369,6 +409,7 @@ class VacuumCommand(Command):
                     logger.warning(f'''Finished vacuuming with results:
 Orphaned cleaned: {len(vacuum.orphaned)}
 Missing added: {len(vacuum.missing)}
+Out of date fixed: {len(vacuum.out_of_date)}
 ''')
                     await clean_orphan_indexes(container)
                 except Exception:

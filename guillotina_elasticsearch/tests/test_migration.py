@@ -164,7 +164,6 @@ async def test_updates_index_data(es_requester):
         migrator = Migrator(search, container, force=True, request=request)
         new_index_name = await migrator.create_next_index()
         migrator.work_index_name = new_index_name
-        index_manager = get_adapter(container, IIndexManager)
 
         ob = create_content()
         ob.title = 'foobar'

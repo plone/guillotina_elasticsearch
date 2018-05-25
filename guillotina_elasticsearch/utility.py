@@ -5,9 +5,11 @@ from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.event import notify
+from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import IFolder
 from guillotina.interfaces import IInteraction
+from guillotina.transactions import get_transaction
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
@@ -370,7 +372,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
     async def call_unindex_all_children(self, container, index_name, content_path):
         # first, find any indexes connected with this path so we can delete them.
-        for index_data in await get_content_sub_indexes(container, content_path):
+        sub_indexes = await get_content_sub_indexes(container, content_path)
+        for index_data in sub_indexes:
             try:
                 all_aliases = await self.conn.indices.get_alias(
                     name=index_data['index'])
@@ -402,9 +405,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
             else:
                 self.log_result(result, 'Deletion of children')
 
-    async def update_by_query(self, query):
+    async def update_by_query(self, query, indexes=None):
         request = get_current_request()
-        indexes = await self.get_current_indexes(request.container)
+        if indexes is None:
+            indexes = await self.get_current_indexes(request.container)
         return await self._update_by_query(query, ','.join(indexes))
 
     @backoff.on_exception(
@@ -489,11 +493,15 @@ class ElasticSearchUtility(DefaultSearchUtility):
         else:
             indexes = [index_name]
 
+        tid = self._get_current_tid()
+
         bulk_data = []
         idents = []
         result = {}
         for ident, data in datas.items():
             item_indexes = data.pop('__indexes__', indexes)
+            if tid and tid > (data.get('tid') or 0):
+                data['tid'] = tid
             for index in item_indexes:
                 bulk_data.extend([{
                     'index': {
@@ -516,10 +524,25 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         return result
 
+    def _get_current_tid(self):
+        # make sure to get current committed tid or we may be one-behind
+        # for what was actually used to commit to db
+        try:
+            request = get_current_request()
+            txn = get_transaction(request)
+            tid = None
+            if txn:
+                tid = txn._tid
+        except RequestNotFound:
+            pass
+        return tid
+
     async def update(self, container, datas, response=noop_response, flush_all=False):
         """ If there is request we get the container from there """
         if not self.enabled:
             return
+        tid = self._get_current_tid()
+
         if len(datas) > 0:
             bulk_data = []
             idents = []
@@ -528,6 +551,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
             for ident, data in datas.items():
                 item_indexes = data.pop('__indexes__', indexes)
+                if tid and tid > (data.get('tid') or 0):
+                    data['tid'] = tid
                 for index in item_indexes:
                     bulk_data.extend([{
                         'update': {
@@ -606,7 +631,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         result = await self.conn.count(index=index_name)
         return result['count']
 
-    async def refresh(self, container, index_name=None):
+    async def refresh(self, container=None, index_name=None):
         if index_name is None:
             index_manager = get_adapter(container, IIndexManager)
             index_name = await index_manager.get_real_index_name()

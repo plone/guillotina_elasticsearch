@@ -112,6 +112,7 @@ async def get_content_sub_indexes(container, path=None):
     for item in results['hits']['hits']:
         indexes.append({
             'path': item['fields']['path'][0],
+            'oid': item['_id'],
             'index': item['fields']['elastic_index'][0]
         })
     return indexes

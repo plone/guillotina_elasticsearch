@@ -1,6 +1,4 @@
 from guillotina import directives
-import elasticsearch.exceptions
-import backoff
 from guillotina.catalog.catalog import DefaultCatalogDataAdapter
 from guillotina.component import get_adapter
 from guillotina.component import get_utilities_for
@@ -18,26 +16,27 @@ from guillotina.interfaces import IResourceFactory
 from guillotina.interfaces import ISecurityInfo
 from guillotina.transactions import managed_transaction
 from guillotina.utils import apply_coroutine
+from guillotina.utils import clear_conn_statement_cache
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import DOC_TYPE
+from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
+from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import get_migration_lock
 from guillotina_elasticsearch.utils import noop_response
-from guillotina_elasticsearch.interfaces import IIndexActive
 from os.path import join
 
 import aioelasticsearch
 import asyncio
+import backoff
+import elasticsearch.exceptions
 import gc
 import json
 import logging
 import resource
 import time
-
-
-from guillotina.utils import clear_conn_statement_cache
 
 
 logger = logging.getLogger('guillotina_elasticsearch')
@@ -341,7 +340,7 @@ class Migrator:
                 del ob.__annotations__
             del ob
 
-    async def index_object(self, ob, full=False):
+    async def index_object(self, ob, full=False, lookup_index=False):
         batch_type = 'update'
         if self.reindex_security:
             data = ISecurityInfo(ob)()
@@ -350,18 +349,26 @@ class Migrator:
             batch_type = 'index'
         else:
             data = {
-                'type_name': ob.type_name  # always need this one...
+                # always need these...
+                'type_name': ob.type_name
             }
             for index_name in self.mapping_diff.keys():
                 val = await self.indexer.get_value(ob, index_name)
                 if val is not None:
                     data[index_name] = val
 
+        if ob._p_serial:
+            data['tid'] = ob._p_serial
         self.indexed += 1
         self.batch[ob.uuid] = {
             'action': batch_type,
             'data': data
         }
+
+        if lookup_index:
+            im = find_index_manager(ob)
+            if im:
+                self.batch[ob.uuid]['__index__'] = await im.get_index_name()
 
         if self.log_details:
             self.response.write(f'({self.processed} {int(self.per_sec())}) '
@@ -404,8 +411,9 @@ class Migrator:
     async def _index_batch(self, batch):
         bulk_data = []
         for _id, payload in batch.items():
+            index = payload.pop('__index__', self.work_index_name)
             action_data = {
-                '_index': self.work_index_name,
+                '_index': index,
                 '_id': _id
             }
             data = payload['data']
@@ -494,7 +502,7 @@ class Migrator:
             conn_es = await self.conn.transport.get_connection()
             async with conn_es.session.post(
                     join(str(conn_es.base_url),
-                        '_tasks', self.active_task_id, '_cancel'),
+                         '_tasks', self.active_task_id, '_cancel'),
                     headers={
                         'Content-Type': 'application/json'
                     }):
