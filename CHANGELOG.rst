@@ -1,4 +1,4 @@
-3.0.15 (unreleased)
+3.0.15 (2018-05-25)
 -------------------
 
 - Fix update_by_query indexes param
