@@ -350,15 +350,15 @@ class Migrator:
         else:
             data = {
                 # always need these...
-                'type_name': ob.type_name,
-                'tid': ob._p_serial
+                'type_name': ob.type_name
             }
             for index_name in self.mapping_diff.keys():
                 val = await self.indexer.get_value(ob, index_name)
                 if val is not None:
                     data[index_name] = val
 
-        data['tid'] = ob._p_serial
+        if ob._p_serial:
+            data['tid'] = ob._p_serial
         self.indexed += 1
         self.batch[ob.uuid] = {
             'action': batch_type,
