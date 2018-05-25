@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from guillotina.exceptions import RequestNotFound
+from guillotina.transactions import get_transaction
 from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
 from guillotina import configure
@@ -402,9 +404,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
             else:
                 self.log_result(result, 'Deletion of children')
 
-    async def update_by_query(self, query):
+    async def update_by_query(self, query, indexes=None):
         request = get_current_request()
-        indexes = await self.get_current_indexes(request.container)
+        if indexes is None:
+            indexes = await self.get_current_indexes(request.container)
         return await self._update_by_query(query, ','.join(indexes))
 
     @backoff.on_exception(
@@ -489,11 +492,15 @@ class ElasticSearchUtility(DefaultSearchUtility):
         else:
             indexes = [index_name]
 
+        tid = self._get_current_tid()
+
         bulk_data = []
         idents = []
         result = {}
         for ident, data in datas.items():
             item_indexes = data.pop('__indexes__', indexes)
+            if tid and tid > (data.get('tid') or 0):
+                data['tid'] = tid
             for index in item_indexes:
                 bulk_data.extend([{
                     'index': {
@@ -516,10 +523,25 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         return result
 
+    def _get_current_tid(self):
+        # make sure to get current committed tid or we may be one-behind
+        # for what was actually used to commit to db
+        try:
+            request = get_current_request()
+            txn = get_transaction(request)
+            tid = None
+            if txn:
+                tid = txn._tid
+        except RequestNotFound:
+            pass
+        return tid
+
     async def update(self, container, datas, response=noop_response, flush_all=False):
         """ If there is request we get the container from there """
         if not self.enabled:
             return
+        tid = self._get_current_tid()
+
         if len(datas) > 0:
             bulk_data = []
             idents = []
@@ -528,6 +550,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
             for ident, data in datas.items():
                 item_indexes = data.pop('__indexes__', indexes)
+                if tid and tid > (data.get('tid') or 0):
+                    data['tid'] = tid
                 for index in item_indexes:
                     bulk_data.extend([{
                         'update': {

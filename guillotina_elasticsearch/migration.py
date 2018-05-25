@@ -350,7 +350,9 @@ class Migrator:
             batch_type = 'index'
         else:
             data = {
-                'type_name': ob.type_name  # always need this one...
+                # always need these...
+                'type_name': ob.type_name,
+                'tid': ob._p_serial
             }
             for index_name in self.mapping_diff.keys():
                 val = await self.indexer.get_value(ob, index_name)
