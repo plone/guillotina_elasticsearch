@@ -7,6 +7,16 @@ env:
     - ES_VERSION=6
     - ES_VERSION=6 DATABASE=postgresql
 
+services:
+  - postgresql
+  - docker
+
+addons:
+  postgresql: "9.6"
+
+before_script:
+  - psql -c 'create database guillotina;' -U postgres
+
 cache:
   directories:
     - eggs
