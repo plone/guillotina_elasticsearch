@@ -1,4 +1,4 @@
-3.0.14 (unreleased)
+3.0.14 (2018-05-25)
 -------------------
 
 - be able to provide context for update_by_query
