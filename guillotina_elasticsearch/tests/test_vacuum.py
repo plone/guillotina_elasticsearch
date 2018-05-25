@@ -22,12 +22,13 @@ async def test_adds_missing_elasticsearch_entry(es_requester):
         await add_content(requester)
 
         search = get_utility(ICatalogUtility)
+        container, request, txn, tm = await setup_txn_on_container(requester)
+        aiotask_context.set('request', request)
 
         async def _test():
             assert await search.get_doc_count(container) == 110
 
-        container, request, txn, tm = await setup_txn_on_container(requester)
-        aiotask_context.set('request', request)
+        await run_with_retries(_test, requester)
 
         for key in await container.async_keys():
             ob = await container.async_get(key)
@@ -150,6 +151,8 @@ async def test_vacuum_with_sub_indexes(es_requester):
         async def _test():
             assert await search.get_doc_count(container) == 13
             assert await search.get_doc_count(index_name=content_index_name) == 12
+
+        await run_with_retries(_test, requester)
 
         container, request, txn, tm = await setup_txn_on_container(requester)
         aiotask_context.set('request', request)
