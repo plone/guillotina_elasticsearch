@@ -1,4 +1,4 @@
-3.0.13 (unreleased)
+3.0.13 (2018-05-25)
 -------------------
 
 - Fix vacuuming with sub indexes
