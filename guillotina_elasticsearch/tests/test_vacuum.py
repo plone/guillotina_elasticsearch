@@ -74,7 +74,7 @@ async def test_updates_out_of_data_es_entries(es_requester):
                 'lang': 'painless',
                 'inline': "ctx._source.remove('tid')"
             }
-        }, [index_name])
+        }, indexes=[index_name])
 
         async def _test():
             assert await search.get_doc_count(container) == 110

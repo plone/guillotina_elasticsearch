@@ -1,7 +1,8 @@
 3.0.14 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- be able to provide context for update_by_query
+  [vangheem]
 
 
 3.0.13 (2018-05-25)
