@@ -1,7 +1,8 @@
 3.0.13 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix vacuuming with sub indexes
+  [vangheem]
 
 
 3.0.12 (2018-05-24)
