@@ -406,7 +406,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 self.log_result(result, 'Deletion of children')
 
     async def update_by_query(self, query, context=None, indexes=None):
-        if indexes is not None:
+        if indexes is None:
             request = get_current_request()
             indexes = await self.get_current_indexes(request.container)
             if context is not None:

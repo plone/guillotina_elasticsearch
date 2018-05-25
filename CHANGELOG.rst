@@ -1,7 +1,8 @@
 3.0.15 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix update_by_query indexes param
+  [vangheem]
 
 
 3.0.14 (2018-05-25)
