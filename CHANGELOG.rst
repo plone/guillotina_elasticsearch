@@ -1,4 +1,4 @@
-3.0.16 (unreleased)
+3.0.16 (2018-05-29)
 -------------------
 
 - Raise QueryErrorException instead of returning it
