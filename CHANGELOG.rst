@@ -1,7 +1,8 @@
 3.0.16 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Raise QueryErrorException instead of returning it
+  [vangheem]
 
 
 3.0.15 (2018-05-25)

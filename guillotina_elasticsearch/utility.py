@@ -243,7 +243,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             error_message = 'Unknown'
             for failure in result["_shards"].get('failures') or []:
                 error_message = failure['reason']
-            return QueryErrorException(reason=error_message)
+            raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         final = {
             'items_count': result['hits']['total'],
