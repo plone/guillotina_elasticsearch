@@ -105,7 +105,7 @@ class ContainerIndexManager:
         return index_name + '_' + str(version)
 
     async def get_index_name(self):
-        registry = await self._get_registry()
+        registry = await self.get_registry()
 
         try:
             result = registry['el_index_name']
@@ -121,7 +121,7 @@ class ContainerIndexManager:
         return self._get_index_name(index_name, version)
 
     async def get_migration_index_name(self):
-        registry = await self._get_registry()
+        registry = await self.get_registry()
         if ('el_next_index_version' not in registry or
                 registry['el_next_index_version'] is None):
             return None
@@ -133,28 +133,28 @@ class ContainerIndexManager:
         version = await self._get_version()
         next_version = version + 1
         index_name = await self.get_index_name()
-        registry = await self._get_registry()
+        registry = await self.get_registry()
         migration_index_name = self._get_index_name(index_name, next_version)
         registry['el_next_index_version'] = next_version
         registry._p_register()
         return migration_index_name
 
     async def finish_migration(self):
-        registry = await self._get_registry(refresh=True)
+        registry = await self.get_registry(refresh=True)
         assert registry['el_next_index_version'] is not None
         registry['el_index_version'] = registry['el_next_index_version']
         registry['el_next_index_version'] = None
         registry._p_register()
 
     async def _get_version(self):
-        registry = await self._get_registry()
+        registry = await self.get_registry()
         try:
             version = registry['el_index_version']
         except KeyError:
             version = 1
         return version
 
-    async def _get_registry(self, refresh=False):
+    async def get_registry(self, refresh=False):
         if (refresh and hasattr(self.request, 'container_settings') and
                 REGISTRY_DATA_KEY in self.container.__annotations__):
             txn = get_transaction(self.request)
@@ -166,7 +166,7 @@ class ContainerIndexManager:
         return self.request.container_settings
 
     async def cancel_migration(self):
-        registry = await self._get_registry()
+        registry = await self.get_registry()
         registry['el_next_index_version'] = None
         registry._p_register()
 
@@ -186,7 +186,7 @@ class ContentIndexManager(ContainerIndexManager):
         super().__init__(ob, request=request)
         self.object_settings = None
 
-    async def _get_registry(self, refresh=False):
+    async def get_registry(self, refresh=False):
         if (refresh and self.object_settings is not None):
             txn = get_transaction(self.request)
             await txn.refresh(self.object_settings)

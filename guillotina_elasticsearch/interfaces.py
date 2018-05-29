@@ -64,6 +64,11 @@ class IIndexManager(Interface):
         Remove migration index registration
         '''
 
+    async def get_registry():
+        '''
+        Return registry object where index data is stored
+        '''
+
 
 class IContentIndex(Interface):
     '''

@@ -186,7 +186,8 @@ class Migrator:
         return self.processed / (time.time() - self.index_start_time)
 
     async def create_next_index(self):
-        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+        async with managed_transaction(self.request, write=True, adopt_parent_txn=True) as txn:
+            await txn.refresh(await self.index_manager.get_registry())
             next_index_name = await self.index_manager.start_migration()
         if await self.conn.indices.exists(next_index_name):
             if self.force:
@@ -280,13 +281,19 @@ class Migrator:
         all we care about is new fields...
         Missing ones are ignored and we don't care about it.
         '''
-        existing_index_name = await self.index_manager.get_real_index_name()
-        existing_mappings = await self.conn.indices.get_mapping(existing_index_name)
-        existing_mappings = existing_mappings[existing_index_name]['mappings']
-        existing_mappings = existing_mappings[DOC_TYPE]['properties']
         next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
         next_mappings = next_mappings[self.work_index_name]['mappings']
         next_mappings = next_mappings[DOC_TYPE]['properties']
+
+        existing_index_name = await self.index_manager.get_real_index_name()
+        try:
+            existing_mappings = await self.conn.indices.get_mapping(existing_index_name)
+        except elasticsearch.exceptions.NotFoundError:
+            # allows us to upgrade when no index is present yet
+            return next_mappings
+
+        existing_mappings = existing_mappings[existing_index_name]['mappings']
+        existing_mappings = existing_mappings[DOC_TYPE]['properties']
 
         new_definitions = {}
         for field_name, definition in next_mappings.items():
@@ -527,11 +534,16 @@ class Migrator:
             # if full, we're reindexing everything does not matter what anyways, so skip
             self.response.write(f'Copying initial index {existing_index} '
                                 f'into {self.work_index_name}')
-            await self.copy_to_next_index()
-            self.response.write('Copying initial index data finished')
-
+            try:
+                await self.copy_to_next_index()
+                self.response.write('Copying initial index data finished')
+            except elasticsearch.exceptions.NotFoundError:
+                self.response.write('No initial index to copy to')
         if not self.mapping_only:
-            self.existing = await self.get_all_uids()
+            try:
+                self.existing = await self.get_all_uids()
+            except elasticsearch.exceptions.NotFoundError:
+                pass
 
             self.index_start_time = time.time()
             if self.children_only or IContainer.providedBy(self.context):
@@ -554,22 +566,35 @@ class Migrator:
 {existing_index} -> {self.work_index_name}
 ''')
 
-            await self.conn.indices.update_aliases({
-                "actions": [
-                    {"remove": {
-                        "alias": alias_index_name,
-                        "index": existing_index
-                    }},
-                    {"add": {
-                        "alias": alias_index_name,
-                        "index": self.work_index_name
-                    }}
-                ]
-            })
+            try:
+                await self.conn.indices.update_aliases({
+                    "actions": [
+                        {"remove": {
+                            "alias": alias_index_name,
+                            "index": existing_index
+                        }},
+                        {"add": {
+                            "alias": alias_index_name,
+                            "index": self.work_index_name
+                        }}
+                    ]
+                })
+            except elasticsearch.exceptions.NotFoundError:
+                await self.conn.indices.update_aliases({
+                    "actions": [
+                        {"add": {
+                            "alias": alias_index_name,
+                            "index": self.work_index_name
+                        }}
+                    ]
+                })
 
-        self.response.write('Delete old index')
-        await self.conn.indices.close(existing_index)
-        await self.conn.indices.delete(existing_index)
+        try:
+            await self.conn.indices.close(existing_index)
+            await self.conn.indices.delete(existing_index)
+            self.response.write('Old index deleted')
+        except elasticsearch.exceptions.NotFoundError:
+            pass
 
         if len(self.sub_indexes) > 0:
             self.response.write(f'Migrating sub indexes: {len(self.sub_indexes)}')

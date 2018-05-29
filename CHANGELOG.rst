@@ -1,7 +1,11 @@
 3.0.17 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Handle running migration when existing index does not exist
+  [vangheem]
+
+- Make sure to refresh object before writing to it.
+  [vangheem]
 
 
 3.0.16 (2018-05-29)
