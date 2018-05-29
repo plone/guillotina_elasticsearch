@@ -1,4 +1,4 @@
-3.0.17 (unreleased)
+3.0.17 (2018-05-29)
 -------------------
 
 - Handle running migration when existing index does not exist
