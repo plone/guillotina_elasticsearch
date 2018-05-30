@@ -241,7 +241,7 @@ class ElasticSearchUtility(ElasticSearchManager):
                 'query': {
                     'bool': {
                         'must': [{
-                            'match': {'path': path}
+                            'term': {'path': path}
                         }]
                     }
                 }
