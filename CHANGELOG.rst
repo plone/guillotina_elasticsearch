@@ -1,4 +1,4 @@
-3.0.18 (unreleased)
+3.0.18 (2018-05-30)
 -------------------
 
 - Also handle ModuleNotFoundError when migrating data
