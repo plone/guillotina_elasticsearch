@@ -307,7 +307,7 @@ class Migrator:
         for key in await ob.async_keys():
             try:
                 item = await ob._p_jar.get_child(ob, key)
-            except KeyError:
+            except (KeyError, ModuleNotFoundError):
                 continue
             if item is None:
                 continue

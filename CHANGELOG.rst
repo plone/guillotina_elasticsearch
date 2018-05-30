@@ -1,7 +1,8 @@
 3.0.18 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Also handle ModuleNotFoundError when migrating data
+  [vangheem]
 
 
 3.0.17 (2018-05-29)
