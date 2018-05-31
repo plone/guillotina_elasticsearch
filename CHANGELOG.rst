@@ -1,4 +1,4 @@
-3.0.19 (unreleased)
+3.0.19 (2018-05-31)
 -------------------
 
 - utilize ignore_unavailable for elasticsearch queries
