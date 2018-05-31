@@ -391,12 +391,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
                         pass
 
         path_query = await self.get_path_query(content_path)
-        path_query['ignore_unavailable'] = True
         conn_es = await self.conn.transport.get_connection()
         async with conn_es.session.post(
                 join(conn_es.base_url.human_repr(),
                      index_name, '_delete_by_query'),
                 data=json.dumps(path_query),
+                params={
+                    'ignore_unavailable': 'true'
+                },
                 headers={
                     'Content-Type': 'application/json'
                 }) as resp:
@@ -424,9 +426,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
         conn_es = await self.conn.transport.get_connection()
         url = join(conn_es.base_url.human_repr(), index_name,
                    '_update_by_query?conflicts=proceed')
-        query['ignore_unavailable'] = True
         async with conn_es.session.post(
                 url, data=json.dumps(query),
+                params={
+                    'ignore_unavailable': 'true'
+                },
                 headers={
                     'Content-Type': 'application/json'
                 }) as resp:
