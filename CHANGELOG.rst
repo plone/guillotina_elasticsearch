@@ -1,7 +1,8 @@
 3.0.19 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- utilize ignore_unavailable for elasticsearch queries
+  [vangheem]
 
 
 3.0.18 (2018-05-30)

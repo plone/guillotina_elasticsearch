@@ -237,6 +237,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             request = get_current_request()
         q = await self._build_security_query(
             container, query, doc_type, size, request, scroll)
+        q['ignore_unavailable'] = True
         result = await self.conn.search(index=index, **q)
         if result.get('_shards', {}).get('failed', 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
@@ -390,6 +391,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                         pass
 
         path_query = await self.get_path_query(content_path)
+        path_query['ignore_unavailable'] = True
         conn_es = await self.conn.transport.get_connection()
         async with conn_es.session.post(
                 join(conn_es.base_url.human_repr(),
@@ -422,6 +424,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         conn_es = await self.conn.transport.get_connection()
         url = join(conn_es.base_url.human_repr(), index_name,
                    '_update_by_query?conflicts=proceed')
+        query['ignore_unavailable'] = True
         async with conn_es.session.post(
                 url, data=json.dumps(query),
                 headers={
