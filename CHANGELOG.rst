@@ -1,4 +1,4 @@
-3.0.21 (unreleased)
+3.0.21 (2018-06-07)
 -------------------
 
 - Fix compatibility with guillotina 4
