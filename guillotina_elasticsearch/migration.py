@@ -344,7 +344,10 @@ class Migrator:
                 await self.process_folder(ob)
 
             if not IContainer.providedBy(ob):
-                del ob.__annotations__
+                try:
+                    del self.container.__gannotations__
+                except AttributeError:
+                    del self.container.__annotations__
             del ob
 
     async def index_object(self, ob, full=False, lookup_index=False):

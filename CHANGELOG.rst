@@ -1,7 +1,8 @@
 3.0.21 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix compatibility with guillotina 4
+  [vangheem]
 
 
 3.0.20 (2018-05-31)

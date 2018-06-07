@@ -154,9 +154,15 @@ class ContainerIndexManager:
             version = 1
         return version
 
+    def _get_annotations(self):
+        try:
+            return self.container.__gannotations__
+        except AttributeError:
+            return self.container.__annotations__
+
     async def get_registry(self, refresh=False):
         if (refresh and hasattr(self.request, 'container_settings') and
-                REGISTRY_DATA_KEY in self.container.__annotations__):
+                REGISTRY_DATA_KEY in self._get_annotations()):
             txn = get_transaction(self.request)
             await txn.refresh(self.request.container_settings)
         if hasattr(self.request, 'container_settings'):
