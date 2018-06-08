@@ -42,7 +42,8 @@ setup(
         'aioelasticsearch',
         'ujson',
         'lru-dict',
-        'backoff'
+        'backoff',
+        'asyncpg==0.15.0'
     ],
     tests_require=test_requires,
     extras_require={
