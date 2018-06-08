@@ -132,7 +132,7 @@ class Migrator:
     def __init__(self, utility, context, response=noop_response, force=False,
                  log_details=False, memory_tracking=False, request=None,
                  bulk_size=40, full=False, reindex_security=False, mapping_only=False,
-                 index_manager=None, children_only=False):
+                 index_manager=None, children_only=False, lookup_index=False):
         self.utility = utility
         self.conn = utility.conn
         self.context = context
@@ -144,6 +144,7 @@ class Migrator:
         self.bulk_size = bulk_size
         self.reindex_security = reindex_security
         self.children_only = children_only
+        self.lookup_index = lookup_index
         if mapping_only and full:
             raise Exception('Can not do a full reindex and a mapping only migration')
         self.mapping_only = mapping_only
@@ -350,7 +351,7 @@ class Migrator:
                     del self.container.__annotations__
             del ob
 
-    async def index_object(self, ob, full=False, lookup_index=False):
+    async def index_object(self, ob, full=False):
         batch_type = 'update'
         if self.reindex_security:
             data = ISecurityInfo(ob)()
@@ -375,7 +376,7 @@ class Migrator:
             'data': data
         }
 
-        if lookup_index:
+        if self.lookup_index:
             im = find_index_manager(ob)
             if im:
                 self.batch[ob.uuid]['__index__'] = await im.get_index_name()

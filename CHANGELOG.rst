@@ -1,7 +1,9 @@
 3.0.22 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Upgrade vacuum command to work with moved content
+  that wasn't reindexed correctly
+  [vangheem]
 
 
 3.0.21 (2018-06-07)

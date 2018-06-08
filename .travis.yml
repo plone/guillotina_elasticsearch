@@ -1,7 +1,8 @@
 # we want to make sure it is run on trusty where sudo is provided for postgres
 dist: trusty
 language: python
-python: 3.6-dev
+python:
+    - "3.6"
 sudo: required
 env:
     - ES_VERSION=6
