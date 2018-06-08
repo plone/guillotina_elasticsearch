@@ -4,11 +4,8 @@ from guillotina.component import get_utility
 from guillotina.component import globalregistry as gr
 from guillotina.event import notify
 from guillotina.events import ObjectRemovedEvent
-from guillotina.interfaces import IAnnotations
 from guillotina.interfaces import ICatalogUtility
-from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.tests.utils import create_content
-from guillotina.transactions import managed_transaction
 from guillotina_elasticsearch.events import IIndexProgress
 from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import DOC_TYPE
@@ -479,7 +476,6 @@ async def test_delete_in_both_during_migration(es_requester):
                     index=index_name, doc_type='_all', id=resp['@uid'])
 
         await run_with_retries(_test, requester)
-
 
 
 async def test_migrate_content_index_works(es_requester):
