@@ -1,4 +1,4 @@
-1.3.24 (unreleased)
+1.3.24 (2018-06-08)
 -------------------
 
 - Handle TypeError reindexing object
