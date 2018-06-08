@@ -53,7 +53,7 @@ LIMIT {PAGE_SIZE}
 """
 
 GET_ALL_FOR_TID = f"""
-SELECT zoid, parent_id
+SELECT zoid, parent_id, tid
 FROM objects
 WHERE
     of is NULL AND
