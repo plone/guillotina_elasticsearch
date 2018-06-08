@@ -202,7 +202,10 @@ class Vacuum:
         except (AttributeError, TypeError):
             logger.warning(f'Could not find {oid}', exc_info=True)
             return  # object or parent of object was removed, ignore
-        await self.migrator.index_object(obj, full=full)
+        try:
+            await self.migrator.index_object(obj, full=full)
+        except TypeError:
+            logger.warning(f'Could not reindex {oid}')
 
     async def setup(self):
         # how we're doing this...

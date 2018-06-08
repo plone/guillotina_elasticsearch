@@ -1,7 +1,8 @@
 1.3.24 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Handle TypeError reindexing object
+  [vangheem]
 
 
 1.3.23 (2018-05-24)
