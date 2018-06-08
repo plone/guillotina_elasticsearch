@@ -5,7 +5,6 @@ from guillotina_elasticsearch.tests.utils import run_with_retries
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import get_installed_sub_indexes
-from guillotina_elasticsearch.commands.vacuum import clean_orphan_indexes
 
 import aioelasticsearch
 import json
