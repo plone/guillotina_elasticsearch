@@ -1,4 +1,4 @@
-3.0.22 (unreleased)
+3.0.22 (2018-06-08)
 -------------------
 
 - Upgrade vacuum command to work with moved content
