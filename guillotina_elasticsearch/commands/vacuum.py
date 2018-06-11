@@ -230,10 +230,13 @@ class Vacuum:
         except (AttributeError, TypeError):
             logger.warning(f'Could not find {oid}', exc_info=True)
             return  # object or parent of object was removed, ignore
-        if folder:
-            await self.migrator.process_object(obj)
-        else:
-            await self.migrator.index_object(obj)
+        try:
+            if folder:
+                await self.migrator.process_object(obj)
+            else:
+                await self.migrator.index_object(obj)
+        except TypeError:
+            logger.warning(f'Could not index {oid}', exc_info=True)
 
     async def setup(self):
         # how we're doing this...
@@ -338,6 +341,7 @@ class Vacuum:
                         }
                     }
                 },
+                _source=False,
                 stored_fields='tid,parent_uuid',
                 size=PAGE_SIZE)
 

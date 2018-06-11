@@ -1,7 +1,8 @@
 3.0.23 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Handle TypeError when vacuuming
+  [vangheem]
 
 
 3.0.22 (2018-06-08)
