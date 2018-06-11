@@ -1,4 +1,4 @@
-3.0.23 (unreleased)
+3.0.23 (2018-06-11)
 -------------------
 
 - Handle TypeError when vacuuming
