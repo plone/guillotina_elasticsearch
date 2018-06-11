@@ -1,7 +1,8 @@
 1.3.25 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Backport fixing indexing moved content from master
+  [vangheem]
 
 
 1.3.24 (2018-06-08)

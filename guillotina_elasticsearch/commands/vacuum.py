@@ -23,7 +23,7 @@ logger = logging.getLogger('guillotina_elasticsearch_vacuum')
 
 SELECT_BY_KEYS = '''SELECT zoid from objects where zoid = ANY($1)'''
 BATCHED_GET_CHILDREN_BY_PARENT = """
-SELECT zoid
+SELECT zoid, parent_id
 FROM objects
 WHERE of is NULL AND parent_id = ANY($1)
 ORDER BY parent_id
@@ -34,7 +34,7 @@ OFFSET $3::int
 PAGE_SIZE = 1000
 
 GET_OBS_BY_TID = f"""
-SELECT zoid, tid
+SELECT zoid, tid, parent_id
 FROM objects
 WHERE
     of is NULL AND
@@ -44,7 +44,7 @@ LIMIT {PAGE_SIZE}
 """
 
 GET_ALL_FOR_TID = f"""
-SELECT zoid
+SELECT zoid, parent_id, tid
 FROM objects
 WHERE
     of is NULL AND
@@ -115,56 +115,59 @@ class Vacuum:
     async def get_page_from_tid(self):
         conn = await self.txn.get_connection()
         clear_conn_statement_cache(conn)
-        keys = []
+        records = []
         queried_tid = self.last_tid
         async with self.txn._lock:
-            records = await conn.fetch(GET_OBS_BY_TID, queried_tid)
-            for record in records:
+            results = await conn.fetch(GET_OBS_BY_TID, queried_tid)
+            for record in results:
                 if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
                     continue
-                keys.append(record['zoid'])
+                records.append(record)
                 self.last_tid = record['tid']
                 self.last_zoid = record['zoid']
-        if len(keys) == 0:
+        if len(records) == 0:
             if len(self.last_result_set) > 0:
                 # now we have zero, increment, but only once
                 self.last_tid = self.last_tid + 1
-        self.last_result_set = keys
-        return keys
+        self.last_result_set = records
+        return records
 
     async def iter_paged_db_keys(self, oids):
         if self.use_tid_query:
             queried_tid = self.last_tid
-            keys = await self.get_page_from_tid()
-            while len(keys) > 0:
-                yield keys
+            records = await self.get_page_from_tid()
+            while len(records) > 0:
+                yield records
                 if self.last_tid == queried_tid:
                     conn = await self.txn.get_connection()
                     logger.warning(f'Getting all keys from tid {self.last_tid}')
                     # we're stuck on same tid, get all for this tid
                     # and then move on...
-                    records = await conn.fetch(
+                    clear_conn_statement_cache(conn)
+                    results = await conn.fetch(
                         GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
-                    while len(records) > 0:
-                        keys = []
-                        for record in records:
+                    while len(results) > 0:
+                        records = []
+                        for record in results:
                             if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
                                 continue
-                            keys.append(record['zoid'])
+                            records.append(record)
                             self.last_zoid = record['zoid']
-                        yield keys
+                        yield records
+                        clear_conn_statement_cache(conn)
                         records = await conn.fetch(
                             GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
                     self.last_tid = self.last_tid + 1
                 queried_tid = self.last_tid
-                keys = await self.get_page_from_tid()
+                records = await self.get_page_from_tid()
 
         else:
             page_num = 1
             page = await self.get_db_page_of_keys(oids, page_num)
             while page:
                 yield page
-                async for sub_page in self.iter_paged_db_keys(page):
+                async for sub_page in self.iter_paged_db_keys(
+                        [r['zoid'] for r in page]):
                     yield sub_page
                 page_num += 1
                 page = await self.get_db_page_of_keys(oids, page_num)
@@ -191,7 +194,7 @@ class Vacuum:
             obj.__parent__ = await self.get_object(result['parent_id'])
         return obj
 
-    async def process_missing(self, oid, full=True):
+    async def process_missing(self, oid, folder=False):
         # need to fill in parents in order for indexing to work...
         logger.warning(f'Index missing {oid}')
         try:
@@ -203,7 +206,10 @@ class Vacuum:
             logger.warning(f'Could not find {oid}', exc_info=True)
             return  # object or parent of object was removed, ignore
         try:
-            await self.migrator.index_object(obj, full=full)
+            if folder:
+                await self.migrator.process_object(obj)
+            else:
+                await self.migrator.index_object(obj)
         except TypeError:
             logger.warning(f'Could not reindex {oid}')
 
@@ -271,31 +277,40 @@ class Vacuum:
 
         checked = 0
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
-            es_batch = []
+            oids = [r['zoid'] for r in batch]
             results = await self.utility.conn.search(
                 self.index_name, body={
                     'query': {
                         'terms': {
-                            'uuid': batch
+                            'uuid': oids
                         }
                     }
                 },
-                _source=False,
+                _source=True,
                 size=PAGE_SIZE)
+
+            es_batch = {}
             for result in results['hits']['hits']:
-                es_batch.append(result['_id'])
-            missing = [k for k in set(batch) - set(es_batch)]
-            checked += len(batch)
-            status = f'Checked missing: {checked}: {self.last_tid}'
-            logger.warning(status)
-            if missing:
-                logger.warning(
-                    f'indexing missing: {len(missing)}, total checked: {checked}')
-                # these are keys that are in DB but not in ES so we
-                # should index them..
-                self.missing.extend(missing)
-                for oid in missing:
+                oid = result['_id']
+                es_batch[oid] = {
+                    'parent_uuid': result['_source'].get('parent_uuid') or '_missing_'
+                }
+
+            for record in batch:
+                oid = record['zoid']
+                if oid == self.container._p_oid:
+                    continue
+                if oid not in es_batch:
+                    self.missing.append(oid)
                     await self.process_missing(oid)
+                elif record['parent_id'] != es_batch[oid]['parent_uuid']:
+                    self.missing.append(oid)
+                    await self.process_missing(oid, folder=True)
+
+            checked += len(batch)
+            logger.warning(
+                f'Checked missing: {checked}: {self.last_tid}, '
+                f'missing: {len(self.missing)}')
 
         await self.migrator.flush()
         await self.migrator.join_futures()

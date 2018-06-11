@@ -1,8 +1,22 @@
 # we want to make sure it is run on trusty where sudo is provided for postgres
 dist: trusty
 language: python
-python: 3.6-dev
+python:
+    - "3.6"
 sudo: required
+env:
+    - ES_VERSION=6
+    - ES_VERSION=6 DATABASE=postgresql
+
+services:
+  - postgresql
+  - docker
+
+addons:
+  postgresql: "9.6"
+
+before_script:
+  - psql -c 'create database guillotina;' -U postgres
 
 cache:
   directories:
