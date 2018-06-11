@@ -12,7 +12,8 @@ test_requires = [
     'pytest-cov',
     'pytest-aiohttp',
     'pytest-rerunfailures',
-    'pytest-docker-fixtures>=1.1.0'
+    'pytest-docker-fixtures>=1.1.0',
+    'asyncpg==0.15.0'
 ]
 
 
@@ -41,7 +42,7 @@ setup(
         'guillotina>=3.1.6,<3.3.0',
         'aioes>=0.7.0',
         'ujson',
-        'lru-dict'
+        'lru-dict',
     ],
     tests_require=test_requires,
     extras_require={
