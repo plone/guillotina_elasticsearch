@@ -1,4 +1,4 @@
-1.3.25 (unreleased)
+1.3.25 (2018-06-11)
 -------------------
 
 - Backport fixing indexing moved content from master
