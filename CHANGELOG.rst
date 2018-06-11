@@ -1,4 +1,4 @@
-1.3.26 (unreleased)
+1.3.26 (2018-06-11)
 -------------------
 
 - Fix vacuuming when multiple containers are in a db
