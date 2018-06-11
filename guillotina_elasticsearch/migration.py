@@ -376,9 +376,17 @@ class Migrator:
     async def index_object(self, ob, full=False):
         batch_type = 'update'
         if self.reindex_security:
-            data = ISecurityInfo(ob)()
+            try:
+                data = ISecurityInfo(ob)()
+            except TypeError:
+                self.response.write(f'could not index {ob}')
+                return
         elif full or self.full:
-            data = await ICatalogDataAdapter(ob)()
+            try:
+                data = await ICatalogDataAdapter(ob)()
+            except TypeError:
+                self.response.write(f'could not index {ob}')
+                return
             batch_type = 'index'
         else:
             if ob.type_name not in self.mapping_diff:
