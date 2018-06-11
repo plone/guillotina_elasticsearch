@@ -1,7 +1,8 @@
 1.3.26 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix vacuuming when multiple containers are in a db
+  [vangheem]
 
 
 1.3.25 (2018-06-11)

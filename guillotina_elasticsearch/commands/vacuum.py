@@ -104,13 +104,10 @@ class Vacuum:
     async def get_db_page_of_keys(self, oids, page=1, page_size=PAGE_SIZE):
         conn = await self.txn.get_connection()
         clear_conn_statement_cache(conn)
-        keys = []
         async with self.txn._lock:
-            for record in await conn.fetch(
-                    BATCHED_GET_CHILDREN_BY_PARENT, oids,
-                    page_size, (page - 1) * page_size):
-                keys.append(record['zoid'])
-        return keys
+            return await conn.fetch(
+                BATCHED_GET_CHILDREN_BY_PARENT, oids,
+                page_size, (page - 1) * page_size)
 
     async def get_page_from_tid(self):
         conn = await self.txn.get_connection()
