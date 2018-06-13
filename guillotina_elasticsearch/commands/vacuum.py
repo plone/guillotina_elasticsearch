@@ -53,6 +53,10 @@ ORDER BY zoid ASC
 LIMIT {PAGE_SIZE}
 """
 
+CREATE_INDEX = '''
+CREATE INDEX CONCURRENTLY IF NOT EXISTS
+objects_tid_zoid ON objects (tid ASC, zoid ASC);'''
+
 
 class Vacuum:
 
@@ -219,6 +223,8 @@ class Vacuum:
         # WHY this way?
         #   - uses less memory rather than getting all keys in both.
         #   - this way should allow us handle VERY large datasets
+        conn = await self.txn.get_connection()
+        await conn.execute(CREATE_INDEX)
 
         self.index_name = await self.utility.get_index_name(self.container)
         self.migrator.work_index_name = self.index_name

@@ -1,7 +1,8 @@
 1.3.27 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- add pg index to make vacuuming faster
+  [vangheem]
 
 
 1.3.26 (2018-06-11)
