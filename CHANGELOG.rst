@@ -1,4 +1,4 @@
-3.0.24 (unreleased)
+3.0.24 (2018-06-13)
 -------------------
 
 - add pg index to make vacuuming faster
