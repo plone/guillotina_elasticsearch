@@ -62,6 +62,10 @@ ORDER BY zoid ASC
 LIMIT {PAGE_SIZE}
 """
 
+CREATE_INDEX = '''
+CREATE INDEX CONCURRENTLY IF NOT EXISTS
+objects_tid_zoid ON objects (tid ASC, zoid ASC);'''
+
 
 async def clean_orphan_indexes(container):
     search = get_utility(ICatalogUtility)
@@ -247,6 +251,9 @@ class Vacuum:
         # WHY this way?
         #   - uses less memory rather than getting all keys in both.
         #   - this way should allow us handle VERY large datasets
+
+        conn = await self.txn.get_connection()
+        await conn.execute(CREATE_INDEX)
 
         self.index_name = await self.index_manager.get_index_name()
         self.sub_indexes = await get_content_sub_indexes(self.container)
