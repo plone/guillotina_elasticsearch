@@ -475,7 +475,8 @@ class Migrator:
                         _id = value.get('_id')
                         errors.append(f'{_id}: {value["status"]}')
 
-                        if value['status'] == 409:  # retry conflict errors
+                        # retry conflict errors and thread pool capacity limits
+                        if value['status'] in (409, 429):
                             self.batch[_id] = batch[_id]
             logger.warning(f'Error bulk putting: {results}')
 

@@ -1,7 +1,8 @@
 1.3.28 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Handle 429 status code on reindex
+  [vangheem]
 
 
 1.3.27 (2018-06-13)
