@@ -1,7 +1,8 @@
 3.0.25 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- retry conflict errors and thread pool exceeded errors
+  [vangheem]
 
 
 3.0.24 (2018-06-13)
