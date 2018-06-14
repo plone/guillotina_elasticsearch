@@ -1,4 +1,4 @@
-1.3.28 (unreleased)
+1.3.28 (2018-06-14)
 -------------------
 
 - Handle 429 status code on reindex
