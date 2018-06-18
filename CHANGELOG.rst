@@ -1,4 +1,4 @@
-3.0.25 (unreleased)
+3.0.25 (2018-06-18)
 -------------------
 
 - Do not reprocess if tid is not present in data
