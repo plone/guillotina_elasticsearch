@@ -369,7 +369,7 @@ class Vacuum:
                 if oid not in es_batch:
                     self.missing.add(oid)
                     await self.process_missing(oid)
-                elif tid > es_batch[oid]['tid']:
+                elif tid > es_batch[oid]['tid'] and es_batch[oid]['tid'] != -1:
                     self.out_of_date.add(oid)
                     await self.process_missing(oid, index_type='out of date')
                 elif record['parent_id'] != es_batch[oid]['parent_uuid']:

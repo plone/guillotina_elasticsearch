@@ -1,6 +1,9 @@
 3.0.25 (unreleased)
 -------------------
 
+- Do not reprocess if tid is not present in data
+  [vangheem]
+
 - retry conflict errors and thread pool exceeded errors
   [vangheem]
 
