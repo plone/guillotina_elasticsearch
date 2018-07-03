@@ -1,4 +1,4 @@
-1.3.29 (unreleased)
+1.3.29 (2018-07-03)
 -------------------
 
 - Don't fail on CREATE_INDEX
