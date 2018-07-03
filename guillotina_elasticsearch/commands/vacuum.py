@@ -223,8 +223,12 @@ class Vacuum:
         # WHY this way?
         #   - uses less memory rather than getting all keys in both.
         #   - this way should allow us handle VERY large datasets
-        conn = await self.txn.get_connection()
-        await conn.execute(CREATE_INDEX)
+
+        try:
+            conn = await self.txn.get_connection()
+            await conn.execute(CREATE_INDEX)
+        except:
+            pass
 
         self.index_name = await self.utility.get_index_name(self.container)
         self.migrator.work_index_name = self.index_name
