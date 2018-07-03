@@ -227,7 +227,7 @@ class Vacuum:
         try:
             conn = await self.txn.get_connection()
             await conn.execute(CREATE_INDEX)
-        except:
+        except Exception:
             pass
 
         self.index_name = await self.utility.get_index_name(self.container)
