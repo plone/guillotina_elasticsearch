@@ -1,4 +1,4 @@
-1.3.29
+1.3.29 (unreleased)
 -------------------
 
 - Don't fail on CREATE_INDEX
