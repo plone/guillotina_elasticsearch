@@ -252,8 +252,11 @@ class Vacuum:
         #   - uses less memory rather than getting all keys in both.
         #   - this way should allow us handle VERY large datasets
 
-        conn = await self.txn.get_connection()
-        await conn.execute(CREATE_INDEX)
+        try:
+            conn = await self.txn.get_connection()
+            await conn.execute(CREATE_INDEX)
+        except Exception:
+            pass
 
         self.index_name = await self.index_manager.get_index_name()
         self.sub_indexes = await get_content_sub_indexes(self.container)

@@ -1,7 +1,7 @@
 3.0.26 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Don't fail on CREATE_INDEX
 
 
 3.0.25 (2018-06-18)
