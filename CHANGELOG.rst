@@ -1,4 +1,4 @@
-1.3.30 (unreleased)
+1.3.30 (2018-07-16)
 -------------------
 
 - Be able to disable using tid query
