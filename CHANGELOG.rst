@@ -1,7 +1,8 @@
 1.3.30 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Be able to disable using tid query
+  [vangheem]
 
 
 1.3.29 (2018-07-03)

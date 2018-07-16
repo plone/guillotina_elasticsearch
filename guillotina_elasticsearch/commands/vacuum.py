@@ -60,7 +60,8 @@ objects_tid_zoid ON objects (tid ASC, zoid ASC);'''
 
 class Vacuum:
 
-    def __init__(self, txn, tm, request, container, last_tid=-2, index_scroll='15m', hits_scroll='5m'):
+    def __init__(self, txn, tm, request, container, last_tid=-2,
+                 index_scroll='15m', hits_scroll='5m', use_tid_query=True):
         self.txn = txn
         self.tm = tm
         self.request = request
@@ -72,7 +73,7 @@ class Vacuum:
             self.utility, self.container, full=True, bulk_size=10)
         self.cache = LRU(200)
         self.last_tid = last_tid
-        self.use_tid_query = True
+        self.use_tid_query = use_tid_query
         self.last_zoid = None
         # for state tracking so we get boundries right
         self.last_result_set = []
@@ -276,11 +277,13 @@ class Vacuum:
             'account': self.container.id
         })
         conn = await self.txn.get_connection()
-        containers = await conn.fetch(
-            'select zoid from objects where parent_id = $1', ROOT_ID)
-        if len(containers) > 1:
-            # more than 1 container, we can't optimize by querying by tids
-            self.use_tid_query = False
+        if self.use_tid_query:
+            # if it's enabled, check to see if we can
+            containers = await conn.fetch(
+                'select zoid from objects where parent_id = $1', ROOT_ID)
+            if len(containers) > 1:
+                # more than 1 container, we can't optimize by querying by tids
+                self.use_tid_query = False
 
         checked = 0
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
@@ -332,6 +335,8 @@ class VacuumCommand(Command):
         parser = super(VacuumCommand, self).get_parser()
         parser.add_argument(
             '--continuous', help='Continuously vacuum', action='store_true')
+        parser.add_argument(
+            '--disable-tid-query', help='Disable tid query', action='store_true')
         parser.add_argument('--sleep', help='Time in seconds to sleep',
                             default=10 * 60, type=int)
         return parser
@@ -362,6 +367,8 @@ class VacuumCommand(Command):
                             'index_scroll': arguments.scroll,
                             'hits_scroll': arguments.scroll
                         })
+                    if arguments.disable_tid_query:
+                        kwargs['use_tid_query'] = False
 
                     vacuum = self.vacuum_klass(
                         txn, tm, self.request, container, **kwargs)
