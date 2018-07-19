@@ -1,6 +1,9 @@
 3.0.26 (unreleased)
 -------------------
 
+- The guillotina.async import is a syntax error on python 3.7
+  [vangheem]
+
 - Don't fail on CREATE_INDEX
 
 

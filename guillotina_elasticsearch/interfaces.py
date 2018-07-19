@@ -1,11 +1,6 @@
+from guillotina.async_util import IAsyncUtility
 from guillotina.interfaces import ICatalogUtility
 from zope.interface import Interface
-
-
-try:
-    from guillotina.async_util import IAsyncUtility
-except ImportError:
-    from guillotina.async import IAsyncUtility
 
 
 DOC_TYPE = 'doc'
