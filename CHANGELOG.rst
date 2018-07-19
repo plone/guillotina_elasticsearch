@@ -1,4 +1,4 @@
-3.0.26 (unreleased)
+3.0.26 (2018-07-19)
 -------------------
 
 - The guillotina.async import is a syntax error on python 3.7
