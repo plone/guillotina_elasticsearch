@@ -1,7 +1,8 @@
 1.3.31 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix tid check in vacuum
+  [vangheem]
 
 
 1.3.30 (2018-07-16)

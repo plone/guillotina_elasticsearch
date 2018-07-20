@@ -157,7 +157,7 @@ class Vacuum:
                             self.last_zoid = record['zoid']
                         yield records
                         clear_conn_statement_cache(conn)
-                        records = await conn.fetch(
+                        results = await conn.fetch(
                             GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
                     self.last_tid = self.last_tid + 1
                 queried_tid = self.last_tid
