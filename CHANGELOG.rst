@@ -1,4 +1,4 @@
-1.3.31 (unreleased)
+1.3.31 (2018-07-20)
 -------------------
 
 - Fix tid check in vacuum
