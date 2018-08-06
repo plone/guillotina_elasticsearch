@@ -9,9 +9,12 @@ from guillotina_elasticsearch.migration import Migrator
 from lru import LRU  # pylint: disable=E0611
 
 import aioes
+import aiotask_context
 import asyncio
+import backoff
 import json
 import logging
+import timeit
 
 try:
     from guillotina.utils import clear_conn_statement_cache
@@ -19,11 +22,16 @@ except ImportError:
     def clear_conn_statement_cache(conn):
         pass
 
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    level=logging.DEBUG,
+    datefmt='%Y-%m-%d %H:%M:%S')
+
 logger = logging.getLogger('guillotina_elasticsearch_vacuum')
 
 SELECT_BY_KEYS = '''SELECT zoid from objects where zoid = ANY($1)'''
 BATCHED_GET_CHILDREN_BY_PARENT = """
-SELECT zoid, parent_id
+SELECT zoid, tid, parent_id
 FROM objects
 WHERE of is NULL AND parent_id = ANY($1)
 ORDER BY parent_id
@@ -34,7 +42,7 @@ OFFSET $3::int
 PAGE_SIZE = 1000
 
 GET_OBS_BY_TID = f"""
-SELECT zoid, tid, parent_id
+SELECT zoid, tid, otid, parent_id
 FROM objects
 WHERE
     of is NULL AND
@@ -44,7 +52,7 @@ LIMIT {PAGE_SIZE}
 """
 
 GET_ALL_FOR_TID = f"""
-SELECT zoid, parent_id, tid
+SELECT zoid, parent_id, tid, otid
 FROM objects
 WHERE
     of is NULL AND
@@ -66,13 +74,15 @@ class Vacuum:
         self.tm = tm
         self.request = request
         self.container = container
-        self.orphaned = []
-        self.missing = []
+        self.orphaned = set()
+        self.missing = set()
+        self.out_of_date = set()
         self.utility = getUtility(ICatalogUtility)
         self.migrator = Migrator(
             self.utility, self.container, full=True, bulk_size=10)
         self.cache = LRU(200)
         self.last_tid = last_tid
+        print(f'Last TID: {self.last_tid}')
         self.use_tid_query = use_tid_query
         self.last_zoid = None
         # for state tracking so we get boundries right
@@ -114,23 +124,37 @@ class Vacuum:
                 BATCHED_GET_CHILDREN_BY_PARENT, oids,
                 page_size, (page - 1) * page_size)
 
+    def backoff_hdlr(details):
+        logger.debug("Backing off {wait:0.1f} seconds afters {tries} tries "
+               "calling function {target} with args {args} and kwargs "
+               "{kwargs}".format(**details))
+
+    @backoff.on_exception(backoff.expo, exception=Exception, on_backoff=backoff_hdlr, max_time=10*60 )
     async def get_page_from_tid(self):
         conn = await self.txn.get_connection()
         clear_conn_statement_cache(conn)
         records = []
         queried_tid = self.last_tid
         async with self.txn._lock:
+            start = timeit.default_timer()
+
             results = await conn.fetch(GET_OBS_BY_TID, queried_tid)
+            stop = timeit.default_timer()
+            duration = stop - start
+            logger.warning(f"----Duration to fetch Objects by TID {duration:.2f}s")
+
             for record in results:
                 if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
                     continue
                 records.append(record)
                 self.last_tid = record['tid']
                 self.last_zoid = record['zoid']
+
         if len(records) == 0:
             if len(self.last_result_set) > 0:
                 # now we have zero, increment, but only once
                 self.last_tid = self.last_tid + 1
+                print(f'Incremented last tid by one')
         self.last_result_set = records
         return records
 
@@ -138,30 +162,45 @@ class Vacuum:
         if self.use_tid_query:
             queried_tid = self.last_tid
             records = await self.get_page_from_tid()
-            while len(records) > 0:
-                yield records
-                if self.last_tid == queried_tid:
-                    conn = await self.txn.get_connection()
-                    logger.warning(f'Getting all keys from tid {self.last_tid}')
-                    # we're stuck on same tid, get all for this tid
-                    # and then move on...
-                    clear_conn_statement_cache(conn)
-                    results = await conn.fetch(
-                        GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
-                    while len(results) > 0:
-                        records = []
-                        for record in results:
-                            if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
-                                continue
-                            records.append(record)
-                            self.last_zoid = record['zoid']
-                        yield records
+            while len(records) > 0 or retry:
+                try:
+                    yield records
+                    retry=False
+
+                    if self.last_tid == queried_tid:
+                        conn = await self.txn.get_connection()
+                        logger.warning(f'Getting all keys for tid {self.last_tid}')
+                        # we're stuck on same tid, get all for this tid
+                        # and then move on...
                         clear_conn_statement_cache(conn)
+                        start = timeit.default_timer()
                         results = await conn.fetch(
                             GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
-                    self.last_tid = self.last_tid + 1
-                queried_tid = self.last_tid
-                records = await self.get_page_from_tid()
+                        stop = timeit.default_timer()
+                        duration = stop - start
+                        logger.warning(f" Got all for TID in {duration:.2f}s")
+                        while len(results) > 0:
+                            records = []
+                            for record in results:
+                                if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
+                                    continue
+                                records.append(record)
+                                self.last_zoid = record['zoid']
+                            yield records
+                            clear_conn_statement_cache(conn)
+                            start = timeit.default_timer()
+                            results = await conn.fetch(
+                                GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
+                            stop = timeit.default_timer()
+                            duration = stop - start
+                            logger.warning(f"More results - Got all for TID in {duration:.2f}s")
+                        self.last_tid = self.last_tid + 1
+
+                    queried_tid = self.last_tid
+                    records = await self.get_page_from_tid()
+                except Exception:
+                    logger.error('Could not get keys for tid, retrying...', exc_info=True)
+                    retry=True
 
         else:
             page_num = 1
@@ -196,9 +235,9 @@ class Vacuum:
             obj.__parent__ = await self.get_object(result['parent_id'])
         return obj
 
-    async def process_missing(self, oid, folder=False):
+    async def process_missing(self, oid, folder=False, index_type='missing'):
         # need to fill in parents in order for indexing to work...
-        logger.warning(f'Index missing {oid}')
+        logger.warning(f'Index {index_type} {oid}')
         try:
             obj = await self.get_object(oid)
         except KeyError:
@@ -254,21 +293,32 @@ class Vacuum:
             if orphaned:
                 # these are keys that are in ES but not in DB so we should
                 # remove them..
-                self.orphaned.extend(orphaned)
+                self.orphaned |= set(orphaned)
                 logger.warning(f'deleting orphaned {len(orphaned)}')
                 conn_es = await self.utility.conn.transport.get_connection()
                 # delete by query for orphaned keys...
-                await conn_es._session.post(
-                    '{}{}/_delete_by_query'.format(
-                        conn_es._base_url.human_repr(),
-                        self.index_name),
-                    data=json.dumps({
-                        'query': {
-                            'terms': {
-                                'uuid': orphaned
+                async with conn_es._session.post(
+                        '{}{}/_delete_by_query'.format(
+                            conn_es._base_url.human_repr(),
+                            self.index_name),
+                        data=json.dumps({
+                            'query': {
+                                'terms': {
+                                    '_id': orphaned
+                                }
                             }
-                        }
-                    }))
+                        })) as resp:
+
+                    try:
+                        data = await resp.json()
+                        if data['deleted'] != len(orphaned):
+                            logger.warning(
+                                f'Was only able to clean up {len(data["deleted"])} '
+                                f'instead of {len(orphaned)}')
+                    except Exception:
+                        logger.warning(
+                            'Could not parse delete by query response. '
+                            'Vacuuming might not be working')
 
     async def check_missing(self):
         status = (f'Checking missing on container {self.container.id}, '
@@ -287,40 +337,58 @@ class Vacuum:
 
         checked = 0
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
-            oids = [r['zoid'] for r in batch]
-            results = await self.utility.conn.search(
-                self.index_name, body={
-                    'query': {
-                        'terms': {
-                            'uuid': oids
+            success=False
+            while(not success):
+                try:
+                    oids = [r['zoid'] for r in batch]
+
+                    logger.debug(f'Got PG batch of {len(batch)}...Checking ES')
+                    results = await self.utility.conn.search(
+                        self.index_name, body={
+                            'query': {
+                                'terms': {
+                                    'uuid': oids
+                                }
+                            }
+                        },
+                        _source=True,
+                        size=PAGE_SIZE)
+
+                    es_batch = {}
+                    for result in results['hits']['hits']:
+                        oid = result['_id']
+                        tid = result['_source'].get('tid') or -1
+                        es_batch[oid] = {
+                            'tid': tid,
+                            'parent_uuid': result.get('parent_uuid', ['_missing_'])[0]
                         }
-                    }
-                },
-                _source=True,
-                size=PAGE_SIZE)
 
-            es_batch = {}
-            for result in results['hits']['hits']:
-                oid = result['_id']
-                es_batch[oid] = {
-                    'parent_uuid': result['_source'].get('parent_uuid') or '_missing_'
-                }
+                    logger.debug(f'{len(results["hits"]["hits"])} elasticsearch records')
 
-            for record in batch:
-                oid = record['zoid']
-                if oid == self.container._p_oid:
-                    continue
-                if oid not in es_batch:
-                    self.missing.append(oid)
-                    await self.process_missing(oid)
-                elif record['parent_id'] != es_batch[oid]['parent_uuid']:
-                    self.missing.append(oid)
-                    await self.process_missing(oid, folder=True)
+                    for record in batch:
+                        oid = record['zoid']
+                        otid = record['otid'] or 0
+                        if oid == self.container._p_oid:
+                            continue
+                        if oid not in es_batch:
+                            self.missing.add(oid)
+                            await self.process_missing(oid)
+                        elif otid > es_batch[oid]['tid'] and es_batch[oid]['tid'] != -1:
+                            self.out_of_date.add(oid)
+                            await self.process_missing(oid, index_type='out of date')
+                        elif record['parent_id'] != es_batch[oid]['parent_uuid'] \
+                                and es_batch[oid]['parent_uuid'] != '_missing_':
+                            self.missing.add(oid)
+                            await self.process_missing(oid, folder=True)
 
-            checked += len(batch)
-            logger.warning(
-                f'Checked missing: {checked}: {self.last_tid}, '
-                f'missing: {len(self.missing)}')
+                    checked += len(batch)
+                    logger.warning(
+                        f'Checked missing: {checked}: {self.last_tid}, '
+                        f'missing: {len(self.missing)}, out of date: {len(self.out_of_date)}')
+                    success=True
+                except Exception:
+                    logger.error('Could not process batch of db keys, retrying...', exc_info=True)
+
 
         await self.migrator.flush()
         await self.migrator.join_futures()
@@ -345,11 +413,13 @@ class VacuumCommand(Command):
         change_transaction_strategy('none')
         self.request._db_write_enabled = True
         self.request._message.headers['Host'] = 'localhost'
+
         await asyncio.gather(
             self.do_check(arguments, 'check_missing'),
             self.do_check(arguments, 'check_orphans'))
 
     async def do_check(self, arguments, check_name):
+        aiotask_context.set('request', self.request)
         first_run = True
         while arguments.continuous or first_run:
             if not first_run:
@@ -379,9 +449,10 @@ class VacuumCommand(Command):
                         self.state[container._p_oid] = {
                             'last_tid': vacuum.last_tid
                         }
-                    logger.warning(f'''Finished vacuuming with results:
+                    logger.warning(f'''Finished vacuuming ({check_name}) with results:
 Orphaned cleaned: {len(vacuum.orphaned)}
 Missing added: {len(vacuum.missing)}
+Out of date fixed: {len(vacuum.out_of_date)}
 ''')
                 except Exception:
                     logger.error('Error vacuuming', exc_info=True)

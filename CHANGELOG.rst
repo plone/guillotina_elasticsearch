@@ -1,7 +1,9 @@
-1.3.32 (unreleased)
+1.3.32 (2018-08-06)
 -------------------
 
-- Nothing changed yet.
+- Add backoffs/retries
+- Debugging statements
+- TID checking for out of date records
 
 
 1.3.31 (2018-07-20)
