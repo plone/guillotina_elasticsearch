@@ -30,10 +30,11 @@ class Reindexer(Migrator):
                 im = get_adapter(ob, IIndexManager)
                 reindexer = Reindexer(
                     self.utility, ob, response=self.response, force=self.force,
-                    log_details=self.log_details, memory_tracking=self.memory_tracking,
-                    request=self.request, bulk_size=self.bulk_size, full=self.full,
-                    reindex_security=self.reindex_security, mapping_only=self.mapping_only,
-                    index_manager=im)
+                    log_details=self.log_details,
+                    memory_tracking=self.memory_tracking,
+                    request=self.request, bulk_size=self.bulk_size,
+                    full=self.full, reindex_security=self.reindex_security,
+                    mapping_only=self.mapping_only, index_manager=im)
                 reindexer.processed = self.processed
                 reindexer.work_index_name = await im.get_index_name()
                 await reindexer.process_folder(ob)

@@ -131,7 +131,7 @@ class Migrator:
 
     def __init__(self, utility, context, response=noop_response, force=False,
                  log_details=False, memory_tracking=False, request=None,
-                 bulk_size=40, full=False, reindex_security=False, mapping_only=False,
+                 bulk_size=40, full=False, reindex_security=False, mapping_only=False,  # noqa
                  index_manager=None, children_only=False, lookup_index=False):
         self.utility = utility
         self.conn = utility.conn
@@ -146,7 +146,8 @@ class Migrator:
         self.children_only = children_only
         self.lookup_index = lookup_index
         if mapping_only and full:
-            raise Exception('Can not do a full reindex and a mapping only migration')
+            raise Exception(
+                'Can not do a full reindex and a mapping only migration')
         self.mapping_only = mapping_only
 
         if request is None:
@@ -187,7 +188,8 @@ class Migrator:
         return self.processed / (time.time() - self.index_start_time)
 
     async def create_next_index(self):
-        async with managed_transaction(self.request, write=True, adopt_parent_txn=True) as txn:
+        async with managed_transaction(
+                self.request, write=True, adopt_parent_txn=True) as txn:
             await txn.refresh(await self.index_manager.get_registry())
             next_index_name = await self.index_manager.start_migration()
         if await self.conn.indices.exists(next_index_name):
@@ -234,8 +236,9 @@ class Migrator:
                     if data['completed']:
                         break
                     status = data["task"]["status"]
-                    self.response.write(f'{status["created"]}/{status["total"]} - '
-                                        f'Copying data to new index. task id: {task_id}')
+                    self.response.write(
+                        f'{status["created"]}/{status["total"]} - '
+                        f'Copying data to new index. task id: {task_id}')
                     self.copied_docs = status["created"]
 
             self.active_task_id = None
@@ -244,9 +247,11 @@ class Migrator:
             if len(failures) > 0:
                 failures = json.dumps(failures, sort_keys=True, indent=4,
                                       separators=(',', ': '))
-                self.response.write(f'Reindex encountered failures: {failures}')
+                self.response.write(
+                    f'Reindex encountered failures: {failures}')
             else:
-                self.response.write(f'Finished copying to new index: {self.copied_docs}')
+                self.response.write(
+                    f'Finished copying to new index: {self.copied_docs}')
 
     async def get_all_uids(self):
         self.response.write('Retrieving existing doc ids')
@@ -274,7 +279,8 @@ class Migrator:
             ids.extend([r['_id'] for r in result['hits']['hits']])
             self.response.write(f'Retrieved {len(ids)} doc ids')
             scroll_id = result['_scroll_id']
-        self.response.write(f'Retrieved {len(ids)}. Copied {self.copied_docs} docs')
+        self.response.write(
+            f'Retrieved {len(ids)}. Copied {self.copied_docs} docs')
         return ids
 
     async def calculate_mapping_diff(self):
@@ -282,13 +288,15 @@ class Migrator:
         all we care about is new fields...
         Missing ones are ignored and we don't care about it.
         '''
-        next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
+        next_mappings = await self.conn.indices.get_mapping(
+            self.work_index_name)
         next_mappings = next_mappings[self.work_index_name]['mappings']
         next_mappings = next_mappings[DOC_TYPE]['properties']
 
         existing_index_name = await self.index_manager.get_real_index_name()
         try:
-            existing_mappings = await self.conn.indices.get_mapping(existing_index_name)
+            existing_mappings = await self.conn.indices.get_mapping(
+                existing_index_name)
         except elasticsearch.exceptions.NotFoundError:
             # allows us to upgrade when no index is present yet
             return next_mappings
@@ -300,7 +308,7 @@ class Migrator:
         for field_name, definition in next_mappings.items():
             definition = _clean_mapping(definition)
             if (field_name not in existing_mappings or
-                    definition != _clean_mapping(existing_mappings[field_name])):
+                    definition != _clean_mapping(existing_mappings[field_name])):  # noqa
                 new_definitions[field_name] = definition
         return new_definitions
 
@@ -390,9 +398,10 @@ class Migrator:
                 self.batch[ob.uuid]['__index__'] = await im.get_index_name()
 
         if self.log_details:
-            self.response.write(f'({self.processed} {int(self.per_sec())}) '
-                                f'Object: {get_content_path(ob)}, '
-                                f'Type: {batch_type}, Buffer: {len(self.batch)}')
+            self.response.write(
+                f'({self.processed} {int(self.per_sec())}) '
+                f'Object: {get_content_path(ob)}, '
+                f'Type: {batch_type}, Buffer: {len(self.batch)}')
 
         await self.attempt_flush()
 
@@ -404,11 +413,11 @@ class Migrator:
             gc.collect()
             if self.memory_tracking:
                 total_memory = round(
-                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)
+                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)  # noqa
                 self.response.write(
-                    b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (
+                    b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (  # noqa
                         total_memory, num, len(gc.get_objects())))
-            self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (
+            self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (  # noqa
                 self.indexed, int(self.per_sec()),
             ))
         if len(self.batch) >= self.bulk_size:
@@ -426,7 +435,8 @@ class Migrator:
 
     @backoff.on_exception(
         backoff.constant,
-        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
+        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout),
+        interval=1, max_tries=5)
     async def _index_batch(self, batch):
         bulk_data = []
         for _id, payload in batch.items():
@@ -455,12 +465,17 @@ class Migrator:
                         continue
                     if 'status' in value and value['status'] != 200:
                         _id = value.get('_id')
-                        errors.append(f'{_id}: {value["status"]}')
 
                         # retry conflict errors and thread pool exceeded errors
                         if value['status'] in (409, 429):
                             self.batch[_id] = batch[_id]
-            logger.warning(f'Error bulk putting: {results}')
+                        elif value['status'] == 404:
+                            self.batch[_id] = batch[_id]
+                            self.batch[_id]['action'] = 'index'
+                        else:
+                            errors.append(f'{_id}: {value["status"]}')
+            if len(errors) > 0:
+                logger.warning(f'Error bulk putting: {errors}')
 
     async def flush(self):
         if len(self.batch) == 0:
@@ -498,8 +513,8 @@ class Migrator:
                     # it was deleted in the meantime so we're actually okay
                     self.orphaned.append(uuid)
             else:
-                # XXX this should not happen so log it. Maybe we'll try doing something
-                # about it another time...
+                # XXX this should not happen so log it. Maybe we'll try
+                # doing something about it another time...
                 self.errors.append({
                     'type': 'unprocessed',
                     'uuid': uuid
@@ -507,14 +522,16 @@ class Migrator:
 
     async def setup_next_index(self):
         self.response.write(b'Creating new index')
-        async with get_migration_lock(await self.index_manager.get_index_name()):
+        async with get_migration_lock(
+                await self.index_manager.get_index_name()):
             self.work_index_name = await self.create_next_index()
             return self.work_index_name
 
     async def cancel_migration(self):
         # canceling the migration, clearing index
         self.response.write('Canceling migration')
-        async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+        async with managed_transaction(
+                self.request, write=True, adopt_parent_txn=True):
             await self.index_manager.cancel_migration()
             self.response.write('Next index disabled')
         if self.active_task_id is not None:
@@ -544,7 +561,8 @@ class Migrator:
         self.response.write(f'Caculated mapping diff: {diff}')
 
         if not self.full:
-            # if full, we're reindexing everything does not matter what anyways, so skip
+            # if full, we're reindexing everything does not matter what
+            # anyways, so skip
             self.response.write(f'Copying initial index {existing_index} '
                                 f'into {self.work_index_name}')
             try:
@@ -569,9 +587,11 @@ class Migrator:
             await self.flush()
             await self.join_futures()
 
-        async with get_migration_lock(await self.index_manager.get_index_name()):
+        async with get_migration_lock(
+                await self.index_manager.get_index_name()):
             self.response.write('Activating new index')
-            async with managed_transaction(self.request, write=True, adopt_parent_txn=True):
+            async with managed_transaction(
+                    self.request, write=True, adopt_parent_txn=True):
                 await self.index_manager.finish_migration()
             self.status = 'done'
 
@@ -610,14 +630,17 @@ class Migrator:
             pass
 
         if len(self.sub_indexes) > 0:
-            self.response.write(f'Migrating sub indexes: {len(self.sub_indexes)}')
+            self.response.write(
+                f'Migrating sub indexes: {len(self.sub_indexes)}')
             for ob in self.sub_indexes:
                 im = get_adapter(ob, IIndexManager)
                 migrator = Migrator(
                     self.utility, ob, response=self.response, force=self.force,
-                    log_details=self.log_details, memory_tracking=self.memory_tracking,
-                    request=self.request, bulk_size=self.bulk_size, full=self.full,
-                    reindex_security=self.reindex_security, mapping_only=self.mapping_only,
+                    log_details=self.log_details,
+                    memory_tracking=self.memory_tracking, request=self.request,
+                    bulk_size=self.bulk_size, full=self.full,
+                    reindex_security=self.reindex_security,
+                    mapping_only=self.mapping_only,
                     index_manager=im, children_only=True)
                 self.response.write(f'Migrating index for: {ob}')
                 await migrator.run_migration()

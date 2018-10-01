@@ -149,7 +149,8 @@ class Vacuum:
         async with self.txn._lock:
             results = await conn.fetch(GET_OBS_BY_TID, queried_tid)
             for record in results:
-                if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
+                if record['zoid'] in (ROOT_ID, TRASHED_ID,
+                                      self.container._p_oid):
                     continue
                 records.append(record)
                 self.last_tid = record['tid']
@@ -169,7 +170,8 @@ class Vacuum:
                 yield records
                 if self.last_tid == queried_tid:
                     conn = await self.txn.get_connection()
-                    logger.warning(f'Getting all keys from tid {self.last_tid}')
+                    logger.warning(
+                        f'Getting all keys from tid {self.last_tid}')
                     # we're stuck on same tid, get all for this tid
                     # and then move on...
                     clear_conn_statement_cache(conn)
@@ -178,7 +180,8 @@ class Vacuum:
                     while len(results) > 0:
                         records = []
                         for record in results:
-                            if record['zoid'] in (ROOT_ID, TRASHED_ID, self.container._p_oid):
+                            if record['zoid'] in (ROOT_ID, TRASHED_ID,
+                                                  self.container._p_oid):
                                 continue
                             records.append(record)
                             self.last_zoid = record['zoid']
@@ -208,7 +211,7 @@ class Vacuum:
         try:
             result = self.txn._manager._hard_cache.get(oid, None)
         except AttributeError:
-            from guillotina.db.transaction import HARD_CACHE  # pylint: disable=E0611
+            from guillotina.db.transaction import HARD_CACHE  # noqa
             result = HARD_CACHE.get(oid, None)
         if result is None:
             clear_conn_statement_cache(await self.txn.get_connection())
@@ -263,7 +266,7 @@ class Vacuum:
         self.migrator.work_index_name = self.index_name
 
     async def check_orphans(self):
-        logger.warning(f'Checking orphans on container {self.container.id}', extra={
+        logger.warning(f'Checking orphans on container {self.container.id}', extra={  # noqa
             'account': self.container.id
         })
         conn = await self.txn.get_connection()
@@ -303,7 +306,7 @@ class Vacuum:
                         data = await resp.json()
                         if data['deleted'] != len(orphaned):
                             logger.warning(
-                                f'Was only able to clean up {len(data["deleted"])} '
+                                f'Was only able to clean up {len(data["deleted"])} '  # noqa
                                 f'instead of {len(orphaned)}')
                     except Exception:
                         logger.warning(
@@ -361,7 +364,8 @@ class Vacuum:
                 tid = result.get('fields', {}).get('tid') or [-1]
                 es_batch[oid] = {
                     'tid': int(tid[0]),
-                    'parent_uuid': result.get('fields', {}).get('parent_uuid', ['_missing_'])[0]
+                    'parent_uuid': result.get('fields', {}).get(
+                        'parent_uuid', ['_missing_'])[0]
                 }
 
             for record in batch:
@@ -382,7 +386,7 @@ class Vacuum:
             checked += len(batch)
             logger.warning(
                 f'Checked missing: {checked}: {self.last_tid}, '
-                f'missing: {len(self.missing)}, out of date: {len(self.out_of_date)}')
+                f'missing: {len(self.missing)}, out of date: {len(self.out_of_date)}')  # noqa
 
         await self.migrator.flush()
         await self.migrator.join_futures()

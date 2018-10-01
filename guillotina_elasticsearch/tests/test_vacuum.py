@@ -73,7 +73,7 @@ async def test_updates_out_of_data_es_entries(es_requester):
         await search.update_by_query({
             'script': {
                 'lang': 'painless',
-                'inline': "ctx._source.remove('tid')"
+                'inline': "ctx._source.tid = 0"
             }
         }, indexes=[index_name])
 
@@ -135,7 +135,8 @@ async def test_removes_orphaned_es_entry(es_requester):
 @pytest.mark.flaky(reruns=5)
 async def test_vacuum_with_sub_indexes(es_requester):
     async with es_requester as requester:
-        await add_content(requester, num_folders=2, num_items=5, path='/db/guillotina/')
+        await add_content(
+            requester, num_folders=2, num_items=5, path='/db/guillotina/')
 
         cresp, _ = await requester(
             'POST',
@@ -146,10 +147,11 @@ async def test_vacuum_with_sub_indexes(es_requester):
                 'id': 'foobar'
             })
         )
-        await add_content(requester, num_folders=2, num_items=5, path='/db/guillotina/foobar')
+        await add_content(
+            requester, num_folders=2, num_items=5, path='/db/guillotina/foobar')  # noqa
 
         search = get_utility(ICatalogUtility)
-        content_index_name = 'guillotina-db-guillotina__uniqueindexcontent-{}'.format(
+        content_index_name = 'guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
             get_short_oid(cresp['@uid'])
         )
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -157,7 +159,7 @@ async def test_vacuum_with_sub_indexes(es_requester):
 
         async def _test():
             assert await search.get_doc_count(container) == 13
-            assert await search.get_doc_count(index_name=content_index_name) == 12
+            assert await search.get_doc_count(index_name=content_index_name) == 12  # noqa
 
         await run_with_retries(_test, requester)
 
@@ -192,7 +194,7 @@ async def test_vacuum_with_sub_indexes(es_requester):
 
         async def __test():
             assert await search.get_doc_count(container) == 2
-            assert await search.get_doc_count(index_name=content_index_name) == 1
+            assert await search.get_doc_count(index_name=content_index_name) == 1  # noqa
 
         await run_with_retries(__test, requester)
 
@@ -207,7 +209,7 @@ async def test_vacuum_with_sub_indexes(es_requester):
 
         async def ___test():
             assert await search.get_doc_count(container) == 13
-            assert await search.get_doc_count(index_name=content_index_name) == 12
+            assert await search.get_doc_count(index_name=content_index_name) == 12  # noqa
 
         await run_with_retries(___test, requester)
 
@@ -286,12 +288,15 @@ async def test_reindexes_moved_content(es_requester):
 
         async def _test():
             result = await search.conn.get(
-                index=index_name, doc_type='_all', id=resp3['@uid'], stored_fields='path')
+                index=index_name, doc_type='_all',
+                id=resp3['@uid'], stored_fields='path')
             assert result['fields']['path'] == ["/moved-foobar/foobar/foobar"]
             result = await search.conn.get(
-                index=index_name, doc_type='_all', id=resp1['@uid'], stored_fields='path,parent_uuid')
+                index=index_name, doc_type='_all',
+                id=resp1['@uid'], stored_fields='path,parent_uuid')
             assert result['fields']['path'] == ["/moved-foobar"]
-            assert result['fields']['parent_uuid'] == ["FOOOBBAR MOVED TO NEW PARENT"]
+            assert result['fields']['parent_uuid'] == [
+                "FOOOBBAR MOVED TO NEW PARENT"]
 
         await run_with_retries(_test, requester)
 
@@ -308,12 +313,14 @@ async def test_reindexes_moved_content(es_requester):
 
         async def __test():
             result = await search.conn.get(
-                index=index_name, doc_type='_all', id=resp3['@uid'], stored_fields='path,parent_uuid')
+                index=index_name, doc_type='_all',
+                id=resp3['@uid'], stored_fields='path,parent_uuid')
             assert result['fields']['path'] == ["/foobar/foobar/foobar"]
             result = await search.conn.get(
-                index=index_name, doc_type='_all', id=resp1['@uid'], stored_fields='path,parent_uuid')
+                index=index_name, doc_type='_all',
+                id=resp1['@uid'], stored_fields='path,parent_uuid')
             assert result['fields']['path'] == ["/foobar"]
-            assert result['fields']['parent_uuid'] != "FOOOBBAR MOVED TO NEW PARENT"
+            assert result['fields']['parent_uuid'] != "FOOOBBAR MOVED TO NEW PARENT"  # noqa
 
         await run_with_retries(__test, requester)
 

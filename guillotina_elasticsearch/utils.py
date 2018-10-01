@@ -18,6 +18,7 @@ import logging
 
 logger = logging.getLogger('guillotina_elasticsearch')
 
+
 class NoopResponse:
     def write(self, *args, **kwargs):
         pass
@@ -152,7 +153,7 @@ def _is_multi_valued(check_field_name):
                     index_name = catalog_info.get('index_name', field_name)
                     try:
                         field = schema[field_name]
-                        _stored_multi_valued[index_name] = ICollection.providedBy(field)
+                        _stored_multi_valued[index_name] = ICollection.providedBy(field)  # noqa
                     except KeyError:
                         _stored_multi_valued[index_name] = False
 

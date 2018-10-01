@@ -26,9 +26,11 @@ class MigrateCommand(Command):
 
     def get_parser(self):
         parser = super(MigrateCommand, self).get_parser()
-        parser.add_argument('--full', help='Do a full reindex', action='store_true')
-        parser.add_argument('--force', help='Override failing migration if existing '
-                                            'migration index exists',
+        parser.add_argument('--full', help='Do a full reindex',
+                            action='store_true')
+        parser.add_argument('--force',
+                            help='Override failing migration if existing '
+                                 'migration index exists',
                             action='store_true')
         parser.add_argument('--log-details', action='store_true')
         parser.add_argument('--memory-tracking', action='store_true')

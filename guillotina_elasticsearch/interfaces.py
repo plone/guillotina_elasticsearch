@@ -43,7 +43,7 @@ class IIndexManager(Interface):
         Return name of current active migration index
         '''
 
-    async def start_migration(force : bool = False) -> None:
+    async def start_migration(force: bool = False) -> None:
         '''
         Specify that we're starting a migration,
         get next index name

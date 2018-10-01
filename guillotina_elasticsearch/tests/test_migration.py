@@ -38,16 +38,20 @@ async def _test_migrate_while_content_getting_added(es_requester):
         assert add_count == await search.get_doc_count(container)
 
         migrator = Migrator(search, container, force=True)
-        add_content_task1 = asyncio.ensure_future(add_content(requester, base_id='foo1-'))
-        add_content_task2 = asyncio.ensure_future(add_content(requester, base_id='foo2-'))
+        add_content_task1 = asyncio.ensure_future(
+            add_content(requester, base_id='foo1-'))
+        add_content_task2 = asyncio.ensure_future(
+            add_content(requester, base_id='foo2-'))
         reindex_task = asyncio.ensure_future(migrator.run_migration())
 
-        await asyncio.wait([add_content_task1, reindex_task, add_content_task2])
+        await asyncio.wait(
+            [add_content_task1, reindex_task, add_content_task2])
         await search.refresh(container)
         await asyncio.sleep(3)
 
         idx_count = await search.get_doc_count(container)
-        # +1 here because container ob now indexed and it isn't by default in tests
+        # +1 here because container ob now indexed and it isn't
+        # by default in tests
         assert (add_count * 3) + 1 == idx_count
 
         await tm.abort(txn=txn)
@@ -85,7 +89,8 @@ async def test_removes_orphans(es_requester):
                 'type_name': 'Item'
             }
         })
-        # foobar here is an orphaned object because it doesn't reference an object
+        # foobar here is an orphaned object because it doesn't reference
+        # an object
 
         im = get_adapter(container, IIndexManager)
         index_name = await im.get_index_name()  # alias
@@ -133,6 +138,7 @@ async def test_fixes_missing(es_requester):
         old_index_name = await im.get_real_index_name()
 
         responses = []
+
         class Writer:
             def write(self, item):
                 responses.append(item)
@@ -147,7 +153,8 @@ async def test_fixes_missing(es_requester):
         await search.refresh(container)
         await asyncio.sleep(1)
         # new index should fix missing one, old index still has it missing
-        num_docs = await search.get_doc_count(container, migrator.work_index_name)
+        num_docs = await search.get_doc_count(
+            container, migrator.work_index_name)
         assert num_docs == original_count
         assert old_index_name != await im.get_real_index_name()
 
@@ -186,7 +193,7 @@ async def test_updates_index_data(es_requester):
         assert [v for v in migrator.batch.values()][0]['action'] == 'update'
 
         assert len([v for v in migrator.batch.values()][0]['data']) == 2
-        assert [v for v in migrator.batch.values()][0]['data']['title'] == 'foobar-new'
+        assert [v for v in migrator.batch.values()][0]['data']['title'] == 'foobar-new'  # noqa
 
         await migrator.flush()
         assert len(migrator.batch) == 0
@@ -301,13 +308,15 @@ def event_handler():
     return FakeEventHandler()
 
 
-async def test_migrator_emit_events_during_indexing(es_requester, event_handler):
+async def test_migrator_emit_events_during_indexing(
+        es_requester, event_handler):
     async with es_requester as requester:
-        container, req, txn, tm = await setup_txn_on_container(requester)  # pylint: disable=W0612
+        container, req, txn, tm = await setup_txn_on_container(requester)  # noqa
         search = get_utility(ICatalogUtility)
 
         _marker = {}
-        gr.base.adapters.subscribe([IIndexProgress], None, event_handler.subscribe)
+        gr.base.adapters.subscribe(
+            [IIndexProgress], None, event_handler.subscribe)
         migrator = Reindexer(
             search, _marker, force=True, request=req, reindex_security=True
         )
@@ -317,7 +326,7 @@ async def test_migrator_emit_events_during_indexing(es_requester, event_handler)
         migrator.processed = 1
         migrator.missing = {'xx': 1}
         await migrator.attempt_flush()
-        assert event_handler.called == True
+        assert event_handler.called is True
         assert isinstance(event_handler.event[0], IndexProgress)
         assert event_handler.event[0].context == _marker
 
@@ -337,18 +346,19 @@ async def test_migrator_emmits_events_on_end(es_requester, event_handler):
         container, req, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
 
-        gr.base.adapters.subscribe([IIndexProgress], None, event_handler.subscribe)
+        gr.base.adapters.subscribe(
+            [IIndexProgress], None, event_handler.subscribe)
         migrator = Reindexer(
             search, container, force=True, request=req, reindex_security=True
         )
 
         ob = await container.async_get('foobar')
         await migrator.reindex(ob)
-        assert event_handler.called == True
+        assert event_handler.called is True
         assert len(event_handler.event) == 2
-        assert event_handler.event[0].completed == None
+        assert event_handler.event[0].completed is None
         assert event_handler.event[0].processed == 0
-        assert event_handler.event[1].completed == True
+        assert event_handler.event[1].completed is True
         assert event_handler.event[0].context == container
 
 
@@ -377,7 +387,7 @@ async def test_search_works_on_new_docs_during_migration(es_requester):
         await run_with_retries(_test, requester)
 
 
-async def test_search_works_on_updated_docs_during_migration_when_missing(es_requester):
+async def test_search_works_on_updated_docs_during_migration_when_missing(es_requester):  # noqa
     '''
     - started migration
     - doc update
@@ -413,7 +423,7 @@ async def test_search_works_on_updated_docs_during_migration_when_missing(es_req
         await run_with_retries(_test, requester)
 
 
-async def test_search_works_on_updated_docs_during_migration_when_present(es_requester):
+async def test_search_works_on_updated_docs_during_migration_when_present(es_requester):  # noqa
     '''
     - started migration
     - doc update
@@ -503,9 +513,10 @@ async def test_migrate_content_index_works(es_requester):
         await search.refresh(container)
         await asyncio.sleep(3)
 
-        assert (add_count + 1) == await search.get_doc_count(container, 'guillotina-db-guillotina_1')
+        assert (add_count + 1) == await search.get_doc_count(
+            container, 'guillotina-db-guillotina_1')
         assert await search.get_doc_count(
-            container, '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
+            container, '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
                 get_short_oid(cresp['@uid'])
             )) == 1
 
@@ -513,7 +524,8 @@ async def test_migrate_content_index_works(es_requester):
         await migrator.run_migration()
 
         assert await search.conn.indices.exists('guillotina-db-guillotina_2')
-        assert not await search.conn.indices.exists('guillotina-db-guillotina_1')
+        assert not await search.conn.indices.exists(
+            'guillotina-db-guillotina_1')
         assert await search.conn.indices.exists(
             '2_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
                 get_short_oid(cresp['@uid'])
@@ -523,8 +535,9 @@ async def test_migrate_content_index_works(es_requester):
                 get_short_oid(cresp['@uid'])
             ))
 
-        assert (add_count + 1) == await search.get_doc_count(container, 'guillotina-db-guillotina_2')
+        assert (add_count + 1) == await search.get_doc_count(
+            container, 'guillotina-db-guillotina_2')
         assert await search.get_doc_count(
-            container, '2_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
+            container, '2_guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
                 get_short_oid(cresp['@uid'])
             )) == 1
