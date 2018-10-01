@@ -22,9 +22,10 @@ cache:
   directories:
     - eggs
 install:
+  - pip install flake8 codecov
   - pip install -e .[test]
 script:
+  - flake8 guillotina --config=setup.cfg
   - pytest -s --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
 after_success:
-  - pip install coveralls
-  - coveralls
+  - codecov
