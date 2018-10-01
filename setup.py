@@ -4,11 +4,11 @@ from setuptools import setup
 
 
 test_requires = [
-    'pytest<=3.1.0',
+    'pytest',
     'docker',
     'backoff',
     'psycopg2',
-    'pytest-asyncio<=0.8.0',
+    'pytest-asyncio<=0.5.0',
     'coverage>=4.0.3',
     'pytest-cov',
     'pytest-aiohttp',
