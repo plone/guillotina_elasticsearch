@@ -4,11 +4,12 @@ from setuptools import setup
 
 
 test_requires = [
-    'pytest',
+    'pytest<=3.1.0',
     'docker',
     'backoff',
     'psycopg2',
-    'pytest-asyncio<=0.5.0',
+    'pytest-asyncio<=0.8.0',
+    'coverage>=4.0.3',
     'pytest-cov',
     'pytest-aiohttp',
     'pytest-rerunfailures',
@@ -43,7 +44,7 @@ setup(
         'ujson',
         'lru-dict',
         'backoff',
-        'asyncpg==0.15.0'
+        'asyncpg'
     ],
     tests_require=test_requires,
     extras_require={
