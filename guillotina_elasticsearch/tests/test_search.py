@@ -1,9 +1,6 @@
-from guillotina.component import get_utility
-from guillotina.interfaces import ICatalogUtility
 from guillotina_elasticsearch.tests.utils import run_with_retries
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
-import asyncio
 import json
 
 
@@ -54,8 +51,7 @@ async def test_indexing_and_search(es_requester):
 
 async def test_removes_all_children(es_requester):
     async with es_requester as requester:
-        container, request, txn, tm = await setup_txn_on_container(requester)  # pylint: disable=W0612
-        search = get_utility(ICatalogUtility)
+        container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
 
         resp, status = await requester(
             'POST', '/db/guillotina/',

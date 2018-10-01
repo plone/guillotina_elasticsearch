@@ -25,7 +25,8 @@ async def _test_new_indexes_are_performed_during_migration(es_requester):
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
         await asyncio.sleep(1)
-        num_docs = await search.get_doc_count(container, migrator.work_index_name)
+        num_docs = await search.get_doc_count(
+            container, migrator.work_index_name)
         assert num_docs == await search.get_doc_count(container)
 
         await add_content(requester, base_id='foobar1-')
@@ -34,7 +35,8 @@ async def _test_new_indexes_are_performed_during_migration(es_requester):
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
         await asyncio.sleep(1)
-        num_docs = await search.get_doc_count(container, migrator.work_index_name)
+        num_docs = await search.get_doc_count(
+            container, migrator.work_index_name)
         assert num_docs == await search.get_doc_count(container)
 
 
@@ -51,7 +53,8 @@ async def _test_new_deletes_are_performed_during_migration(es_requester):
 
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        num_docs = await search.get_doc_count(container, migrator.work_index_name)
+        num_docs = await search.get_doc_count(
+            container, migrator.work_index_name)
         current_docs = await search.get_doc_count(container)
         assert num_docs == current_docs
 
@@ -68,6 +71,7 @@ async def _test_new_deletes_are_performed_during_migration(es_requester):
 
         await search.refresh(container, migrator.work_index_name)
         await search.refresh(container)
-        num_docs = await search.get_doc_count(container, migrator.work_index_name)
+        num_docs = await search.get_doc_count(
+            container, migrator.work_index_name)
         current_count = await search.get_doc_count(container)
         assert num_docs == current_count

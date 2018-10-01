@@ -68,7 +68,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     @property
     def enabled(self):
-        return len(self.settings.get('connection_settings', {}).get('hosts', [])) > 0
+        return len(
+            self.settings.get('connection_settings', {}).get('hosts', [])) > 0
 
     async def initialize(self, app):
         self.app = app
@@ -92,9 +93,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
         await self.conn.indices.close(real_index_name)
 
         await self.conn.indices.open(real_index_name)
-        await self.conn.cluster.health(wait_for_status='yellow')  # pylint: disable=E1123
+        await self.conn.cluster.health(
+            wait_for_status='yellow')  # pylint: disable=E1123
 
-    async def create_index(self, real_index_name, index_manager, settings=None, mappings=None):
+    async def create_index(self, real_index_name, index_manager,
+                           settings=None, mappings=None):
         if settings is None:
             settings = await index_manager.get_index_settings()
         if mappings is None:
@@ -111,7 +114,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_name = await im.get_index_name()
         real_index_name = await im.get_real_index_name()
         await safe_es_call(self.conn.indices.close, real_index_name)
-        await safe_es_call(self.conn.indices.delete_alias, real_index_name, index_name)
+        await safe_es_call(
+            self.conn.indices.delete_alias, real_index_name, index_name)
         await safe_es_call(self.conn.indices.delete, real_index_name)
         await safe_es_call(self.conn.indices.delete, index_name)
         migration_index = await im.get_migration_index_name()
@@ -362,17 +366,22 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def unindex_all_children(self, container, resource,
                                    index_name=None, response=noop_response):
         content_path = get_content_path(resource)
-        response.write(b'Removing all children of %s' % content_path.encode('utf-8'))
+        response.write(
+            b'Removing all children of %s' % content_path.encode('utf-8'))
         # use future here because this can potentially take some
         # time to clean up indexes, etc
         asyncio.ensure_future(
-            self.call_unindex_all_children(container, index_name, content_path))
+            self.call_unindex_all_children(
+                container, index_name, content_path))
 
     @backoff.on_exception(
         backoff.constant,
-        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
-    async def call_unindex_all_children(self, container, index_name, content_path):
-        # first, find any indexes connected with this path so we can delete them.
+        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout),
+        interval=1, max_tries=5)
+    async def call_unindex_all_children(self, container, index_name,
+                                        content_path):
+        # first, find any indexes connected with this path so we can
+        # delete them.
         sub_indexes = await get_content_sub_indexes(container, content_path)
         for index_data in sub_indexes:
             try:
@@ -421,7 +430,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     @backoff.on_exception(
         backoff.constant,
-        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
+        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout),
+        interval=1, max_tries=5)
     async def _update_by_query(self, query, index_name):
         conn_es = await self.conn.transport.get_connection()
         url = join(conn_es.base_url.human_repr(), index_name,
@@ -461,7 +471,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     @backoff.on_exception(
         backoff.constant,
-        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout), interval=1, max_tries=5)
+        (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout),
+        interval=1, max_tries=5)
     async def bulk_insert(self, index_name, bulk_data, idents, count=0,
                           response=noop_response):
         result = {}
@@ -473,19 +484,25 @@ class ElasticSearchUtility(DefaultSearchUtility):
         except aiohttp.client_exceptions.ClientResponseError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
-                response.write(b'Could not index %s\n' % str(e).encode('utf-8'))
-                logger.error('Could not index ' + ' '.join(idents) + ' ' + str(e))
+                response.write(
+                    b'Could not index %s\n' % str(e).encode('utf-8'))
+                logger.error(
+                    'Could not index ' + ' '.join(idents) + ' ' + str(e))
             else:
                 await asyncio.sleep(0.5)
-                result = await self.bulk_insert(index_name, bulk_data, idents, count)
+                result = await self.bulk_insert(
+                    index_name, bulk_data, idents, count)
         except aiohttp.client_exceptions.ClientOSError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
-                response.write(b'Could not index %s\n' % str(e).encode('utf-8'))
-                logger.error('Could not index ' + ' '.join(idents) + ' ' + str(e))
+                response.write(
+                    b'Could not index %s\n' % str(e).encode('utf-8'))
+                logger.error(
+                    'Could not index ' + ' '.join(idents) + ' ' + str(e))
             else:
                 await asyncio.sleep(0.5)
-                result = await self.bulk_insert(index_name, bulk_data, idents, count)
+                result = await self.bulk_insert(
+                    index_name, bulk_data, idents, count)
 
         return result
 
@@ -493,8 +510,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_manager = get_adapter(container, IIndexManager)
         return await index_manager.get_indexes()
 
-    async def index(self, container, datas, response=noop_response, flush_all=False,
-                    index_name=None, request=None):
+    async def index(self, container, datas, response=noop_response,
+                    flush_all=False, index_name=None, request=None):
         """ If there is request we get the container from there """
         if not self.enabled or len(datas) == 0:
             return
@@ -548,7 +565,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             pass
         return tid
 
-    async def update(self, container, datas, response=noop_response, flush_all=False):
+    async def update(self, container, datas, response=noop_response,
+                     flush_all=False):
         """ If there is request we get the container from there """
         if not self.enabled:
             return
@@ -573,7 +591,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
                         }
                     }, {'doc': data}])
                 idents.append(ident)
-                if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
+                if (not flush_all and
+                        len(bulk_data) % (self.bulk_size * 2) == 0):
                     result = await self.bulk_insert(
                         indexes[0], bulk_data, idents, response=response)
                     idents = []
@@ -588,8 +607,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
     def log_result(self, result, label='ES Query'):
         if 'errors' in result and result['errors']:
             try:
-                if result['error']['caused_by']['type'] in ('index_not_found_exception',
-                                                            'cluster_block_exception'):
+                if result['error']['caused_by']['type'] in (
+                        'index_not_found_exception',
+                        'cluster_block_exception'):
                     return  # ignore these...
             except KeyError:
                 return
@@ -654,7 +674,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         # indexing and mark the object with the indexes we want
         # to store it in
         if im is not None:
-            data = await super().get_data(content, indexes, await im.get_schemas())
+            data = await super().get_data(
+                content, indexes, await im.get_schemas())
             data['__indexes__'] = await im.get_indexes()
         else:
             data = await super().get_data(content, indexes)

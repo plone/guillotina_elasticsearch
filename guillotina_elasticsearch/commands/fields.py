@@ -43,16 +43,18 @@ class FieldsCommand(Command):
         self.type_counts[field['type']] += 1
 
     def summary(self):
-        for field in get_mappings(self.selected_schemas, schema_info=True)['properties'].values():
+        for field in get_mappings(self.selected_schemas, schema_info=True)['properties'].values():  # noqa
             self._count_field(field)
 
         pprint({
             'total': self.total,
             'stored': self.stored,
             'type_counts': sorted(
-                self.type_counts.items(), key=operator.itemgetter(1), reverse=True),
+                self.type_counts.items(), key=operator.itemgetter(1),
+                reverse=True),
             'schema_counts': sorted(
-                self.schema_counts.items(), key=operator.itemgetter(1), reverse=True)
+                self.schema_counts.items(), key=operator.itemgetter(1),
+                reverse=True)
         })
 
     async def run(self, arguments, settings, app):
@@ -68,5 +70,6 @@ class FieldsCommand(Command):
         if self.arguments.summary:
             self.summary()
         else:
-            fields = get_mappings(self.selected_schemas, schema_info=True)['properties']
+            fields = get_mappings(
+                self.selected_schemas, schema_info=True)['properties']
             pprint(fields)

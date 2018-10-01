@@ -9,7 +9,7 @@ from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
 async def test_index(es_requester):
     async with es_requester as requester:
-        container, request, txn, tm = await setup_txn_on_container(requester)  # pylint: disable=W0612
+        container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
         search = get_utility(ICatalogUtility)
         current_count = await search.get_doc_count(container)
         await search.index(container, {
@@ -24,7 +24,7 @@ async def test_index(es_requester):
 
 async def test_update(es_requester):
     async with es_requester as requester:
-        container, request, txn, tm = await setup_txn_on_container(requester)  # pylint: disable=W0612
+        container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
         search = get_utility(ICatalogUtility)
         current_count = await search.get_doc_count(container)
         await search.index(container, {
@@ -51,7 +51,7 @@ async def test_update(es_requester):
 
 async def test_delete(es_requester):
     async with es_requester as requester:
-        container, request, txn, tm = await setup_txn_on_container(requester)  # pylint: disable=W0612
+        container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
         search = get_utility(ICatalogUtility)
         current_count = await search.get_doc_count(container)
         await search.index(container, {

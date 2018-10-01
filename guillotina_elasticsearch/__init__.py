@@ -17,8 +17,8 @@ app_settings = {
         "index": {}
     },
     'commands': {
-        'es-migrate': 'guillotina_elasticsearch.commands.migrate.MigrateCommand',
-        'es-reindex': 'guillotina_elasticsearch.commands.reindex.ReindexCommand',
+        'es-migrate': 'guillotina_elasticsearch.commands.migrate.MigrateCommand',  # noqa
+        'es-reindex': 'guillotina_elasticsearch.commands.reindex.ReindexCommand',  # noqa
         'es-vacuum': 'guillotina_elasticsearch.commands.vacuum.VacuumCommand',
         'es-fields': 'guillotina_elasticsearch.commands.fields.FieldsCommand'
     }

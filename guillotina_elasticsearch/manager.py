@@ -168,7 +168,7 @@ class ContainerIndexManager:
         if hasattr(self.request, 'container_settings'):
             return self.request.container_settings
         annotations_container = IAnnotations(self.container)
-        self.request.container_settings = await annotations_container.async_get(REGISTRY_DATA_KEY)
+        self.request.container_settings = await annotations_container.async_get(REGISTRY_DATA_KEY)  # noqa
         return self.request.container_settings
 
     async def cancel_migration(self):
@@ -201,7 +201,8 @@ class ContentIndexManager(ContainerIndexManager):
         if self.object_settings is None:
             # need to create annotation...
             self.object_settings = AnnotationData()
-            await annotations_container.async_set('default', self.object_settings)
+            await annotations_container.async_set(
+                'default', self.object_settings)
         return self.object_settings
 
     def _generate_new_index_name(self):
@@ -236,7 +237,7 @@ class ContentIndexManager(ContainerIndexManager):
         index_data = getattr(
             type(self.context), TAGGED_DATA, {}).get(index.key)
         if index_data and 'schemas' in index_data:
-            schemas = [IResource]  # require basic index fields on everything...
+            schemas = [IResource]  # require basic index fields on everything
             schemas.extend(
                 [resolve_dotted_name(s) for s in
                  index_data.get('schemas') or []])
@@ -263,7 +264,8 @@ async def init_index(context, subscriber):
         await utility.conn.indices.put_alias(
             name=index_name, index=real_index_name)
 
-        await utility.conn.cluster.health(wait_for_status='yellow')  # pylint: disable=E1123
+        await utility.conn.cluster.health(
+            wait_for_status='yellow')
 
         alsoProvides(context, IIndexActive)
 
@@ -278,7 +280,8 @@ async def init_index(context, subscriber):
 
 
 @index_field.with_accessor(
-    IResource, 'elastic_index', type='keyword', store=True, fields=['elastic_index'])
+    IResource, 'elastic_index', type='keyword',
+    store=True, fields=['elastic_index'])
 async def elastic_index_field(ob):
     if IIndexActive.providedBy(ob):
         im = get_adapter(ob, IIndexManager)
