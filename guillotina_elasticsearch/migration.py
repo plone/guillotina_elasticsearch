@@ -455,12 +455,17 @@ class Migrator:
                         continue
                     if 'status' in value and value['status'] != 200:
                         _id = value.get('_id')
-                        errors.append(f'{_id}: {value["status"]}')
 
                         # retry conflict errors and thread pool exceeded errors
                         if value['status'] in (409, 429):
                             self.batch[_id] = batch[_id]
-            logger.warning(f'Error bulk putting: {results}')
+                        elif value['status'] == 404:
+                            self.batch[_id] = batch[_id]
+                            self.batch[_id]['action'] = 'index'
+                        else:
+                            errors.append(f'{_id}: {value["status"]}')
+            if len(errors) > 0:
+                logger.warning(f'Error bulk putting: {errors}')
 
     async def flush(self):
         if len(self.batch) == 0:

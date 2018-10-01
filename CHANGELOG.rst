@@ -1,6 +1,9 @@
 3.0.27 (unreleased)
 -------------------
 
+- Fix indexing when object does not yet exist in index
+  [vangheem]
+
 - Fix tid check in vacuum
   [vangheem]
 
