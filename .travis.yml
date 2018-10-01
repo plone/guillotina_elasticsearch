@@ -26,6 +26,6 @@ install:
   - pip install -e .[test]
 script:
   - flake8 guillotina --config=setup.cfg
-  - pytest -s --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
+  - pytest --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
 after_success:
   - codecov
