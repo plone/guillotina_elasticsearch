@@ -220,6 +220,8 @@ class Vacuum:
         if result is None:
             result = await self.tm._storage.load(self.txn, oid)
 
+        if result['type'] == 'stub':
+            return
         obj = reader(result)
         obj._p_jar = self.txn
         if result['parent_id']:
@@ -237,6 +239,9 @@ class Vacuum:
         except (AttributeError, TypeError):
             logger.warning(f'Could not find {oid}', exc_info=True)
             return  # object or parent of object was removed, ignore
+        
+        if obj is None:
+            return
         try:
             if folder:
                 await self.migrator.process_object(obj)
