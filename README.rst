@@ -12,7 +12,9 @@ Elasticsearch integration for guillotina.
 Configuration
 -------------
 
-config.yaml can include elasticsearch section::
+config.yaml can include elasticsearch section
+
+.. code-block:: yaml
 
     elasticsearch:
       index_name_prefix: "guillotina-"
@@ -76,7 +78,9 @@ Testing
 -------
 
 If container es (elasticsearch) fails to start when running tests,
-you should increase max_map_count. command::
+you should increase max_map_count. command
+
+.. code-block:: bash
 
    # Linux
    sudo sysctl -w vm.max_map_count=262144
@@ -90,7 +94,9 @@ Sub indexes are a way to split up your index data. Any children
 of an object that implements the sub index will be indexed on
 a different elasticsearch index.
 
-Example::
+Example
+
+.. code-block:: python
 
         from guillotina import configure
         from guillotina.content import Folder
