@@ -12,16 +12,15 @@ Elasticsearch integration for guillotina.
 Configuration
 -------------
 
-config.json can include elasticsearch section::
+config.yaml can include elasticsearch section::
 
-    "elasticsearch": {
-        "index_name_prefix": "guillotina-",
-        "connection_settings": {
-            "hosts": ["localhost:9200"],
-            "sniffer_timeout": 0.5,
-            "sniff_on_start": true
-        }
-    }
+    elasticsearch:
+      index_name_prefix: "guillotina-"
+      connection_settings:
+        hosts:
+          - "127.0.0.1:9200"
+        sniffer_timeout: 0.5
+        sniff_on_start: true
 
 
 Installation on a site
