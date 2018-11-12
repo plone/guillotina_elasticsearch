@@ -12,7 +12,7 @@ test_requires = [
     'coverage',
     'pytest-cov',
     'pytest-aiohttp',
-    'pytest-rerunfailures',
+    'pytest-rerunfailures<=4.2',
     'pytest-docker-fixtures>=1.2.2'
 ]
 
