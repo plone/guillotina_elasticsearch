@@ -4,7 +4,7 @@ from setuptools import setup
 
 
 test_requires = [
-    'pytest',
+    'pytest>=3.6',
     'docker',
     'backoff',
     'psycopg2',
@@ -12,7 +12,7 @@ test_requires = [
     'coverage',
     'pytest-cov',
     'pytest-aiohttp',
-    'pytest-rerunfailures<=4.2',
+    'pytest-rerunfailures',
     'pytest-docker-fixtures>=1.2.2'
 ]
 
