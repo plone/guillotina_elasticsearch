@@ -9,7 +9,7 @@ test_requires = [
     'backoff',
     'psycopg2',
     'pytest-asyncio',
-    'coverage>=4.0.3',
+    'coverage',
     'pytest-cov',
     'pytest-aiohttp',
     'pytest-rerunfailures',
