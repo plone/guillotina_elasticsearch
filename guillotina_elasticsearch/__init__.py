@@ -14,7 +14,14 @@ app_settings = {
             "hosts": [],
             "timeout": 2
         },
-        "index": {}
+        "index": {},
+    },
+    "load_utilities": {
+        "catalog": {
+            "provides": "guillotina_elasticsearch.utility.IElasticSearchUtility",  # noqa
+            "factory": "guillotina_elasticsearch.utility.ElasticSearchUtility",
+            "settings": {}
+        }
     },
     'commands': {
         'es-migrate': 'guillotina_elasticsearch.commands.migrate.MigrateCommand',  # noqa

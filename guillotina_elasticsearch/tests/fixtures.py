@@ -27,7 +27,11 @@ def base_settings_configurator(settings):
             "sniffer_timeout": None
         }
     }
-    settings["utilities"] = []
+    settings["load_utilities"]["catalog"] = {
+        "provides": "guillotina_elasticsearch.utility.IElasticSearchUtility",  # noqa
+        "factory": "guillotina_elasticsearch.utility.ElasticSearchUtility",
+        "settings": {}
+    }
 
 
 testing.configure_with(base_settings_configurator)
