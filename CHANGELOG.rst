@@ -1,5 +1,8 @@
-3.0.27 (unreleased)
--------------------
+3.1.0 (unreleased)
+------------------
+
+- upgrade to guillotina >= 4.3.0
+  [vangheem]
 
 - Fix indexing when object does not yet exist in index
   [vangheem]
