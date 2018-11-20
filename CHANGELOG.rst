@@ -1,4 +1,4 @@
-3.1.0 (unreleased)
+3.1.0 (2018-11-20)
 ------------------
 
 - upgrade to guillotina >= 4.3.0
