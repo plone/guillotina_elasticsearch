@@ -1,7 +1,8 @@
 3.1.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Prevent more than one index_field define different mappings
+  [masipcat]
 
 
 3.1.0 (2018-11-20)

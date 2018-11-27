@@ -70,6 +70,14 @@ def get_mappings(schemas=None, schema_info=False):
                     field_mapping['_schemas'] = []
                 if schema.__identifier__ not in field_mapping['_schemas']:
                     field_mapping['_schemas'].append(schema.__identifier__)
+
+            if index_name in mappings and mappings[index_name] != field_mapping:
+                raise Exception(
+                    f'Index "{index_name}" of schema "{schema}" is trying to '
+                    f'overwrite existing mapping "{mappings[index_name]}" '
+                    f'with "{field_mapping}"'
+                )
+
             mappings[index_name] = field_mapping
 
     return {
