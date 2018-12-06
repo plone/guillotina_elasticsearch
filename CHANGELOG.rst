@@ -3,6 +3,8 @@
 
 - Prevent more than one index_field define different mappings
   [masipcat]
+- Remove use of clear_conn_statement_cache
+  [vangheem]
 
 
 3.1.0 (2018-11-20)
