@@ -16,7 +16,6 @@ from guillotina.interfaces import IResourceFactory
 from guillotina.interfaces import ISecurityInfo
 from guillotina.transactions import managed_transaction
 from guillotina.utils import apply_coroutine
-from guillotina.utils import clear_conn_statement_cache
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.events import IndexProgress
@@ -336,7 +335,6 @@ class Migrator:
             - else, do nothing
             - remove for list of existing doc ids
         '''
-        clear_conn_statement_cache(await ob._p_jar.get_connection())
         full = False
         if ob.uuid not in self.existing:
             self.missing.append(ob.uuid)

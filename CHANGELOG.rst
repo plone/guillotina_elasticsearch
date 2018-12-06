@@ -1,7 +1,8 @@
 3.1.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Remove use of clear_conn_statement_cache
+  [vangheem]
 
 
 3.1.0 (2018-11-20)
