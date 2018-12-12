@@ -1,6 +1,8 @@
-3.1.1 (unreleased)
+3.2.0 (unreleased)
 ------------------
 
+- Add kw argument `cache=True` to `Migrator` and `Reindexer` to choose
+  overwrite the txn._cache or not [masipcat]
 - Prevent more than one index_field define different mappings
   [masipcat]
 - Remove use of clear_conn_statement_cache

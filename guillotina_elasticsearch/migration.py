@@ -131,7 +131,7 @@ class Migrator:
     def __init__(self, utility, context, response=noop_response, force=False,
                  log_details=False, memory_tracking=False, request=None,
                  bulk_size=40, full=False, reindex_security=False, mapping_only=False,  # noqa
-                 index_manager=None, children_only=False, lookup_index=False):
+                 index_manager=None, children_only=False, lookup_index=False, cache=True):
         self.utility = utility
         self.conn = utility.conn
         self.context = context
@@ -153,8 +153,11 @@ class Migrator:
             self.request = get_current_request()
         else:
             self.request = request
-        # make sure that we don't cache requests...
-        self.request._txn._cache = DummyCache(self.request._txn)
+
+        if not cache:
+            # make sure that we don't cache requests...
+            self.request._txn._cache = DummyCache(self.request._txn)
+
         self.container = self.request.container
 
         if index_manager is None:
