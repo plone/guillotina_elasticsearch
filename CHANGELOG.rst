@@ -1,4 +1,4 @@
-3.2.0 (unreleased)
+3.2.0 (2018-12-12)
 ------------------
 
 - Add kw argument `cache=True` to `Migrator` and `Reindexer` to choose
