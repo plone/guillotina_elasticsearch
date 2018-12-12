@@ -49,7 +49,8 @@ class MigrateCommand(Command):
                     force=arguments.force, log_details=arguments.log_details,
                     memory_tracking=arguments.memory_tracking,
                     reindex_security=arguments.reindex_security,
-                    mapping_only=arguments.mapping_only, cache=False)
+                    mapping_only=arguments.mapping_only,
+                    cache=False)
                 await self.migrator.run_migration()
                 seconds = int(time.time() - self.migrator.start_time)
                 logger.warning(f'''Finished migration:
