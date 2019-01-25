@@ -1,4 +1,4 @@
-3.2.1 (unreleased)
+3.2.1 (2019-01-25)
 ------------------
 
 - vacuum should work with customized pg table names
