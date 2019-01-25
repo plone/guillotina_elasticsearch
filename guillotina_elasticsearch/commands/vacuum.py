@@ -29,42 +29,27 @@ except ImportError:
 
 logger = logging.getLogger('guillotina_elasticsearch_vacuum')
 
-
-SELECT_BY_KEYS = '''SELECT zoid from objects where zoid = ANY($1)'''
-BATCHED_GET_CHILDREN_BY_PARENT = """
+GET_CONTAINERS = 'select zoid from {objects_table} where parent_id = $1'
+SELECT_BY_KEYS = '''SELECT zoid from {objects_table} where zoid = ANY($1)'''
+GET_CHILDREN_BY_PARENT = """
 SELECT zoid, parent_id, tid
-FROM objects
+FROM {objects_table}
 WHERE of is NULL AND parent_id = ANY($1)
 ORDER BY parent_id
-LIMIT $2::int
-OFFSET $3::int
 """
 
 PAGE_SIZE = 1000
 
-GET_OBS_BY_TID = f"""
+GET_OBS_BY_TID = """
 SELECT zoid, parent_id, tid
-FROM objects
-WHERE
-    of is NULL AND
-    tid >= $1
+FROM {objects_table}
+WHERE of is NULL
 ORDER BY tid ASC, zoid ASC
-LIMIT {PAGE_SIZE}
-"""
-
-GET_ALL_FOR_TID = f"""
-SELECT zoid, parent_id, tid
-FROM objects
-WHERE
-    of is NULL AND
-    tid = $1 and zoid > $2
-ORDER BY zoid ASC
-LIMIT {PAGE_SIZE}
 """
 
 CREATE_INDEX = '''
 CREATE INDEX CONCURRENTLY IF NOT EXISTS
-objects_tid_zoid ON objects (tid ASC, zoid ASC);'''
+objects_tid_zoid ON {objects_table} (tid ASC, zoid ASC);'''
 
 
 async def clean_orphan_indexes(container):
@@ -102,6 +87,10 @@ class Vacuum:
         # for state tracking so we get boundries right
         self.last_result_set = []
 
+    def get_sql(self, source):
+        storage = self.txn._manager._storage
+        return source.format(objects_table=storage._objects_table_name)
+
     async def iter_batched_es_keys(self):
         # go through one index at a time...
         indexes = [self.index_name]
@@ -133,76 +122,41 @@ class Vacuum:
                 yield [r['_id'] for r in result['hits']['hits']], index_name
                 scroll_id = result['_scroll_id']
 
-    async def get_db_page_of_keys(self, oids, page=1, page_size=PAGE_SIZE):
-        conn = await self.txn.get_connection()
-        clear_conn_statement_cache(conn)
-        async with self.txn._lock:
-            return await conn.fetch(
-                BATCHED_GET_CHILDREN_BY_PARENT, oids,
-                page_size, (page - 1) * page_size)
-
-    async def get_page_from_tid(self):
-        conn = await self.txn.get_connection()
-        clear_conn_statement_cache(conn)
-        records = []
-        queried_tid = self.last_tid
-        async with self.txn._lock:
-            results = await conn.fetch(GET_OBS_BY_TID, queried_tid)
-            for record in results:
-                if record['zoid'] in (ROOT_ID, TRASHED_ID,
-                                      self.container._p_oid):
-                    continue
-                records.append(record)
-                self.last_tid = record['tid']
-                self.last_zoid = record['zoid']
-        if len(records) == 0:
-            if len(self.last_result_set) > 0:
-                # now we have zero, increment, but only once
-                self.last_tid = self.last_tid + 1
-        self.last_result_set = records
-        return records
-
     async def iter_paged_db_keys(self, oids):
         if self.use_tid_query:
-            queried_tid = self.last_tid
-            records = await self.get_page_from_tid()
-            while len(records) > 0:
-                yield records
-                if self.last_tid == queried_tid:
-                    conn = await self.txn.get_connection()
-                    logger.warning(
-                        f'Getting all keys from tid {self.last_tid}')
-                    # we're stuck on same tid, get all for this tid
-                    # and then move on...
-                    clear_conn_statement_cache(conn)
-                    results = await conn.fetch(
-                        GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
-                    while len(results) > 0:
-                        records = []
-                        for record in results:
-                            if record['zoid'] in (ROOT_ID, TRASHED_ID,
-                                                  self.container._p_oid):
-                                continue
-                            records.append(record)
-                            self.last_zoid = record['zoid']
-                        yield records
-                        clear_conn_statement_cache(conn)
-                        results = await conn.fetch(
-                            GET_ALL_FOR_TID, self.last_tid, self.last_zoid)
-                    self.last_tid = self.last_tid + 1
-                queried_tid = self.last_tid
-                records = await self.get_page_from_tid()
-
+            conn = await self.txn.get_connection()
+            async with conn.transaction():
+                sql = self.get_sql(GET_OBS_BY_TID)
+                cur = await conn.cursor(sql)
+                results = await cur.fetch(PAGE_SIZE)
+                while len(results) > 0:
+                    records = []
+                    for record in results:
+                        if record['zoid'] in (ROOT_ID, TRASHED_ID,
+                                              self.container._p_oid):
+                            continue
+                        records.append(record)
+                        self.last_tid = record['tid']
+                        self.last_zoid = record['zoid']
+                    yield records
+                    results = await cur.fetch(PAGE_SIZE)
         else:
-            page_num = 1
-            page = await self.get_db_page_of_keys(oids, page_num)
-            while page:
-                yield page
-                async for sub_page in self.iter_paged_db_keys(
-                        [r['zoid'] for r in page]):
-                    yield sub_page
-                page_num += 1
-                page = await self.get_db_page_of_keys(oids, page_num)
+            conn = await self.txn.get_connection()
+            sql = self.get_sql(GET_CHILDREN_BY_PARENT)
+
+            while oids:
+                pos = 0
+                new_oids = []
+                while (pos * PAGE_SIZE) < len(oids):
+                    async with conn.transaction():
+                        cur = await conn.cursor(sql, oids[pos:pos + PAGE_SIZE])
+                        pos += PAGE_SIZE
+                        page = await cur.fetch(PAGE_SIZE)
+                        while page:
+                            yield page
+                            new_oids.extend([r['zoid'] for r in page])
+                            page = await cur.fetch(PAGE_SIZE)
+                oids = new_oids
 
     async def get_object(self, oid):
         if oid in self.cache:
@@ -257,7 +211,8 @@ class Vacuum:
 
         try:
             conn = await self.txn.get_connection()
-            await conn.execute(CREATE_INDEX)
+            sql = self.get_sql(CREATE_INDEX)
+            await conn.execute(sql)
         except Exception:
             pass
 
@@ -275,7 +230,8 @@ class Vacuum:
             checked += len(es_batch)
             clear_conn_statement_cache(conn)
             async with self.txn._lock:
-                records = await conn.fetch(SELECT_BY_KEYS, es_batch)
+                sql = self.get_sql(SELECT_BY_KEYS)
+                records = await conn.fetch(sql, es_batch)
             db_batch = set()
             for record in records:
                 db_batch.add(record['zoid'])
@@ -336,8 +292,8 @@ class Vacuum:
             'account': self.container.id
         })
         conn = await self.txn.get_connection()
-        containers = await conn.fetch(
-            'select zoid from objects where parent_id = $1', ROOT_ID)
+        sql = self.get_sql(GET_CONTAINERS)
+        containers = await conn.fetch(sql, ROOT_ID)
         if len(containers) > 1:
             # more than 1 container, we can't optimize by querying by tids
             self.use_tid_query = False
@@ -367,7 +323,6 @@ class Vacuum:
                     'parent_uuid': result.get('fields', {}).get(
                         'parent_uuid', ['_missing_'])[0]
                 }
-
             for record in batch:
                 oid = record['zoid']
                 tid = record['tid']

@@ -7,7 +7,7 @@ test_requires = [
     'pytest>=3.6',
     'docker',
     'backoff',
-    'psycopg2',
+    'psycopg2-binary',
     'pytest-asyncio',
     'coverage',
     'pytest-cov',
@@ -39,7 +39,7 @@ setup(
     include_package_data=True,
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
-        'guillotina>=4.3.0',
+        'guillotina>=4.4.0',
         'aioelasticsearch',
         'ujson',
         'lru-dict',

@@ -217,6 +217,7 @@ async def test_vacuum_with_sub_indexes(es_requester):
 
 
 @pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
+@pytest.mark.flaky(reruns=3)
 async def test_reindexes_moved_content(es_requester):
     async with es_requester as requester:
         resp1, _ = await requester(
@@ -323,5 +324,39 @@ async def test_reindexes_moved_content(es_requester):
             assert result['fields']['parent_uuid'] != "FOOOBBAR MOVED TO NEW PARENT"  # noqa
 
         await run_with_retries(__test, requester)
+
+        await tm.abort(txn=txn)
+
+
+@pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
+# @pytest.mark.flaky(reruns=3)
+async def test_vacuum_with_multiple_containers(es_requester):
+    async with es_requester as requester:
+
+        # create another container, force to iterate differently
+        _, status = await requester(
+            'POST',
+            '/db',
+            data=json.dumps({
+                '@type': 'Container',
+                'id': 'foobar'
+            })
+        )
+        assert status == 200
+        await add_content(requester, num_items=100)
+
+        search = get_utility(ICatalogUtility)
+        container, request, txn, tm = await setup_txn_on_container(requester)
+        aiotask_context.set('request', request)
+
+        vacuum = Vacuum(txn, tm, request, container)
+        await vacuum.setup()
+        await vacuum.check_missing()
+        await vacuum.check_orphans()
+
+        async def ___test():
+            assert await search.get_doc_count(container) == 1010
+
+        await run_with_retries(___test, requester)
 
         await tm.abort(txn=txn)

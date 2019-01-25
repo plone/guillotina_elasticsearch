@@ -1,7 +1,11 @@
 3.2.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- vacuum should work with customized pg table names
+  [vangheem]
+
+- Use cursor for iterating over data
+  [vangheem]
 
 
 3.2.0 (2018-12-12)
