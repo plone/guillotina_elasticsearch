@@ -1,4 +1,4 @@
-3.2.2 (unreleased)
+3.2.2 (2019-01-26)
 ------------------
 
 - Resolve mapping conflicts in a smarter way that allows addons
