@@ -1,6 +1,7 @@
 from guillotina.component import get_utilities_for
 from guillotina.content import get_all_possible_schemas_for_type
 from guillotina.content import IResourceFactory
+from guillotina import app_settings
 
 import guillotina.directives
 
@@ -43,6 +44,29 @@ CATALOG_TYPES = {
 }
 
 
+def merged_tagged_value_dict(iface, name):
+    """
+    Alternative implementation the keeps info on schema it came from
+    """
+    tv = {}
+    for iface in reversed(iface.__iro__):
+        value = iface.queryTaggedValue(name, None)
+        if value is not None:
+            for k, v in value.items():
+                v['__schema__'] = iface
+            tv.update(value)
+    return tv
+
+
+def _addon_index(ob):
+    # find the index of the addon the ob is part of
+    idx = -1
+    for i, addon in enumerate(app_settings['applications']):
+        if ob.__module__.startswith(addon + '.'):
+            idx = i
+    return idx
+
+
 def get_mappings(schemas=None, schema_info=False):
 
     if schemas is None:
@@ -54,8 +78,9 @@ def get_mappings(schemas=None, schema_info=False):
         schemas = set(schemas)
 
     mappings = {}
+    schema_field_mappings = {}
     for schema in schemas:
-        index_fields = guillotina.directives.merged_tagged_value_dict(
+        index_fields = merged_tagged_value_dict(
             schema, guillotina.directives.index.key)
         for field_name, catalog_info in index_fields.items():
             index_name = catalog_info.get('index_name', field_name)
@@ -71,13 +96,25 @@ def get_mappings(schemas=None, schema_info=False):
                 if schema.__identifier__ not in field_mapping['_schemas']:
                     field_mapping['_schemas'].append(schema.__identifier__)
 
-            if index_name in mappings and mappings[index_name] != field_mapping:
-                raise Exception(
-                    f'Index "{index_name}" of schema "{schema}" is trying to '
-                    f'overwrite existing mapping "{mappings[index_name]}" '
-                    f'with "{field_mapping}"'
-                )
+            if (index_name in mappings and
+                    mappings[index_name] != field_mapping):
+                existing_addon_idx = _addon_index(
+                    schema_field_mappings[index_name])
+                field_addon_idx = _addon_index(catalog_info['__schema__'])
+                if existing_addon_idx > field_addon_idx:
+                    # we're keeping current value
+                    continue
+                elif existing_addon_idx == field_addon_idx:
+                    # we are customizing same field mapping in same addon!
+                    # this should not be allowed
+                    raise Exception(f'''Unresolvable index mapping conflict: {index_name}
+Registered schema: {schema_field_mappings[index_name].__identifier__}
+Registered mapping: {mappings[index_name]}
+Conflicted schema: {catalog_info['__schema__'].__identifier__}
+Registered mapping: {field_mapping}
+''')
 
+            schema_field_mappings[index_name] = catalog_info['__schema__']
             mappings[index_name] = field_mapping
 
     return {

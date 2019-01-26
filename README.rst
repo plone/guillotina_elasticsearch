@@ -124,3 +124,16 @@ Example
                 # index settings
             }
         )
+
+
+Index Mappings
+--------------
+
+All mappings are flattened when they are applied to Elastic Search.
+
+Elasticsearch doesn't support different mappings for different types.
+
+If there are conflicting mappings, this plugin will choose the mapping
+in the addon last `applications` listed which follows the guillotina practice
+of allowing the last listed application to override the settings of
+the previously list application

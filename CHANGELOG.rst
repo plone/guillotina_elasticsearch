@@ -1,8 +1,9 @@
 3.2.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
-
+- Resolve mapping conflicts in a smarter way that allows addons
+  to override base packages/guillotina
+  [vangheem]
 
 3.2.1 (2019-01-25)
 ------------------
