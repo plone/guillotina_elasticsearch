@@ -1,7 +1,8 @@
 3.2.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Log indexing errors
+  [vangheem]
 
 
 3.2.2 (2019-01-26)

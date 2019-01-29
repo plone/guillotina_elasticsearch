@@ -504,6 +504,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 result = await self.bulk_insert(
                     index_name, bulk_data, idents, count)
 
+        if isinstance(result, dict) and result.get('errors'):
+            logger.error('Error indexing: {}'.format(result))
+
         return result
 
     async def get_current_indexes(self, container):
