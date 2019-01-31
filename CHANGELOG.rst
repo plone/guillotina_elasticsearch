@@ -1,6 +1,9 @@
 3.2.3 (unreleased)
 ------------------
 
+- Add 'creation_date', 'modification_date', 'tags' to stored fields
+  [vangheem]
+
 - Log indexing errors
   [vangheem]
 
