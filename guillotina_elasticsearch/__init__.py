@@ -43,5 +43,6 @@ def includeme(root):
         for field_name, catalog_info in get_index_fields(name).items():
             if field_name in ('id', 'path', 'uuid', 'type_name', 'tid',
                               'creators', 'contributors', 'access_roles',
-                              'access_users', 'parent_uuid', 'title'):
+                              'access_users', 'parent_uuid', 'title',
+                              'creation_date', 'modification_date', 'tags'):
                 catalog_info['store'] = True
