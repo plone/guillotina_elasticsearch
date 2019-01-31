@@ -1,4 +1,4 @@
-3.2.3 (unreleased)
+3.2.3 (2019-01-31)
 ------------------
 
 - Add 'creation_date', 'modification_date', 'tags' to stored fields
