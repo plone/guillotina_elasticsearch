@@ -224,6 +224,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             sort_value = item.get('sort')
             if sort_value:
                 data.update({'sort': sort_value})
+            if 'highlight' in item:
+                data['@highlight'] = item['highlight']
             items.append(data)
         return items
 

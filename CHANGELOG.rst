@@ -1,7 +1,8 @@
 3.2.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- include highlight in results
+  [vangheem]
 
 
 3.2.3 (2019-01-31)
