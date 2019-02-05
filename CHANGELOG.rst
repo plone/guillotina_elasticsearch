@@ -1,4 +1,4 @@
-3.2.4 (unreleased)
+3.2.4 (2019-02-05)
 ------------------
 
 - include highlight in results
