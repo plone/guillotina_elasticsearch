@@ -164,7 +164,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         build_security_query = resolve_dotted_name(
             app_settings['elasticsearch']['security_query_builder'])
 
-        permission_query = build_security_query(container, request)
+        permission_query = await build_security_query(container, request)
         result = {
             'body': merge_dicts(query, permission_query),
             'size': size
