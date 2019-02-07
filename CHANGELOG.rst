@@ -1,7 +1,9 @@
 3.2.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- be able to customize security query by customizing
+  `elasticsearch["security_query_builder"]` setting.
+  [vangheem]
 
 
 3.2.4 (2019-02-05)

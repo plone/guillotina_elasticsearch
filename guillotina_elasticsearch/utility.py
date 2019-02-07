@@ -8,13 +8,13 @@ from guillotina.event import notify
 from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import IFolder
-from guillotina.interfaces import IInteraction
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
 from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
+from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
@@ -161,54 +161,20 @@ class ElasticSearchUtility(DefaultSearchUtility):
             scroll=None):
         if query is None:
             query = {}
+        build_security_query = resolve_dotted_name(
+            app_settings['elasticsearch']['security_query_builder'])
 
-        q = {}
-
-        # The users who has plone.AccessContent permission by prinperm
-        # The roles who has plone.AccessContent permission by roleperm
-        users = []
-        roles = []
-
-        if request is None:
-            request = get_current_request()
-        interaction = IInteraction(request)
-
-        for user in interaction.participations:  # pylint: disable=E1133
-            users.append(user.principal.id)
-            users.extend(user.principal.groups)
-            roles_dict = interaction.global_principal_roles(
-                user.principal.id,
-                user.principal.groups)
-            roles.extend([key for key, value in roles_dict.items()
-                          if value])
-        # We got all users and roles
-        # users: users and groups
-
-        should_list = [{'match': {'access_roles': x}} for x in roles]
-        should_list.extend([{'match': {'access_users': x}} for x in users])
-
-        permission_query = {
-            'query': {
-                'bool': {
-                    'filter': {
-                        'bool': {
-                            'should': should_list,
-                            'minimum_should_match': 1
-                        }
-                    }
-                }
-            }
+        permission_query = build_security_query(container, request)
+        result = {
+            'body': merge_dicts(query, permission_query),
+            'size': size
         }
-        query = merge_dicts(query, permission_query)
-        # query.update(permission_query)
-        q['body'] = query
-        q['size'] = size
 
         if scroll:
-            q['scroll'] = scroll
+            result['scroll'] = scroll
 
-        logger.debug(q)
-        return q
+        logger.debug(result)
+        return result
 
     def _get_items_from_result(self, container, request, result):
         items = []
