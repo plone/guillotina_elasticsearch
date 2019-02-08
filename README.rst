@@ -23,6 +23,26 @@ config.yaml can include elasticsearch section
           - "127.0.0.1:9200"
         sniffer_timeout: 0.5
         sniff_on_start: true
+      security_query_builder: "guillotina_elasticsearch.queries.build_security_query"
+
+
+Example custom `security_query_builder` settings:
+
+.. code-block:: python
+
+    async def security_query_builder(container, request):
+        return {
+            'query': {
+                'bool': {
+                    'filter': {
+                        'bool': {
+                            'should': [{'match': {'access_roles': "foobar"}}],
+                            'minimum_should_match': 1
+                        }
+                    }
+                }
+            }
+        }
 
 
 Installation on a site
