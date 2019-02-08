@@ -1,4 +1,4 @@
-3.2.5 (unreleased)
+3.2.5 (2019-02-08)
 ------------------
 
 - be able to customize security query by customizing
