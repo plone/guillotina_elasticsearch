@@ -119,23 +119,22 @@ class Vacuum:
     async def iter_paged_db_keys(self, oids):
         if self.use_tid_query:
             conn = await self.txn.get_connection()
-            async with self.txn._lock:
-                async with conn.transaction():
-                    sql = self.get_sql(GET_OBS_BY_TID)
-                    cur = await conn.cursor(sql)
+            async with conn.transaction():
+                sql = self.get_sql(GET_OBS_BY_TID)
+                cur = await conn.cursor(sql)
+                results = await cur.fetch(PAGE_SIZE)
+                while len(results) > 0:
+                    records = []
+                    for record in results:
+                        if record['zoid'] in (
+                                ROOT_ID, TRASHED_ID,
+                                self.container._p_oid):
+                            continue
+                        records.append(record)
+                        self.last_tid = record['tid']
+                        self.last_zoid = record['zoid']
+                    yield records
                     results = await cur.fetch(PAGE_SIZE)
-                    while len(results) > 0:
-                        records = []
-                        for record in results:
-                            if record['zoid'] in (
-                                    ROOT_ID, TRASHED_ID,
-                                    self.container._p_oid):
-                                continue
-                            records.append(record)
-                            self.last_tid = record['tid']
-                            self.last_zoid = record['zoid']
-                        yield records
-                        results = await cur.fetch(PAGE_SIZE)
         else:
             conn = await self.txn.get_connection()
             sql = self.get_sql(GET_CHILDREN_BY_PARENT)
@@ -144,16 +143,15 @@ class Vacuum:
                 pos = 0
                 new_oids = []
                 while (pos * PAGE_SIZE) < len(oids):
-                    async with self.txn._lock:
-                        async with conn.transaction():
-                            cur = await conn.cursor(
-                                sql, oids[pos:pos + PAGE_SIZE])
-                            pos += PAGE_SIZE
+                    async with conn.transaction():
+                        cur = await conn.cursor(
+                            sql, oids[pos:pos + PAGE_SIZE])
+                        pos += PAGE_SIZE
+                        page = await cur.fetch(PAGE_SIZE)
+                        while page:
+                            yield page
+                            new_oids.extend([r['zoid'] for r in page])
                             page = await cur.fetch(PAGE_SIZE)
-                            while page:
-                                yield page
-                                new_oids.extend([r['zoid'] for r in page])
-                                page = await cur.fetch(PAGE_SIZE)
                 oids = new_oids
 
     async def get_object(self, oid):
