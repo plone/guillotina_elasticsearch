@@ -21,12 +21,6 @@ import json
 import logging
 
 
-try:
-    from guillotina.utils import clear_conn_statement_cache
-except ImportError:
-    def clear_conn_statement_cache(conn):
-        pass
-
 logger = logging.getLogger('guillotina_elasticsearch_vacuum')
 
 GET_CONTAINERS = 'select zoid from {objects_table} where parent_id = $1'
@@ -125,21 +119,23 @@ class Vacuum:
     async def iter_paged_db_keys(self, oids):
         if self.use_tid_query:
             conn = await self.txn.get_connection()
-            async with conn.transaction():
-                sql = self.get_sql(GET_OBS_BY_TID)
-                cur = await conn.cursor(sql)
-                results = await cur.fetch(PAGE_SIZE)
-                while len(results) > 0:
-                    records = []
-                    for record in results:
-                        if record['zoid'] in (ROOT_ID, TRASHED_ID,
-                                              self.container._p_oid):
-                            continue
-                        records.append(record)
-                        self.last_tid = record['tid']
-                        self.last_zoid = record['zoid']
-                    yield records
+            async with self.txn._lock:
+                async with conn.transaction():
+                    sql = self.get_sql(GET_OBS_BY_TID)
+                    cur = await conn.cursor(sql)
                     results = await cur.fetch(PAGE_SIZE)
+                    while len(results) > 0:
+                        records = []
+                        for record in results:
+                            if record['zoid'] in (
+                                    ROOT_ID, TRASHED_ID,
+                                    self.container._p_oid):
+                                continue
+                            records.append(record)
+                            self.last_tid = record['tid']
+                            self.last_zoid = record['zoid']
+                        yield records
+                        results = await cur.fetch(PAGE_SIZE)
         else:
             conn = await self.txn.get_connection()
             sql = self.get_sql(GET_CHILDREN_BY_PARENT)
@@ -148,14 +144,16 @@ class Vacuum:
                 pos = 0
                 new_oids = []
                 while (pos * PAGE_SIZE) < len(oids):
-                    async with conn.transaction():
-                        cur = await conn.cursor(sql, oids[pos:pos + PAGE_SIZE])
-                        pos += PAGE_SIZE
-                        page = await cur.fetch(PAGE_SIZE)
-                        while page:
-                            yield page
-                            new_oids.extend([r['zoid'] for r in page])
+                    async with self.txn._lock:
+                        async with conn.transaction():
+                            cur = await conn.cursor(
+                                sql, oids[pos:pos + PAGE_SIZE])
+                            pos += PAGE_SIZE
                             page = await cur.fetch(PAGE_SIZE)
+                            while page:
+                                yield page
+                                new_oids.extend([r['zoid'] for r in page])
+                                page = await cur.fetch(PAGE_SIZE)
                 oids = new_oids
 
     async def get_object(self, oid):
@@ -168,7 +166,6 @@ class Vacuum:
             from guillotina.db.transaction import HARD_CACHE  # noqa
             result = HARD_CACHE.get(oid, None)
         if result is None:
-            clear_conn_statement_cache(await self.txn.get_connection())
             result = await self.txn._cache.get(oid=oid)
 
         if result is None:
@@ -212,7 +209,8 @@ class Vacuum:
         try:
             conn = await self.txn.get_connection()
             sql = self.get_sql(CREATE_INDEX)
-            await conn.execute(sql)
+            async with self.txn._lock:
+                await conn.execute(sql)
         except Exception:
             pass
 
@@ -228,7 +226,6 @@ class Vacuum:
         checked = 0
         async for es_batch, index_name in self.iter_batched_es_keys():
             checked += len(es_batch)
-            clear_conn_statement_cache(conn)
             async with self.txn._lock:
                 sql = self.get_sql(SELECT_BY_KEYS)
                 records = await conn.fetch(sql, es_batch)
@@ -269,7 +266,7 @@ class Vacuum:
                             'Could not parse delete by query response. '
                             'Vacuuming might not be working')
 
-    def get_indexes_for_tids(self, tids):
+    def get_indexes_for_oids(self, oids):
         '''
         is there something clever here to do this faster
         than iterating over all the data?
@@ -279,8 +276,8 @@ class Vacuum:
             # check if tid inside sub index...
             prefix = index['oid'].rsplit('|', 1)[0]
             if prefix:
-                for tid in tids:
-                    if tid.startswith(prefix):
+                for oid in oids:
+                    if oid.startswith(prefix):
                         indexes.append(index['index'])
                         break
         return indexes
@@ -293,7 +290,9 @@ class Vacuum:
         })
         conn = await self.txn.get_connection()
         sql = self.get_sql(GET_CONTAINERS)
-        containers = await conn.fetch(sql, ROOT_ID)
+        async with self.txn._lock:
+            containers = await conn.fetch(sql, ROOT_ID)
+
         if len(containers) > 1:
             # more than 1 container, we can't optimize by querying by tids
             self.use_tid_query = False
@@ -301,7 +300,7 @@ class Vacuum:
         checked = 0
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
             oids = [r['zoid'] for r in batch]
-            indexes = self.get_indexes_for_tids(oids)
+            indexes = self.get_indexes_for_oids(oids)
             results = await self.utility.conn.search(
                 ','.join(indexes), body={
                     'query': {
