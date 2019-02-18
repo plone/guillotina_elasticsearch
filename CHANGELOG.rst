@@ -1,8 +1,8 @@
 3.2.6 (unreleased)
 ------------------
 
-- Nothing changed yet.
-
+- Make sure to use transaction lock in vacuum
+  [vangheem]
 
 3.2.5 (2019-02-08)
 ------------------
