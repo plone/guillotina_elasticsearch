@@ -1,4 +1,4 @@
-3.2.6 (unreleased)
+3.2.6 (2019-02-18)
 ------------------
 
 - Make sure to use transaction lock in vacuum
