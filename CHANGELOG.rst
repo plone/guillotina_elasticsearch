@@ -1,7 +1,8 @@
 3.2.7 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Not loading utility by default and avoid crash when utility is not configured
+  [bloodbare]
 
 
 3.2.6 (2019-02-18)

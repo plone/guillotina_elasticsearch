@@ -42,7 +42,6 @@ logger = logging.getLogger('guillotina_elasticsearch')
 MAX_RETRIES_ON_REINDEX = 5
 
 
-@configure.utility(provides=IElasticSearchUtility)
 class ElasticSearchUtility(DefaultSearchUtility):
 
     index_count = 0
