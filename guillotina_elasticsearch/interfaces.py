@@ -3,6 +3,10 @@ from guillotina.interfaces import ICatalogUtility
 from zope.interface import Interface
 
 
+DELETE_INDEX = 'delete_index'
+NOTHING = 'none'
+PURGE_POLICIES = [DELETE_INDEX, NOTHING]
+
 DOC_TYPE = 'doc'
 SUB_INDEX_SEPERATOR = '__'
 

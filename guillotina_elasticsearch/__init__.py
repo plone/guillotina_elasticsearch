@@ -4,11 +4,13 @@ from guillotina.catalog.utils import get_index_fields
 from guillotina.component import get_utilities_for
 from guillotina.content import IResourceFactory
 from guillotina.utils import get_dotted_name
+from guillotina_elasticsearch.interfaces import DELETE_INDEX
 
 
 app_settings = {
     "elasticsearch": {
         "bulk_size": 50,
+        "index_purge_policy": DELETE_INDEX,
         "index_name_prefix": "guillotina-",
         "connection_settings": {
             "hosts": [],
@@ -16,6 +18,13 @@ app_settings = {
         },
         "index": {},
         'security_query_builder': 'guillotina_elasticsearch.queries.build_security_query'  # noqa
+    },
+    "es_config_mappings": {
+        # "db/container-id": {
+        #   "index_purge_policy": "none",
+        #   "index_name": "foobar",
+        #   "connection_settings": {}
+        # }
     },
     "load_utilities": {
         "catalog": {

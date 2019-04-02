@@ -17,6 +17,7 @@ from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
+from guillotina_elasticsearch.interfaces import DELETE_INDEX
 from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.interfaces import IIndexActive
@@ -81,20 +82,27 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def initialize_catalog(self, container):
         if not self.enabled:
             return
-        await self.remove_catalog(container)
-        index_manager = get_adapter(container, IIndexManager)
 
+        create = True
+        index_manager = get_adapter(container, IIndexManager)
         index_name = await index_manager.get_index_name()
         real_index_name = await index_manager.get_real_index_name()
 
-        await self.create_index(real_index_name, index_manager)
-        await self.conn.indices.put_alias(
-            name=index_name, index=real_index_name)
-        await self.conn.indices.close(real_index_name)
+        if await self.conn.indices.exists(real_index_name):
+            purge_policy = app_settings['elasticsearch']['index_purge_policy']
+            if purge_policy == DELETE_INDEX:
+                await self._delete_index(index_manager)
+            else:
+                create = False
 
-        await self.conn.indices.open(real_index_name)
-        await self.conn.cluster.health(
-            wait_for_status='yellow')  # pylint: disable=E1123
+        if create:
+            await self.create_index(real_index_name, index_manager)
+            await self.conn.indices.close(real_index_name)
+            await self.conn.indices.open(real_index_name)
+            await self.conn.cluster.health(
+                wait_for_status='yellow')  # pylint: disable=E1123
+            await self.conn.indices.put_alias(
+                name=index_name, index=real_index_name)
 
     async def create_index(self, real_index_name, index_manager,
                            settings=None, mappings=None):
@@ -117,7 +125,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         await safe_es_call(
             self.conn.indices.delete_alias, real_index_name, index_name)
         await safe_es_call(self.conn.indices.delete, real_index_name)
-        await safe_es_call(self.conn.indices.delete, index_name)
         migration_index = await im.get_migration_index_name()
         if migration_index:
             await safe_es_call(self.conn.indices.close, migration_index)
@@ -126,8 +133,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def remove_catalog(self, container):
         if not self.enabled:
             return
-        index_manager = get_adapter(container, IIndexManager)
-        await self._delete_index(index_manager)
+        purge_policy = app_settings['elasticsearch']['index_purge_policy']
+        if purge_policy == DELETE_INDEX:
+            index_manager = get_adapter(container, IIndexManager)
+            await self._delete_index(index_manager)
 
     async def get_container_index_name(self, container):
         index_manager = get_adapter(container, IIndexManager)
@@ -137,6 +146,17 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def stats(self, container):
         return await self.conn.indices.stats(
             await self.get_container_index_name(container))
+
+    async def _delete_by_query(self, im, query):
+        conn_es = await self.conn.transport.get_connection()
+        async with conn_es.session.post(
+                join(conn_es.base_url.human_repr(),
+                     await im.get_index_name(), '_delete_by_query'),
+                json=query,
+                params={
+                    'ignore_unavailable': 'true'
+                }) as resp:
+            return await resp.json()
 
     async def reindex_all_content(
             self, obj, security=False, response=noop_response, request=None):
