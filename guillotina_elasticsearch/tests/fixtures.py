@@ -1,21 +1,24 @@
 from guillotina import testing
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
-from guillotina_elasticsearch.tests.utils import cleanup_es
 from guillotina.tests.utils import ContainerRequesterAsyncContextManager
+from guillotina_elasticsearch.interfaces import IConnectionSettingsUtility
+from guillotina_elasticsearch.tests.utils import cleanup_es
 
 import os
 import pytest
 
 
 def base_settings_configurator(settings):
-    if 'applications' in settings:
-        settings['applications'].append('guillotina_elasticsearch')
-    else:
-        settings['applications'] = ['guillotina_elasticsearch']
+    if 'applications' not in settings:
+        settings['applications'] = []
 
-    settings['applications'].append(
-        'guillotina_elasticsearch.tests.package')
+    if 'guillotina_elasticsearch' not in settings['applications']:
+        settings['applications'].append('guillotina_elasticsearch')
+
+    if 'guillotina_elasticsearch.tests.package' not in settings['applications']:  # noqa
+        settings['applications'].append(
+            'guillotina_elasticsearch.tests.package')
 
     settings['elasticsearch'] = {
         "index_name_prefix": "guillotina-",
@@ -61,9 +64,10 @@ class ESRequester(ContainerRequesterAsyncContextManager):
         # aioelasticsearch caches loop, we need to continue to reset it
         search = get_utility(ICatalogUtility)
         search.loop = loop
-        if search._conn:
-            search._conn.close()
-        search._conn = None
+
+        util = get_utility(IConnectionSettingsUtility)
+        util.close()
+
         from guillotina import app_settings
         if os.environ.get('TESTING', '') == 'jenkins':
             if 'elasticsearch' in app_settings:

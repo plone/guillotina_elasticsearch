@@ -77,3 +77,19 @@ class IIndexActive(Interface):
     has had the elasticsearch index created and
     content is getting added
     '''
+
+
+class IConnectionSettingsUtility(Interface):
+    '''
+    Be able to customize connection settings used for a particular
+    container/request
+    '''
+    def get(request, container=None, loop=None):
+        '''
+        Get a connection for a request
+        '''
+
+    def close():
+        '''
+        close all connections
+        '''

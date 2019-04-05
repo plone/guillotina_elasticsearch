@@ -134,7 +134,6 @@ class Migrator:
                  mapping_only=False, index_manager=None, children_only=False,
                  lookup_index=False, cache=True):
         self.utility = utility
-        self.conn = utility.conn
         self.context = context
         self.response = response
         self.force = force
@@ -160,6 +159,7 @@ class Migrator:
             self.request._txn._cache = DummyCache(self.request._txn)
 
         self.container = self.request.container
+        self.conn = utility.get_connection(request, self.container)
 
         if index_manager is None:
             self.index_manager = get_adapter(self.container, IIndexManager)
@@ -273,7 +273,7 @@ class Migrator:
         ids.extend([r['_id'] for r in result['hits']['hits']])
         scroll_id = result['_scroll_id']
         while scroll_id:
-            result = await self.utility.conn.scroll(
+            result = await self.conn.scroll(
                 scroll_id=scroll_id,
                 scroll='2m'
             )
@@ -456,7 +456,7 @@ class Migrator:
             })
             if payload['action'] != 'delete':
                 bulk_data.append(data)
-        results = await self.utility.conn.bulk(
+        results = await self.conn.bulk(
             index=self.work_index_name, doc_type=DOC_TYPE,
             body=bulk_data)
         if results['errors']:

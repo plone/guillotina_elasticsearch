@@ -3,6 +3,7 @@ from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
 from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
+from guillotina.component import query_utility
 from guillotina.event import notify
 from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IAbsoluteURL
@@ -17,6 +18,7 @@ from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
+from guillotina_elasticsearch.interfaces import IConnectionSettingsUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
@@ -41,13 +43,35 @@ logger = logging.getLogger('guillotina_elasticsearch')
 MAX_RETRIES_ON_REINDEX = 5
 
 
+class DefaultConnnectionSettingsUtility:
+    '''
+    Default uses single connection for entire application
+    '''
+
+    def __init__(self):
+        self._conn = None
+
+    def get(self, request=None, container=None, loop=None):
+        if self._conn is None:
+            self._conn = Elasticsearch(
+                loop=loop, **app_settings.get('elasticsearch', {}).get(
+                    'connection_settings'
+                ))
+        return self._conn
+
+    def close(self):
+        if self._conn is not None:
+            self._conn.close()
+
+
 class ElasticSearchUtility(DefaultSearchUtility):
 
     index_count = 0
 
     def __init__(self, settings={}, loop=None):
         self.loop = loop
-        self._conn = None
+        self._connections = {}
+        self._conn_util = None
 
     @property
     def bulk_size(self):
@@ -57,12 +81,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
     def settings(self):
         return app_settings.get('elasticsearch', {})
 
-    @property
-    def conn(self):
-        if self._conn is None:
-            self._conn = Elasticsearch(
-                loop=self.loop, **self.settings['connection_settings'])
-        return self._conn
+    def get_connection(self, request=None, container=None):
+        if self._conn_util is None:
+            self._conn_util = query_utility(IConnectionSettingsUtility)
+            if self._conn_util is None:
+                self._conn_util = DefaultConnnectionSettingsUtility()
+        return self._conn_util.get(request, container, loop=self.loop)
 
     @property
     def enabled(self):
@@ -73,8 +97,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         self.app = app
 
     async def finalize(self, app):
-        if self._conn is not None:
-            await self._conn.close()
+        for key, conn in self._connections.items():
+            await conn.close()
+        self._connections.clear()
 
     async def initialize_catalog(self, container):
         if not self.enabled:
@@ -86,12 +111,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
         real_index_name = await index_manager.get_real_index_name()
 
         await self.create_index(real_index_name, index_manager)
-        await self.conn.indices.put_alias(
+        conn = self.get_connection(container=container)
+        await conn.indices.put_alias(
             name=index_name, index=real_index_name)
-        await self.conn.indices.close(real_index_name)
+        await conn.indices.close(real_index_name)
 
-        await self.conn.indices.open(real_index_name)
-        await self.conn.cluster.health(
+        await conn.indices.open(real_index_name)
+        await conn.cluster.health(
             wait_for_status='yellow')  # pylint: disable=E1123
 
     async def create_index(self, real_index_name, index_manager,
@@ -106,26 +132,28 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 DOC_TYPE: mappings
             }
         }
-        await self.conn.indices.create(real_index_name, settings)
+        conn = self.get_connection()
+        await conn.indices.create(real_index_name, settings)
 
-    async def _delete_index(self, im):
+    async def _delete_index(self, im, container=None):
         index_name = await im.get_index_name()
         real_index_name = await im.get_real_index_name()
-        await safe_es_call(self.conn.indices.close, real_index_name)
+        conn = self.get_connection(container=container)
+        await safe_es_call(conn.indices.close, real_index_name)
         await safe_es_call(
-            self.conn.indices.delete_alias, real_index_name, index_name)
-        await safe_es_call(self.conn.indices.delete, real_index_name)
-        await safe_es_call(self.conn.indices.delete, index_name)
+            conn.indices.delete_alias, real_index_name, index_name)
+        await safe_es_call(conn.indices.delete, real_index_name)
+        await safe_es_call(conn.indices.delete, index_name)
         migration_index = await im.get_migration_index_name()
         if migration_index:
-            await safe_es_call(self.conn.indices.close, migration_index)
-            await safe_es_call(self.conn.indices.delete, migration_index)
+            await safe_es_call(conn.indices.close, migration_index)
+            await safe_es_call(conn.indices.delete, migration_index)
 
     async def remove_catalog(self, container):
         if not self.enabled:
             return
         index_manager = get_adapter(container, IIndexManager)
-        await self._delete_index(index_manager)
+        await self._delete_index(index_manager, container)
 
     async def get_container_index_name(self, container):
         index_manager = get_adapter(container, IIndexManager)
@@ -133,7 +161,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
     get_index_name = get_container_index_name  # b/w
 
     async def stats(self, container):
-        return await self.conn.indices.stats(
+        conn = self.get_connection(container=container)
+        return await conn.indices.stats(
             await self.get_container_index_name(container))
 
     async def reindex_all_content(
@@ -208,7 +237,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
         q = await self._build_security_query(
             container, query, doc_type, size, request, scroll)
         q['ignore_unavailable'] = True
-        result = await self.conn.search(index=index, **q)
+
+        conn = self.get_connection(request, container=container)
+
+        result = await conn.search(index=index, **q)
         if result.get('_shards', {}).get('failed', 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
             error_message = 'Unknown'
@@ -348,10 +380,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
                                         content_path):
         # first, find any indexes connected with this path so we can
         # delete them.
+        conn = self.get_connection(container=container)
         sub_indexes = await get_content_sub_indexes(container, content_path)
         for index_data in sub_indexes:
             try:
-                all_aliases = await self.conn.indices.get_alias(
+                all_aliases = await conn.indices.get_alias(
                     name=index_data['index'])
             except elasticsearch.exceptions.NotFoundError:
                 continue
@@ -359,14 +392,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 for name in data['aliases'].keys():
                     # delete alias
                     try:
-                        await self.conn.indices.close(index)
-                        await self.conn.indices.delete_alias(index, name)
-                        await self.conn.indices.delete(index)
+                        await conn.indices.close(index)
+                        await conn.indices.delete_alias(index, name)
+                        await conn.indices.delete(index)
                     except elasticsearch.exceptions.NotFoundError:
                         pass
 
         path_query = await self.get_path_query(content_path)
-        conn_es = await self.conn.transport.get_connection()
+        conn_es = await conn.transport.get_connection()
         async with conn_es.session.post(
                 join(conn_es.base_url.human_repr(),
                      index_name, '_delete_by_query'),
@@ -399,7 +432,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout),
         interval=1, max_tries=5)
     async def _update_by_query(self, query, index_name):
-        conn_es = await self.conn.transport.get_connection()
+        conn = self.get_connection()
+        conn_es = await conn.transport.get_connection()
         url = join(conn_es.base_url.human_repr(), index_name,
                    '_update_by_query?conflicts=proceed')
         async with conn_es.session.post(
@@ -441,10 +475,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
         interval=1, max_tries=5)
     async def bulk_insert(self, index_name, bulk_data, idents, count=0,
                           response=noop_response):
+        conn = self.get_connection()
         result = {}
         try:
             response.write(b'Indexing %d' % (len(idents),))
-            result = await self.conn.bulk(
+            result = await conn.bulk(
                 index=index_name, doc_type=DOC_TYPE,
                 body=bulk_data)
         except aiohttp.client_exceptions.ClientResponseError as e:
@@ -621,21 +656,25 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     else:
                         await self.unindex_all_children(
                             container, obj, index_name=','.join(item_indexes))
-            await self.conn.bulk(
+
+            conn = self.get_connection(request, container=container)
+            await conn.bulk(
                 index=indexes[0], body=bulk_data, doc_type=DOC_TYPE)
 
     async def get_doc_count(self, container=None, index_name=None):
         if index_name is None:
             index_manager = get_adapter(container, IIndexManager)
             index_name = await index_manager.get_real_index_name()
-        result = await self.conn.count(index=index_name)
+        conn = self.get_connection(container=container)
+        result = await conn.count(index=index_name)
         return result['count']
 
     async def refresh(self, container=None, index_name=None):
+        conn = self.get_connection(container=container)
         if index_name is None:
             index_manager = get_adapter(container, IIndexManager)
             index_name = await index_manager.get_real_index_name()
-        await self.conn.indices.refresh(index=index_name)
+        await conn.indices.refresh(index=index_name)
 
     async def get_data(self, content, indexes=None):
         im = find_index_manager(content)

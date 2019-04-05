@@ -51,12 +51,13 @@ async def clean_orphan_indexes(container):
     installed_indexes = await get_installed_sub_indexes(container)
     content_indexes = [val['index'] for val in
                        await get_content_sub_indexes(container)]
+    conn = search.get_connection(container=container)
     for alias_name, index in installed_indexes.items():
         if alias_name not in content_indexes:
             # delete, no longer content available
-            await search.conn.indices.close(alias_name)
-            await search.conn.indices.delete_alias(index, alias_name)
-            await search.conn.indices.delete(index)
+            await conn.indices.close(alias_name)
+            await conn.indices.delete_alias(index, alias_name)
+            await conn.indices.delete(index)
 
 
 class Vacuum:
@@ -80,6 +81,8 @@ class Vacuum:
         self.last_zoid = None
         # for state tracking so we get boundries right
         self.last_result_set = []
+        self.conn = self.utility.get_connection(
+            request, container=self.container)
 
     def get_sql(self, source):
         storage = self.txn._manager._storage
@@ -92,7 +95,7 @@ class Vacuum:
             indexes.append(index['index'])
 
         for index_name in indexes:
-            result = await self.utility.conn.search(
+            result = await self.conn.search(
                 index=index_name,
                 scroll='15m',
                 size=PAGE_SIZE,
@@ -104,7 +107,7 @@ class Vacuum:
             scroll_id = result['_scroll_id']
             while scroll_id:
                 try:
-                    result = await self.utility.conn.scroll(
+                    result = await self.conn.scroll(
                         scroll_id=scroll_id,
                         scroll='5m'
                     )
@@ -238,7 +241,7 @@ class Vacuum:
                 # remove them..
                 self.orphaned |= set(orphaned)
                 logger.warning(f'deleting orphaned {len(orphaned)}')
-                conn_es = await self.utility.conn.transport.get_connection()
+                conn_es = await self.conn.transport.get_connection()
                 # delete by query for orphaned keys...
                 async with conn_es.session.post(
                         join(conn_es.base_url.human_repr(),
@@ -299,7 +302,7 @@ class Vacuum:
         async for batch in self.iter_paged_db_keys([self.container._p_oid]):
             oids = [r['zoid'] for r in batch]
             indexes = self.get_indexes_for_oids(oids)
-            results = await self.utility.conn.search(
+            results = await self.conn.search(
                 ','.join(indexes), body={
                     'query': {
                         'terms': {
