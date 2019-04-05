@@ -73,7 +73,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         self.app = app
 
     async def finalize(self, app):
-        import pdb; pdb.set_trace()
         if self._conn is not None:
             await self._conn.close()
 
