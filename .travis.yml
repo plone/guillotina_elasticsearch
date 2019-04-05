@@ -7,6 +7,7 @@ sudo: required
 env:
     - ES_VERSION=6
     - ES_VERSION=6 DATABASE=postgresql
+    - ES_VERSION=OPEN_DISTRO
 
 services:
   - postgresql
@@ -24,8 +25,9 @@ cache:
 install:
   - pip install flake8 codecov
   - pip install -e .[test]
+  - pip install git+git@github.com:guillotinaweb/pytest-docker-fixtures.git@customize-images
 script:
-  - flake8 guillotina --config=setup.cfg
+  - flake8 guillotina_elasticsearch --config=setup.cfg
   - pytest --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
 after_success:
   - codecov

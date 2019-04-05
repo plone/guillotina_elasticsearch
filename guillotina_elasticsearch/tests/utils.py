@@ -1,11 +1,13 @@
 from aioelasticsearch import Elasticsearch
-from guillotina.transactions import managed_transaction
+from guillotina import app_settings
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests import utils
+from guillotina.transactions import managed_transaction
 
 import aioelasticsearch.exceptions
 import asyncio
+import elasticsearch.exceptions
 import json
 import time
 
@@ -92,13 +94,26 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
 
 
 async def cleanup_es(es_host, prefix=''):
-    conn = Elasticsearch(hosts=[es_host])
+    conn = Elasticsearch(
+        **app_settings['elasticsearch']["connection_settings"])
     for alias in (await conn.cat.aliases()).splitlines():
         name, index = alias.split()[:2]
+        if name[0] == '.' or index[0] == '.':
+            # ignore indexes that start with .
+            continue
         if name.startswith(prefix):
-            await conn.indices.delete_alias(index, name)
-            await conn.indices.delete(index)
+            try:
+                await conn.indices.delete_alias(index, name)
+                await conn.indices.delete(index)
+            except elasticsearch.exceptions.AuthorizationException:
+                pass
     for index in (await conn.cat.indices()).splitlines():
         _, _, index_name = index.split()[:3]
+        if index_name[0] == '.':
+            # ignore indexes that start with .
+            continue
         if index_name.startswith(prefix):
-            await conn.indices.delete(index_name)
+            try:
+                await conn.indices.delete(index_name)
+            except elasticsearch.exceptions.AuthorizationException:
+                pass

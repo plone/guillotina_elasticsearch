@@ -31,11 +31,5 @@
           "*": {
           }
       }
-  },
-  "utilities": [
-        {
-            "provides": "guillotina.async_util.IQueueUtility",
-            "factory": "guillotina.async_util.QueueUtility",
-            "settings": {}
-        }]
+  }
 }
