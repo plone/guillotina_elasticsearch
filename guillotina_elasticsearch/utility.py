@@ -17,6 +17,7 @@ from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
+from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.utils import find_index_manager
@@ -72,6 +73,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         self.app = app
 
     async def finalize(self, app):
+        import pdb; pdb.set_trace()
         if self._conn is not None:
             await self._conn.close()
 

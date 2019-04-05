@@ -35,7 +35,7 @@ def base_settings_configurator(settings):
         })
 
     settings["load_utilities"]["catalog"] = {
-        "provides": "guillotina_elasticsearch.utility.IElasticSearchUtility",  # noqa
+        "provides": "guillotina_elasticsearch.interfaces.IElasticSearchUtility",  # noqa
         "factory": "guillotina_elasticsearch.utility.ElasticSearchUtility",
         "settings": {}
     }

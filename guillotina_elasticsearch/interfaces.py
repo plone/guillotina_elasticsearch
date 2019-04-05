@@ -1,4 +1,3 @@
-from guillotina.async_util import IAsyncUtility
 from guillotina.interfaces import ICatalogUtility
 from zope.interface import Interface
 
@@ -7,7 +6,7 @@ DOC_TYPE = 'doc'
 SUB_INDEX_SEPERATOR = '__'
 
 
-class IElasticSearchUtility(ICatalogUtility, IAsyncUtility):
+class IElasticSearchUtility(ICatalogUtility):
     pass
 
 
