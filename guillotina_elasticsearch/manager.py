@@ -3,7 +3,7 @@ from guillotina import app_settings
 from guillotina import configure
 from guillotina.annotations import AnnotationData
 from guillotina.component import get_adapter
-from guillotina.component import get_utility
+from guillotina.component import query_utility
 from guillotina.db.oid import get_short_oid
 from guillotina.directives import index_field
 from guillotina.exceptions import NoIndexField
@@ -245,8 +245,9 @@ class ContentIndexManager(ContainerIndexManager):
 
 
 async def _teardown_failed_request_with_index(im):
-    utility = get_utility(ICatalogUtility)
-    await utility._delete_index(im)
+    utility = query_utility(ICatalogUtility)
+    if utility:
+        await utility._delete_index(im)
 
 
 # make sure it is run before indexers
@@ -255,8 +256,10 @@ async def _teardown_failed_request_with_index(im):
 async def init_index(context, subscriber):
     try:
         im = get_adapter(context, IIndexManager)
-        utility = get_utility(ICatalogUtility)
+        utility = query_utility(ICatalogUtility)
 
+        if utility is None:
+            return
         index_name = await im.get_index_name()
         real_index_name = await im.get_real_index_name()
 
