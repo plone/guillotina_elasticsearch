@@ -25,7 +25,7 @@ cache:
 install:
   - pip install flake8 codecov
   - pip install -e .[test]
-  - pip install git+git@github.com:guillotinaweb/pytest-docker-fixtures.git@customize-images
+  - pip install git+https://github.com/guillotinaweb/pytest-docker-fixtures.git@customize-images#pytest-docker-fixtures
 script:
   - flake8 guillotina_elasticsearch --config=setup.cfg
   - pytest --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
