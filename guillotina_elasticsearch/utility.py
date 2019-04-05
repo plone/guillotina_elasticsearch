@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
-from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.event import notify
@@ -18,7 +17,6 @@ from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
-from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.utils import find_index_manager
