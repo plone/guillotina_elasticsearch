@@ -34,4 +34,5 @@ async def test_get_mappings_nofails():
         #   everything is ok
         get_mappings(schemas=[IB, IC])
     except Exception:
-        pytest.fail("get_mappings() shouldn't fail if 'field_mapping' are the same")
+        pytest.fail("get_mappings() shouldn't fail "
+                    "if 'field_mapping' are the same")
