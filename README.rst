@@ -157,3 +157,20 @@ If there are conflicting mappings, this plugin will choose the mapping
 in the addon last `applications` listed which follows the guillotina practice
 of allowing the last listed application to override the settings of
 the previously list application
+
+
+Security configuration
+----------------------
+
+
+.. code-block:: yaml
+
+    elasticsearch:
+      index_name_prefix: "guillotina-"
+      connection_settings:
+        hosts:
+          - "127.0.0.1:9200"
+        sniffer_timeout: 0.5
+        sniff_on_start: true
+        use_ssl: true
+        http_auth: admin:admin

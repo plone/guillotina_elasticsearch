@@ -1,7 +1,7 @@
 version: '2'
 services:
   elasticsearch1:
-    image: elasticsearch:5.1.1
+    image: elasticsearch:6.7.0
     container_name: elasticsearch1
     environment:
       - cluster.name=docker-cluster

@@ -1,0 +1,23 @@
+{
+    "port": 8080,
+    "applications": ["guillotina_elasticsearch"],
+    "databases": [{
+        "db": {
+            "storage": "DUMMY"
+        }
+    }],
+    "root_user": {
+        "password": "root"
+    },
+    "elasticsearch": {
+        "bulk_size": 50,
+        "index_name_prefix": "guillotina-",
+        "connection_settings": {
+            "hosts": ["localhost:9200"],
+            "sniffer_timeout": 0,
+            "use_ssl": true,
+            "http_auth": "admin:admin"
+        }
+    }
+}
+  
