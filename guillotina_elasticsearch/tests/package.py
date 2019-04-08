@@ -10,6 +10,8 @@ from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IContentIndex
 from guillotina_elasticsearch.utility import DefaultConnnectionFactoryUtility
 
+import asyncio
+
 
 class IUniqueIndexContent(IResource, IContentIndex):
     pass
@@ -70,7 +72,10 @@ class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
                 self._special_conn = Elasticsearch(loop=loop, **settings)
             return self._special_conn
 
-    async def close(self):
+    async def close(self, loop=None):
         await super().close()
         if self._special_conn is not None:
-            await self._special_conn.close()
+            if loop is not None:
+                asyncio.run_coroutine_threadsafe(self._conn.close(), loop)
+            else:
+                await self._special_conn.close()
