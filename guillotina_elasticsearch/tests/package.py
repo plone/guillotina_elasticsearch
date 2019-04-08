@@ -73,7 +73,7 @@ class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
             return self._special_conn
 
     async def close(self, loop=None):
-        await super().close()
+        await super().close(loop)
         if self._special_conn is not None:
             if loop is not None:
                 asyncio.run_coroutine_threadsafe(self._conn.close(), loop)
