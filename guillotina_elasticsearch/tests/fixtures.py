@@ -63,10 +63,11 @@ class ESRequester(ContainerRequesterAsyncContextManager):
 
         # aioelasticsearch caches loop, we need to continue to reset it
         search = get_utility(ICatalogUtility)
-        search.loop = loop
 
         util = get_utility(IConnectionFactoryUtility)
-        loop.run_until_complete(util.close())
+        search.loop.run_until_complete(util.close())
+
+        search.loop = loop
 
         from guillotina import app_settings
         if os.environ.get('TESTING', '') == 'jenkins':
