@@ -60,14 +60,15 @@ def elasticsearch(es):
 class ESRequester(ContainerRequesterAsyncContextManager):
     def __init__(self, guillotina, loop):
         super().__init__(guillotina)
+        self.loop = loop
 
+    async def __aenter__(self):
         # aioelasticsearch caches loop, we need to continue to reset it
         search = get_utility(ICatalogUtility)
 
         util = get_utility(IConnectionFactoryUtility)
-        search.loop.run_until_complete(util.close())
-
-        search.loop = loop
+        await util.close(search.loop)
+        search.loop = self.loop
 
         from guillotina import app_settings
         if os.environ.get('TESTING', '') == 'jenkins':
@@ -77,6 +78,7 @@ class ESRequester(ContainerRequesterAsyncContextManager):
                         getattr(elasticsearch, 'host', 'localhost'),
                         getattr(elasticsearch, 'port', '9200'),
                     )]
+        return await super().__aenter__()
 
 
 @pytest.fixture(scope='function')

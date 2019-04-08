@@ -59,9 +59,12 @@ class DefaultConnnectionFactoryUtility:
                 ))
         return self._conn
 
-    async def close(self):
+    async def close(self, loop=None):
         if self._conn is not None:
-            await self._conn.close()
+            if loop is not None:
+                asyncio.run_coroutine_threadsafe(self._conn.close(), loop)
+            else:
+                await self._conn.close()
             self._conn = None
 
 
