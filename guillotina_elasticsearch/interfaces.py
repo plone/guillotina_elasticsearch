@@ -79,9 +79,9 @@ class IIndexActive(Interface):
     '''
 
 
-class IConnectionSettingsUtility(Interface):
+class IConnectionFactoryUtility(Interface):
     '''
-    Be able to customize connection settings used for a particular
+    Be able to customize es connection ob used for a particular
     container/request
     '''
     def get(request, container=None, loop=None):

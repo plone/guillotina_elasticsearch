@@ -2,7 +2,7 @@ from guillotina import testing
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import ContainerRequesterAsyncContextManager
-from guillotina_elasticsearch.interfaces import IConnectionSettingsUtility
+from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.tests.utils import cleanup_es
 
 import os
@@ -65,7 +65,7 @@ class ESRequester(ContainerRequesterAsyncContextManager):
         search = get_utility(ICatalogUtility)
         search.loop = loop
 
-        util = get_utility(IConnectionSettingsUtility)
+        util = get_utility(IConnectionFactoryUtility)
         util.close()
 
         from guillotina import app_settings

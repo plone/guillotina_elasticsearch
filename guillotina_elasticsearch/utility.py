@@ -18,7 +18,7 @@ from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
-from guillotina_elasticsearch.interfaces import IConnectionSettingsUtility
+from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
@@ -43,7 +43,7 @@ logger = logging.getLogger('guillotina_elasticsearch')
 MAX_RETRIES_ON_REINDEX = 5
 
 
-class DefaultConnnectionSettingsUtility:
+class DefaultConnnectionFactoryUtility:
     '''
     Default uses single connection for entire application
     '''
@@ -84,9 +84,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     def get_connection(self, request=None, container=None):
         if self._conn_util is None:
-            self._conn_util = query_utility(IConnectionSettingsUtility)
+            self._conn_util = query_utility(IConnectionFactoryUtility)
             if self._conn_util is None:
-                self._conn_util = DefaultConnnectionSettingsUtility()
+                self._conn_util = DefaultConnnectionFactoryUtility()
         return self._conn_util.get(request, container, loop=self.loop)
 
     @property

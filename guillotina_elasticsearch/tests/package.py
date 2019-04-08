@@ -6,9 +6,9 @@ from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IResource
 from guillotina.utils import get_current_request
 from guillotina_elasticsearch.directives import index
-from guillotina_elasticsearch.interfaces import IConnectionSettingsUtility
+from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IContentIndex
-from guillotina_elasticsearch.utility import DefaultConnnectionSettingsUtility
+from guillotina_elasticsearch.utility import DefaultConnnectionFactoryUtility
 
 
 class IUniqueIndexContent(IResource, IContentIndex):
@@ -38,8 +38,8 @@ class IndexItemContent(Folder):
     pass
 
 
-@configure.utility(provides=IConnectionSettingsUtility)
-class CustomConnSettingsUtility(DefaultConnnectionSettingsUtility):
+@configure.utility(provides=IConnectionFactoryUtility)
+class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
     '''
     test to demonstrate using different settings from configuration
     '''
