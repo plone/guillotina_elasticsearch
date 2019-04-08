@@ -70,7 +70,7 @@ class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
                 self._special_conn = Elasticsearch(loop=loop, **settings)
             return self._special_conn
 
-    def close(self):
-        super().close()
+    async def close(self):
+        await super().close()
         if self._special_conn is not None:
-            self._special_conn.close()
+            await self._special_conn.close()

@@ -59,9 +59,9 @@ class DefaultConnnectionFactoryUtility:
                 ))
         return self._conn
 
-    def close(self):
+    async def close(self):
         if self._conn is not None:
-            self._conn.close()
+            await self._conn.close()
             self._conn = None
 
 
@@ -71,7 +71,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     def __init__(self, settings={}, loop=None):
         self.loop = loop
-        self._connections = {}
         self._conn_util = None
 
     @property
@@ -98,9 +97,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         self.app = app
 
     async def finalize(self, app):
-        for key, conn in self._connections.items():
-            await conn.close()
-        self._connections.clear()
+        if self._conn_util is not None:
+            await self._conn_util.close()
 
     async def initialize_catalog(self, container):
         if not self.enabled:

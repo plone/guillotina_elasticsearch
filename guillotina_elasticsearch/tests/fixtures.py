@@ -66,7 +66,7 @@ class ESRequester(ContainerRequesterAsyncContextManager):
         search.loop = loop
 
         util = get_utility(IConnectionFactoryUtility)
-        util.close()
+        loop.run_until_complete(util.close())
 
         from guillotina import app_settings
         if os.environ.get('TESTING', '') == 'jenkins':

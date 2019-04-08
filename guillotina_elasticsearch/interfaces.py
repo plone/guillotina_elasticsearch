@@ -89,7 +89,7 @@ class IConnectionFactoryUtility(Interface):
         Get a connection for a request
         '''
 
-    def close():
+    async def close():
         '''
         close all connections
         '''
