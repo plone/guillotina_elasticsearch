@@ -84,6 +84,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
     def settings(self):
         return app_settings.get('elasticsearch', {})
 
+    @property
+    def conn(self):
+        # b/w compat
+        return self.get_connection()
+
     def get_connection(self, request=None, container=None):
         if self._conn_util is None:
             self._conn_util = query_utility(IConnectionFactoryUtility)
