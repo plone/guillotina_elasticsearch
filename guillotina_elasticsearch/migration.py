@@ -159,7 +159,7 @@ class Migrator:
             self.request._txn._cache = DummyCache(self.request._txn)
 
         self.container = self.request.container
-        self.conn = utility.get_connection(request, self.container)
+        self.conn = utility.get_connection()
 
         if index_manager is None:
             self.index_manager = get_adapter(self.container, IIndexManager)

@@ -106,7 +106,7 @@ async def get_content_sub_indexes(container, path=None):
                 "depth": {"gte": path.count('/') + 1}
             }
         })
-    results = await search.get_connection(container=container).search(
+    results = await search.get_connection().search(
         index=index_name, _source=False,
         stored_fields='elastic_index,path', body=query)
     indexes = []

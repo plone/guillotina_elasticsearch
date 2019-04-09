@@ -51,7 +51,7 @@ async def clean_orphan_indexes(container):
     installed_indexes = await get_installed_sub_indexes(container)
     content_indexes = [val['index'] for val in
                        await get_content_sub_indexes(container)]
-    conn = search.get_connection(container=container)
+    conn = search.get_connection()
     for alias_name, index in installed_indexes.items():
         if alias_name not in content_indexes:
             # delete, no longer content available
@@ -81,8 +81,7 @@ class Vacuum:
         self.last_zoid = None
         # for state tracking so we get boundries right
         self.last_result_set = []
-        self.conn = self.utility.get_connection(
-            request, container=self.container)
+        self.conn = self.utility.get_connection()
 
     def get_sql(self, source):
         storage = self.txn._manager._storage

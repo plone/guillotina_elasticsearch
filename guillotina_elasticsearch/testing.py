@@ -50,20 +50,20 @@ class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
         super().__init__()
         self._special_conn = None
 
-    def get(self, request=None, container=None, loop=None):
-        if container is None:
-            try:
-                request = get_current_request()
-                container = getattr(request, 'container', None)
-            except RequestNotFound:
-                pass
+    def get(self, loop=None):
+        container_id = None
+        try:
+            request = get_current_request()
+            container_id = getattr(request, '_container_id', None)
+        except RequestNotFound:
+            return super().get(loop)
 
         settings = app_settings.get('elasticsearch', {}).get(
             'connection_settings'
         )
-        if (container is None or container.id != 'new_container' or
+        if (container_id is None or container_id != 'new_container' or
                 'new_container_settings' not in app_settings['elasticsearch']):
-            return super().get(request, container, loop)
+            return super().get(loop)
         else:
             if self._special_conn is None:
                 settings = settings.copy()

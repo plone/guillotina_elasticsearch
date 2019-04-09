@@ -16,9 +16,9 @@ def base_settings_configurator(settings):
     if 'guillotina_elasticsearch' not in settings['applications']:
         settings['applications'].append('guillotina_elasticsearch')
 
-    if 'guillotina_elasticsearch.tests.package' not in settings['applications']:  # noqa
+    if 'guillotina_elasticsearch.testing' not in settings['applications']:  # noqa
         settings['applications'].append(
-            'guillotina_elasticsearch.tests.package')
+            'guillotina_elasticsearch.testing')
 
     settings['elasticsearch'] = {
         "index_name_prefix": "guillotina-",

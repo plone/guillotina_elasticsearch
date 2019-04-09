@@ -84,7 +84,7 @@ class IConnectionFactoryUtility(Interface):
     Be able to customize es connection ob used for a particular
     container/request
     '''
-    def get(request, container=None, loop=None):
+    def get(loop=None):
         '''
         Get a connection for a request
         '''

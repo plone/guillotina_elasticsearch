@@ -1,6 +1,4 @@
-from guillotina.api.container import create_container
 from guillotina import app_settings
-from guillotina.tests.utils import get_db
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina.component import get_utility
 from guillotina.tests.utils import wrap_request
@@ -14,13 +12,7 @@ import pytest
     reason='Only for opendistro')
 async def test_opendistro_index_with_security_user(
         es_requester, guillotina, dummy_request):
-    db = get_db(guillotina, 'db')
-    tm = db.get_transaction_manager()
-
     async with wrap_request(dummy_request):
-        async with tm.transaction():
-            root_ob = await tm.get_root()
-            container = await create_container(root_ob, 'new_container')
         utility = get_utility(IElasticSearchUtility)
         conn = utility.get_connection()
         await conn.indices.create('new_container', {
@@ -54,7 +46,7 @@ async def test_opendistro_index_with_security_user(
         }
         dummy_request._es_conn = None
         dummy_request._container_id = 'new_container'
-        conn2 = utility.get_connection(container=container)
+        conn2 = utility.get_connection()
         conn_es2 = await conn2.transport.get_connection()
         assert conn != conn2
         assert conn_es2.http_auth.login == 'new_container'

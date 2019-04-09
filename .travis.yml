@@ -25,6 +25,7 @@ cache:
 install:
   - pip install flake8 codecov
   - pip install -e .[test]
+  - pip install git+git://github.com/plone/guillotina.git@sub-package-module-loading-error
 script:
   - flake8 guillotina_elasticsearch --config=setup.cfg
   - pytest --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch

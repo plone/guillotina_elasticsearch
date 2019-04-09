@@ -264,7 +264,7 @@ async def init_index(context, subscriber):
         real_index_name = await im.get_real_index_name()
 
         request = get_current_request()
-        conn = utility.get_connection(request)
+        conn = utility.get_connection()
 
         await utility.create_index(real_index_name, im)
         await conn.indices.put_alias(
