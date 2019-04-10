@@ -1,4 +1,4 @@
-3.3.0 (unreleased)
+3.3.0 (2019-04-10)
 ------------------
 
 - Be able to customize how you create es connection object
