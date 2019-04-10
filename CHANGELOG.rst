@@ -1,4 +1,4 @@
-3.2.7 (unreleased)
+3.3.0 (unreleased)
 ------------------
 
 - Be able to customize how you create es connection object
