@@ -77,3 +77,19 @@ class IIndexActive(Interface):
     has had the elasticsearch index created and
     content is getting added
     '''
+
+
+class IConnectionFactoryUtility(Interface):
+    '''
+    Be able to customize es connection ob used for a particular
+    container/request
+    '''
+    def get(loop=None):
+        '''
+        Get a connection for a request
+        '''
+
+    async def close(loop=None):
+        '''
+        close all connections
+        '''

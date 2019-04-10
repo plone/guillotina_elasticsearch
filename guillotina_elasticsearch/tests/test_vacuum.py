@@ -251,14 +251,14 @@ async def test_reindexes_moved_content(es_requester):
 
         async def _test():
             assert await search.get_doc_count(container) == 3
-            result = await search.conn.get(
+            result = await search.get_connection().get(
                 index=index_name, doc_type='_all', id=resp3['@uid'])
             assert result is not None
 
         await run_with_retries(_test, requester)
 
         # mess with index data to make it look like it was moved
-        await search.conn.update(
+        await search.get_connection().update(
             index=index_name,
             id=resp1['@uid'],
             doc_type=DOC_TYPE,
@@ -268,7 +268,7 @@ async def test_reindexes_moved_content(es_requester):
                     "parent_uuid": "FOOOBBAR MOVED TO NEW PARENT"
                 }
             })
-        await search.conn.update(
+        await search.get_connection().update(
             index=index_name,
             id=resp2['@uid'],
             doc_type=DOC_TYPE,
@@ -277,7 +277,7 @@ async def test_reindexes_moved_content(es_requester):
                     "path": "/moved-foobar/foobar"
                 }
             })
-        await search.conn.update(
+        await search.get_connection().update(
             index=index_name,
             id=resp3['@uid'],
             doc_type=DOC_TYPE,
@@ -288,11 +288,11 @@ async def test_reindexes_moved_content(es_requester):
             })
 
         async def _test():
-            result = await search.conn.get(
+            result = await search.get_connection().get(
                 index=index_name, doc_type='_all',
                 id=resp3['@uid'], stored_fields='path')
             assert result['fields']['path'] == ["/moved-foobar/foobar/foobar"]
-            result = await search.conn.get(
+            result = await search.get_connection().get(
                 index=index_name, doc_type='_all',
                 id=resp1['@uid'], stored_fields='path,parent_uuid')
             assert result['fields']['path'] == ["/moved-foobar"]
@@ -313,11 +313,11 @@ async def test_reindexes_moved_content(es_requester):
         await asyncio.sleep(2)
 
         async def __test():
-            result = await search.conn.get(
+            result = await search.get_connection().get(
                 index=index_name, doc_type='_all',
                 id=resp3['@uid'], stored_fields='path,parent_uuid')
             assert result['fields']['path'] == ["/foobar/foobar/foobar"]
-            result = await search.conn.get(
+            result = await search.get_connection().get(
                 index=index_name, doc_type='_all',
                 id=resp1['@uid'], stored_fields='path,parent_uuid')
             assert result['fields']['path'] == ["/foobar"]

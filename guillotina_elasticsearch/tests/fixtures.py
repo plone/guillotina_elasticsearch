@@ -1,21 +1,24 @@
 from guillotina import testing
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
-from guillotina_elasticsearch.tests.utils import cleanup_es
 from guillotina.tests.utils import ContainerRequesterAsyncContextManager
+from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
+from guillotina_elasticsearch.tests.utils import cleanup_es
 
 import os
 import pytest
 
 
 def base_settings_configurator(settings):
-    if 'applications' in settings:
-        settings['applications'].append('guillotina_elasticsearch')
-    else:
-        settings['applications'] = ['guillotina_elasticsearch']
+    if 'applications' not in settings:
+        settings['applications'] = []
 
-    settings['applications'].append(
-        'guillotina_elasticsearch.tests.package')
+    if 'guillotina_elasticsearch' not in settings['applications']:
+        settings['applications'].append('guillotina_elasticsearch')
+
+    if 'guillotina_elasticsearch.testing' not in settings['applications']:  # noqa
+        settings['applications'].append(
+            'guillotina_elasticsearch.testing')
 
     settings['elasticsearch'] = {
         "index_name_prefix": "guillotina-",
@@ -57,13 +60,16 @@ def elasticsearch(es):
 class ESRequester(ContainerRequesterAsyncContextManager):
     def __init__(self, guillotina, loop):
         super().__init__(guillotina)
+        self.loop = loop
 
+    async def __aenter__(self):
         # aioelasticsearch caches loop, we need to continue to reset it
         search = get_utility(ICatalogUtility)
-        search.loop = loop
-        if search._conn:
-            search._conn.close()
-        search._conn = None
+
+        util = get_utility(IConnectionFactoryUtility)
+        await util.close(search.loop)
+        search.loop = self.loop
+
         from guillotina import app_settings
         if os.environ.get('TESTING', '') == 'jenkins':
             if 'elasticsearch' in app_settings:
@@ -72,6 +78,7 @@ class ESRequester(ContainerRequesterAsyncContextManager):
                         getattr(elasticsearch, 'host', 'localhost'),
                         getattr(elasticsearch, 'port', '9200'),
                     )]
+        return await super().__aenter__()
 
 
 @pytest.fixture(scope='function')

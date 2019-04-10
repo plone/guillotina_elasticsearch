@@ -65,7 +65,7 @@ async def get_installed_sub_indexes(container):
 
     results = {}
     try:
-        all_aliases = await search.conn.indices.get_alias(
+        all_aliases = await search.get_connection().indices.get_alias(
             name=index_name + '__*')
     except exceptions.NotFoundError:
         return results
@@ -106,7 +106,7 @@ async def get_content_sub_indexes(container, path=None):
                 "depth": {"gte": path.count('/') + 1}
             }
         })
-    results = await search.conn.search(
+    results = await search.get_connection().search(
         index=index_name, _source=False,
         stored_fields='elastic_index,path', body=query)
     indexes = []

@@ -95,7 +95,7 @@ async def test_removes_orphans(es_requester):
         im = get_adapter(container, IIndexManager)
         index_name = await im.get_index_name()  # alias
 
-        doc = await search.conn.get(
+        doc = await search.get_connection().get(
             index=index_name, doc_type=DOC_TYPE, id='foobar')
         assert doc['found']
 
@@ -104,7 +104,7 @@ async def test_removes_orphans(es_requester):
 
         async def _test():
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await search.conn.get(
+                await search.get_connection().get(
                     index=index_name, doc_type=DOC_TYPE, id='foobar')
 
             assert len(migrator.orphaned) == 1
@@ -201,7 +201,7 @@ async def test_updates_index_data(es_requester):
         await asyncio.sleep(1)
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
-        doc = await search.conn.get(
+        doc = await search.get_connection().get(
             index=new_index_name, doc_type=DOC_TYPE, id=ob._p_oid)
         assert doc['_source']['title'] == 'foobar-new'
 
@@ -236,11 +236,12 @@ async def test_updates_index_name(es_requester):
         search = get_utility(ICatalogUtility)
         im = get_adapter(container, IIndexManager)
         existing_index = await im.get_real_index_name()
-        assert await search.conn.indices.exists(existing_index)
+        assert await search.get_connection().indices.exists(existing_index)
         migrator = Migrator(search, container, force=True, request=request)
         await migrator.run_migration()
-        assert not await search.conn.indices.exists(existing_index)
-        assert await search.conn.indices.exists(migrator.work_index_name)
+        assert not await search.get_connection().indices.exists(existing_index)
+        assert await search.get_connection().indices.exists(
+            migrator.work_index_name)
         assert await im.get_real_index_name() == migrator.work_index_name
 
 
@@ -377,10 +378,10 @@ async def test_search_works_on_new_docs_during_migration(es_requester):
         }))
 
         async def _test():
-            result1 = await search.conn.get(
+            result1 = await search.get_connection().get(
                 index=next_index_name, doc_type='_all', id=resp['@uid'])
             assert result1 is not None
-            result2 = await search.conn.get(
+            result2 = await search.get_connection().get(
                 index=index_name, doc_type='_all', id=resp['@uid'])
             assert result2 is not None
 
@@ -412,12 +413,12 @@ async def test_search_works_on_updated_docs_during_migration_when_missing(es_req
         }))
 
         async def _test():
-            result1 = await search.conn.get(
+            result1 = await search.get_connection().get(
                 index=index_name, doc_type='_all', id=resp['@uid'])
             assert result1 is not None
             assert result1['_source']['title'] == 'Foobar2'
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await search.conn.get(
+                await search.get_connection().get(
                     index=next_index_name, doc_type='_all', id=resp['@uid'])
 
         await run_with_retries(_test, requester)
@@ -448,11 +449,11 @@ async def test_search_works_on_updated_docs_during_migration_when_present(es_req
         }))
 
         async def _test():
-            result1 = await search.conn.get(
+            result1 = await search.get_connection().get(
                 index=next_index_name, doc_type='_all', id=resp['@uid'])
             assert result1 is not None
             assert result1['_source']['title'] == 'Foobar2'
-            result2 = await search.conn.get(
+            result2 = await search.get_connection().get(
                 index=index_name, doc_type='_all', id=resp['@uid'])
             assert result2 is not None
             assert result2['_source']['title'] == 'Foobar2'
@@ -479,10 +480,10 @@ async def test_delete_in_both_during_migration(es_requester):
 
         async def _test():
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await search.conn.get(
+                await search.get_connection().get(
                     index=next_index_name, doc_type='_all', id=resp['@uid'])
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await search.conn.get(
+                await search.get_connection().get(
                     index=index_name, doc_type='_all', id=resp['@uid'])
 
         await run_with_retries(_test, requester)
@@ -523,14 +524,15 @@ async def test_migrate_content_index_works(es_requester):
         migrator = Migrator(search, container, force=True)
         await migrator.run_migration()
 
-        assert await search.conn.indices.exists('guillotina-db-guillotina_2')
-        assert not await search.conn.indices.exists(
+        assert await search.get_connection().indices.exists(
+            'guillotina-db-guillotina_2')
+        assert not await search.get_connection().indices.exists(
             'guillotina-db-guillotina_1')
-        assert await search.conn.indices.exists(
+        assert await search.get_connection().indices.exists(
             '2_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
                 get_short_oid(cresp['@uid'])
             ))
-        assert not await search.conn.indices.exists(
+        assert not await search.get_connection().indices.exists(
             '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
                 get_short_oid(cresp['@uid'])
             ))

@@ -25,11 +25,11 @@ async def test_create_index(es_requester):
         catalog = get_utility(ICatalogUtility)
         assert status == 201
         # assert indexes were created
-        assert await catalog.conn.indices.exists_alias(
+        assert await catalog.get_connection().indices.exists_alias(
             'guillotina-db-guillotina__uniqueindexcontent-{}'.format(
                 get_short_oid(resp['@uid'])
             ))
-        assert await catalog.conn.indices.exists(
+        assert await catalog.get_connection().indices.exists(
             '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
                 get_short_oid(resp['@uid'])
             ))
@@ -63,11 +63,11 @@ async def test_indexes_data_in_correct_indexes(es_requester):
 
         async def _test():
             # should find in content index but not main index
-            result = await search.conn.get(
+            result = await search.get_connection().get(
                 index=content_index_name, doc_type='_all', id=resp['@uid'])
             assert result is not None
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await search.conn.get(
+                await search.get_connection().get(
                     index='guillotina-guillotina', doc_type='_all',
                     id=resp['@uid'])
 
@@ -100,11 +100,11 @@ async def test_elastic_index_field(es_requester):
         search = get_utility(ICatalogUtility)
 
         async def _test():
-            result = await search.conn.get(
+            result = await search.get_connection().get(
                 index='guillotina-db-guillotina',
                 doc_type='_all', id=cresp['@uid'])
             assert result['_source']['elastic_index'] == content_index_name
-            result = await search.conn.get(
+            result = await search.get_connection().get(
                 index=content_index_name, doc_type='_all', id=resp['@uid'])
             assert result['_source']['title'] == 'IndexItemContent'
 
@@ -139,11 +139,11 @@ async def test_delete_resource(es_requester):
 
         async def _test():
             # should find in content index but not main index
-            result = await search.conn.get(
+            result = await search.get_connection().get(
                 index=content_index_name, doc_type='_all', id=resp['@uid'])
             assert result is not None
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await search.conn.get(
+                await search.get_connection().get(
                     index='guillotina-guillotina',
                     doc_type='_all', id=resp['@uid'])
 
@@ -155,7 +155,7 @@ async def test_delete_resource(es_requester):
         async def _test():
             # should find in content index but not main index
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await search.conn.get(
+                await search.get_connection().get(
                     index=content_index_name, doc_type='_all', id=resp['@uid'])
 
         await run_with_retries(_test, requester)
@@ -190,20 +190,20 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
         async def _test():
             # should find in content index but not main index
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await catalog.conn.get(
+                await catalog.get_connection().get(
                     index=content_index_name, doc_type='_all', id=resp['@uid'])
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await catalog.conn.get(
+                await catalog.get_connection().get(
                     index='guillotina-guillotina',
                     doc_type='_all', id=cresp['@uid'])
 
         await run_with_retries(_test, requester)
 
-        assert not await catalog.conn.indices.exists_alias(
+        assert not await catalog.get_connection().indices.exists_alias(
             'guillotina-db-guillotina__uniqueindexcontent-{}'.format(
                 get_short_oid(resp['@uid'])
             ))
-        assert not await catalog.conn.indices.exists(
+        assert not await catalog.get_connection().indices.exists(
             '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
                 get_short_oid(resp['@uid'])
             ))

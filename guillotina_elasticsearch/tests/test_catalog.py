@@ -43,7 +43,8 @@ async def test_update(es_requester):
         })
         await search.refresh(container)
         im = get_adapter(container, IIndexManager)
-        doc = await search.conn.get(
+        conn = search.get_connection()
+        doc = await conn.get(
             index=await im.get_index_name(),
             doc_type=DOC_TYPE, id='foobar')
         assert doc['_source']['title'] == 'foobar-updated'

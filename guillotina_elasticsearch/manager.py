@@ -263,16 +263,18 @@ async def init_index(context, subscriber):
         index_name = await im.get_index_name()
         real_index_name = await im.get_real_index_name()
 
+        request = get_current_request()
+        conn = utility.get_connection()
+
         await utility.create_index(real_index_name, im)
-        await utility.conn.indices.put_alias(
+        await conn.indices.put_alias(
             name=index_name, index=real_index_name)
 
-        await utility.conn.cluster.health(
+        await conn.cluster.health(
             wait_for_status='yellow')
 
         alsoProvides(context, IIndexActive)
 
-        request = get_current_request()
         request.add_future(
             'cleanup-' + context.uuid,
             _teardown_failed_request_with_index, scope='failure',
