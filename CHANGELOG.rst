@@ -1,4 +1,4 @@
-3.3.1 (unreleased)
+3.3.1 (2019-05-20)
 ------------------
 
 - Handle `ModuleNotFoundError` error in vacuum
