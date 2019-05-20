@@ -1,7 +1,8 @@
 3.3.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Handle `ModuleNotFoundError` error in vacuum
+  [vangheem]
 
 
 3.3.0 (2019-04-10)

@@ -185,7 +185,7 @@ class Vacuum:
         except KeyError:
             logger.warning(f'Could not find {oid}')
             return
-        except (AttributeError, TypeError):
+        except (AttributeError, TypeError, ModuleNotFoundError):
             logger.warning(f'Could not find {oid}', exc_info=True)
             return  # object or parent of object was removed, ignore
         try:
