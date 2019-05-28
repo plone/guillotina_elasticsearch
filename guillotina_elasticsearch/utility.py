@@ -134,11 +134,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if mappings is None:
             mappings = await index_manager.get_mappings()
         settings = {
-            'settings': settings,
-            'mappings': {
+            'settings': settings
+        }
+        if app_settings['elasticsearch'].get('version', 6) < 7:
+            settings['mappings'] = {
                 DOC_TYPE: mappings
             }
-        }
+        else:
+            settings['mappings'] = mappings
         conn = self.get_connection()
         await conn.indices.create(real_index_name, settings)
 

@@ -5,7 +5,6 @@ from guillotina.component import get_utilities_for
 from guillotina.content import IResourceFactory
 from guillotina.utils import get_dotted_name
 
-
 app_settings = {
     "elasticsearch": {
         "bulk_size": 50,
@@ -15,7 +14,25 @@ app_settings = {
             "timeout": 2
         },
         "index": {},
-        'security_query_builder': 'guillotina_elasticsearch.queries.build_security_query'  # noqa
+        'security_query_builder': 'guillotina_elasticsearch.queries.build_security_query',  # noqa
+        "version": 6,
+        "default_settings": {
+            "analysis": {
+                "analyzer": {
+                    "path_analyzer": {
+                        "tokenizer": "path_tokenizer"
+                    }
+                },
+                "tokenizer": {
+                    "path_tokenizer": {
+                        "type": "path_hierarchy",
+                        "delimiter": "/"
+                    }
+                },
+                "filter": {},
+                "char_filter": {}
+            }
+        }
     },
     "load_utilities": {
         "catalog": {

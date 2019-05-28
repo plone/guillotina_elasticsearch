@@ -117,10 +117,13 @@ Registered mapping: {field_mapping}
             schema_field_mappings[index_name] = catalog_info['__schema__']
             mappings[index_name] = field_mapping
 
-    return {
+    result = {
         'properties': mappings,
-        'dynamic': False,
-        '_all': {
+        'dynamic': "strict"
+    }
+    if app_settings['elasticsearch'].get('version', 6) < 7:
+        result['dynamic'] = False
+        result['_all'] = {
             'enabled': False
         }
-    }
+    return result

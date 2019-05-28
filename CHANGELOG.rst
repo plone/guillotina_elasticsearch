@@ -1,7 +1,8 @@
-3.3.2 (unreleased)
+3.4.0 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Support for elasticsearch 7
+  [bloodbare]
 
 
 3.3.1 (2019-05-20)

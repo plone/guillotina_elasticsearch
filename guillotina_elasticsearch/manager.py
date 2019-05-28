@@ -32,26 +32,12 @@ import logging
 logger = logging.getLogger('guillotina_elasticsearch')
 
 
-DEFAULT_SETTINGS = {
-    "analysis": {
-        "analyzer": {
-            "path_analyzer": {
-                "tokenizer": "path_tokenizer"
-            }
-        },
-        "tokenizer": {
-            "path_tokenizer": {
-                "type": "path_hierarchy",
-                "delimiter": "/"
-            }
-        },
-        "filter": {
-        },
-        "char_filter": {
-        }
-    },
-    'index.mapper.dynamic': False
-}
+def default_settings():
+    settings = app_settings['elasticsearch']['default_settings']
+    version = app_settings['elasticsearch'].get('version', 6)
+    if version < 7:
+        settings['index.mapper.dynamic'] = False
+    return deepcopy(settings)
 
 
 @configure.adapter(
@@ -87,7 +73,7 @@ class ContainerIndexManager:
         return indexes
 
     async def get_index_settings(self):
-        index_settings = deepcopy(DEFAULT_SETTINGS)
+        index_settings = default_settings()
         index_settings.update(app_settings.get('index', {}))
         return index_settings
 
