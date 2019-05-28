@@ -1,4 +1,4 @@
-3.4.0 (unreleased)
+3.4.0 (2019-05-28)
 ------------------
 
 - Support for elasticsearch 7
