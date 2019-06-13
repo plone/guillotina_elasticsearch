@@ -601,7 +601,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                         'update': {
                             '_index': index,
                             '_id': ident,
-                            '_retry_on_conflict': 3
+                            'retry_on_conflict': 3
                         }
                     }, {'doc': data}])
                 idents.append(ident)

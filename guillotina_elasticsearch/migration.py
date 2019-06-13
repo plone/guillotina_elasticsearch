@@ -294,7 +294,7 @@ class Migrator:
         next_mappings = await self.conn.indices.get_mapping(
             self.work_index_name)
         next_mappings = next_mappings[self.work_index_name]['mappings']
-        next_mappings = next_mappings[DOC_TYPE]['properties']
+        next_mappings = next_mappings['properties']
 
         existing_index_name = await self.index_manager.get_real_index_name()
         try:
@@ -305,7 +305,7 @@ class Migrator:
             return next_mappings
 
         existing_mappings = existing_mappings[existing_index_name]['mappings']
-        existing_mappings = existing_mappings[DOC_TYPE]['properties']
+        existing_mappings = existing_mappings['properties']
 
         new_definitions = {}
         for field_name, definition in next_mappings.items():
@@ -450,7 +450,7 @@ class Migrator:
             data = payload['data']
             if payload['action'] == 'update':
                 data = {'doc': data}
-                action_data['_retry_on_conflict'] = 3
+                action_data['retry_on_conflict'] = 3
             bulk_data.append({
                 payload['action']: action_data
             })

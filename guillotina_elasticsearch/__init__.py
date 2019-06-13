@@ -15,7 +15,7 @@ app_settings = {
         },
         "index": {},
         'security_query_builder': 'guillotina_elasticsearch.queries.build_security_query',  # noqa
-        "version": 6,
+        "version": 7,
         "default_settings": {
             "analysis": {
                 "analyzer": {

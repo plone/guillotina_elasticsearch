@@ -121,9 +121,5 @@ Registered mapping: {field_mapping}
         'properties': mappings,
         'dynamic': "strict"
     }
-    if app_settings['elasticsearch'].get('version', 6) < 7:
-        result['dynamic'] = False
-        result['_all'] = {
-            'enabled': False
-        }
+
     return result

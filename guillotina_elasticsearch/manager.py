@@ -34,9 +34,11 @@ logger = logging.getLogger('guillotina_elasticsearch')
 
 def default_settings():
     settings = app_settings['elasticsearch']['default_settings']
-    version = app_settings['elasticsearch'].get('version', 6)
+    version = app_settings['elasticsearch'].get('version', 7)
     if version < 7:
         settings['index.mapper.dynamic'] = False
+    else:
+        settings['index.mapper.dynamic'] = True
     return deepcopy(settings)
 
 
