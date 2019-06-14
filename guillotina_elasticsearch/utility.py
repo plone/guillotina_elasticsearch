@@ -259,7 +259,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         final = {
-            'items_count': result['hits']['total'],
+            'items_count': result['hits']['total']['value'],
             'member': items
         }
         if 'aggregations' in result:
@@ -274,7 +274,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         tdif = time.time() - t1
         logger.debug(f'Time ELASTIC {tdif}')
         await notify(SearchDoneEvent(
-            query, result['hits']['total'], request, tdif))
+            query, result['hits']['total']['value'], request, tdif))
         return final
 
     async def get_by_uuid(self, container, uuid):
