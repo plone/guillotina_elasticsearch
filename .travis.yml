@@ -5,9 +5,8 @@ python:
     - "3.6"
 sudo: required
 env:
-    - ES_VERSION=6
-    - ES_VERSION=6 DATABASE=postgresql
-    - ES_VERSION=OPEN_DISTRO
+  - DATABASE=DUMMY
+  - DATABASE=postgresql
 
 services:
   - postgresql

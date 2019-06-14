@@ -157,6 +157,8 @@ async def test_vacuum_with_sub_indexes(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
         aiotask_context.set('request', request)
 
+        await asyncio.sleep(1)
+
         async def _test():
             assert await search.get_doc_count(container) == 13
             assert await search.get_doc_count(index_name=content_index_name) == 12  # noqa

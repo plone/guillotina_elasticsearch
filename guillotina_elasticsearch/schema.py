@@ -119,7 +119,7 @@ Registered mapping: {field_mapping}
 
     result = {
         'properties': mappings,
-        'dynamic': "strict"
+        'dynamic': False,
     }
 
     return result
