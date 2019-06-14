@@ -129,6 +129,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def create_index(self, real_index_name, index_manager,
                            settings=None, mappings=None):
+        if ':' in real_index_name:
+            raise Exception(
+                f"Ivalid character ':' in index name: {real_index_name}")
+
         if settings is None:
             settings = await index_manager.get_index_settings()
         if mappings is None:
@@ -136,12 +140,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         settings = {
             'settings': settings
         }
-        if app_settings['elasticsearch'].get('version', 6) < 7:
-            settings['mappings'] = {
-                DOC_TYPE: mappings
-            }
-        else:
-            settings['mappings'] = mappings
+        settings['mappings'] = mappings
         conn = self.get_connection()
         await conn.indices.create(real_index_name, settings)
 
