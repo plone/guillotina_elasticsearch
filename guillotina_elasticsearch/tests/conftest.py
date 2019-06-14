@@ -1,5 +1,4 @@
 from pytest_docker_fixtures import images
-import os
 
 
 images.configure(
