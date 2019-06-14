@@ -3,7 +3,7 @@ from guillotina.interfaces import ICatalogUtility
 from zope.interface import Interface
 
 
-DOC_TYPE = 'doc'
+DOC_TYPE = '_doc'
 SUB_INDEX_SEPERATOR = '__'
 
 

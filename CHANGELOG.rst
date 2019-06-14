@@ -1,8 +1,16 @@
-3.4.1 (unreleased)
+4.0.0 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Support only elasticsearch 7
 
+- We may want to pin newest version of aioelasticsearch when that also
+  supports ES7: https://github.com/aio-libs/aioelasticsearch/pull/165
+
+- Check supported ES version on utility initialize
+
+- Validate index name does not have ':' characters
+
+[lferran]
 
 3.4.0 (2019-05-28)
 ------------------

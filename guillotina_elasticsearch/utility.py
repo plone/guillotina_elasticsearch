@@ -103,10 +103,25 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def initialize(self, app):
         self.app = app
+        await self.check_supported_version()
 
     async def finalize(self, app):
         if self._conn_util is not None:
             await self._conn_util.close()
+
+    async def check_supported_version(self):
+        try:
+            connection = self.get_connection()
+            info = await connection.info()
+        except Exception:
+            logger.warning('Could not check current es version. '
+                           'Only 7.x is supported')
+            return
+
+        es_version = info['version']['number']
+        # We currently support 7.x versions
+        if not es_version.startswith('7'):
+            raise Exception(f'ES cluster version not supported: {es_version}')
 
     async def initialize_catalog(self, container):
         if not self.enabled:
@@ -129,6 +144,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def create_index(self, real_index_name, index_manager,
                            settings=None, mappings=None):
+        if ':' in real_index_name:
+            raise Exception(
+                f"Ivalid character ':' in index name: {real_index_name}")
+
         if settings is None:
             settings = await index_manager.get_index_settings()
         if mappings is None:
@@ -136,12 +155,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         settings = {
             'settings': settings
         }
-        if app_settings['elasticsearch'].get('version', 6) < 7:
-            settings['mappings'] = {
-                DOC_TYPE: mappings
-            }
-        else:
-            settings['mappings'] = mappings
+        settings['mappings'] = mappings
         conn = self.get_connection()
         await conn.indices.create(real_index_name, settings)
 
@@ -259,7 +273,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         final = {
-            'items_count': result['hits']['total'],
+            'items_count': result['hits']['total']['value'],
             'member': items
         }
         if 'aggregations' in result:
@@ -274,7 +288,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         tdif = time.time() - t1
         logger.debug(f'Time ELASTIC {tdif}')
         await notify(SearchDoneEvent(
-            query, result['hits']['total'], request, tdif))
+            query, result['hits']['total']['value'], request, tdif))
         return final
 
     async def get_by_uuid(self, container, uuid):
@@ -601,7 +615,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                         'update': {
                             '_index': index,
                             '_id': ident,
-                            '_retry_on_conflict': 3
+                            'retry_on_conflict': 3
                         }
                     }, {'doc': data}])
                 idents.append(ident)
