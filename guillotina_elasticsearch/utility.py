@@ -114,7 +114,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             connection = self.get_connection()
             info = await connection.info()
         except Exception:
-            logger.warning('Could not check current es version. ' \
+            logger.warning('Could not check current es version. '
                            'Only 7.x is supported')
             return
 
