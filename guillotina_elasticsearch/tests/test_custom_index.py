@@ -1,5 +1,5 @@
 from guillotina.component import get_utility
-from guillotina.db.oid import get_short_oid
+from guillotina.db.uid import get_short_uid
 from guillotina.interfaces import ICatalogUtility
 from guillotina_elasticsearch.tests.utils import run_with_retries
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
@@ -27,11 +27,11 @@ async def test_create_index(es_requester):
         # assert indexes were created
         assert await catalog.get_connection().indices.exists_alias(
             'guillotina-db-guillotina__uniqueindexcontent-{}'.format(
-                get_short_oid(resp['@uid'])
+                get_short_uid(resp['@uid'])
             ))
         assert await catalog.get_connection().indices.exists(
             '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
-                get_short_oid(resp['@uid'])
+                get_short_uid(resp['@uid'])
             ))
 
 
@@ -57,7 +57,7 @@ async def test_indexes_data_in_correct_indexes(es_requester):
         )
         assert status == 201
         content_index_name = 'guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
-            get_short_oid(cresp['@uid'])
+            get_short_uid(cresp['@uid'])
         )
         search = get_utility(ICatalogUtility)
 
@@ -95,7 +95,7 @@ async def test_elastic_index_field(es_requester):
             })
         )
         content_index_name = 'guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
-            get_short_oid(cresp['@uid'])
+            get_short_uid(cresp['@uid'])
         )
         search = get_utility(ICatalogUtility)
 
@@ -133,7 +133,7 @@ async def test_delete_resource(es_requester):
         )
         assert status == 201
         content_index_name = 'guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
-            get_short_oid(cresp['@uid'])
+            get_short_uid(cresp['@uid'])
         )
         search = get_utility(ICatalogUtility)
 
@@ -201,11 +201,11 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
 
         assert not await catalog.get_connection().indices.exists_alias(
             'guillotina-db-guillotina__uniqueindexcontent-{}'.format(
-                get_short_oid(resp['@uid'])
+                get_short_uid(resp['@uid'])
             ))
         assert not await catalog.get_connection().indices.exists(
             '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
-                get_short_oid(resp['@uid'])
+                get_short_uid(resp['@uid'])
             ))
 
 

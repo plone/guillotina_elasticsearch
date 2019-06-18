@@ -1,9 +1,11 @@
 from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
+from guillotina import task_vars
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests import utils
 from guillotina.transactions import managed_transaction
+from guillotina.tests.utils import get_container
 
 import aioelasticsearch.exceptions
 import asyncio
@@ -44,26 +46,13 @@ async def add_content(requester, num_folders=10, num_items=10, base_id='es-',
 
 
 async def setup_txn_on_container(requester, container_id='guillotina'):
-    request = utils.get_mocked_request(requester.db)
-    utils.login(request)
-    container = await get_container(request=request, container_id=container_id)
-    request.container = container
-
-    tm = request._tm
-    txn = await tm.begin(request)
+    utils.login()
+    request = utils.get_mocked_request(db=requester.db)
+    task_vars.request.set(request)
+    container = await get_container(requester=requester, container_id=container_id)
+    tm = task_vars.tm.get()
+    txn = await tm.begin()
     return container, request, txn, tm
-
-
-async def get_container(requester=None, request=None,
-                        container_id='guillotina'):
-    if request is None:
-        request = utils.get_mocked_request(requester.db)
-    root = await utils.get_root(request)
-    async with managed_transaction(request=request):
-        container = await root.async_get(container_id)
-        request._container_id = container.id
-        request.container = container
-        return container
 
 
 async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):

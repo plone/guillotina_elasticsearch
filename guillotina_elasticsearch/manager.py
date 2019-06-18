@@ -1,10 +1,11 @@
 from copy import deepcopy
 from guillotina import app_settings
 from guillotina import configure
+from guillotina import task_vars
 from guillotina.annotations import AnnotationData
 from guillotina.component import get_adapter
 from guillotina.component import query_utility
-from guillotina.db.oid import get_short_oid
+from guillotina.db.uid import get_short_uid
 from guillotina.directives import index_field
 from guillotina.exceptions import NoIndexField
 from guillotina.interfaces import IAnnotations
@@ -15,7 +16,9 @@ from guillotina.interfaces import IResource
 from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_current_request
+from guillotina.utils import get_current_transaction
 from guillotina.utils import resolve_dotted_name
+from guillotina.utils import get_registry as guillotina_get_registry
 from guillotina_elasticsearch.directives import index
 from guillotina_elasticsearch.interfaces import IContentIndex
 from guillotina_elasticsearch.interfaces import IIndexActive
@@ -45,18 +48,10 @@ class ContainerIndexManager:
     Default index manager which uses the global index
     '''
 
-    def __init__(self, ob, request=None):
-        if request is None:
-            request = get_current_request()
-        self.request = get_current_request()
+    def __init__(self, ob):
+        self.container = task_vars.container.get()
+        self.db = task_vars.db.get()
         self.context = ob
-        if hasattr(self.request, 'container'):
-            self.container = self.request.container
-        else:
-            if IContainer.providedBy(ob):
-                self.container = ob
-            else:
-                raise Exception('Could not location container object')
 
     async def get_indexes(self):
         indexes = []
@@ -81,7 +76,7 @@ class ContainerIndexManager:
         return '{}{}-{}'.format(
             app_settings['elasticsearch'].get(
                 'index_name_prefix', 'guillotina-'),
-            self.request._db_id,
+            self.db.id,
             self.container.id)
 
     def _get_index_name(self, index_name, version):
@@ -95,7 +90,7 @@ class ContainerIndexManager:
         except KeyError:
             result = self._generate_new_index_name()
             registry['el_index_name'] = result
-            registry._p_register()
+            registry.register()
         return result
 
     async def get_real_index_name(self):
@@ -119,7 +114,7 @@ class ContainerIndexManager:
         registry = await self.get_registry()
         migration_index_name = self._get_index_name(index_name, next_version)
         registry['el_next_index_version'] = next_version
-        registry._p_register()
+        registry.register()
         return migration_index_name
 
     async def finish_migration(self):
@@ -127,7 +122,7 @@ class ContainerIndexManager:
         assert registry['el_next_index_version'] is not None
         registry['el_index_version'] = registry['el_next_index_version']
         registry['el_next_index_version'] = None
-        registry._p_register()
+        registry.register()
 
     async def _get_version(self):
         registry = await self.get_registry()
@@ -137,27 +132,17 @@ class ContainerIndexManager:
             version = 1
         return version
 
-    def _get_annotations(self):
-        try:
-            return self.container.__gannotations__
-        except AttributeError:
-            return self.container.__annotations__
-
     async def get_registry(self, refresh=False):
-        if (refresh and hasattr(self.request, 'container_settings') and
-                REGISTRY_DATA_KEY in self._get_annotations()):
-            txn = get_transaction(self.request)
-            await txn.refresh(self.request.container_settings)
-        if hasattr(self.request, 'container_settings'):
-            return self.request.container_settings
-        annotations_container = IAnnotations(self.container)
-        self.request.container_settings = await annotations_container.async_get(REGISTRY_DATA_KEY)  # noqa
-        return self.request.container_settings
+        registry = await guillotina_get_registry(self.context)
+        if refresh and registry:
+            txn = get_current_transaction()
+            await txn.refresh(registry)
+        return registry
 
     async def cancel_migration(self):
         registry = await self.get_registry()
         registry['el_next_index_version'] = None
-        registry._p_register()
+        registry.register()
 
     async def get_schemas(self):
         pass
@@ -171,13 +156,14 @@ class ContentIndexManager(ContainerIndexManager):
     Custom index manager which uses a different index from global
     '''
 
-    def __init__(self, ob, request=None):
-        super().__init__(ob, request=request)
+    def __init__(self, ob):
+        super().__init__(ob)
+        import pdb; pdb.set_trace()
         self.object_settings = None
 
     async def get_registry(self, refresh=False):
         if (refresh and self.object_settings is not None):
-            txn = get_transaction(self.request)
+            txn = get_transaction()
             await txn.refresh(self.object_settings)
         annotations_container = IAnnotations(self.context)
         self.object_settings = await annotations_container.async_get('default')
@@ -196,7 +182,7 @@ class ContentIndexManager(ContainerIndexManager):
         container_name = super()._generate_new_index_name()
         return '{}{}{}-{}'.format(
             container_name, SUB_INDEX_SEPERATOR,
-            self.context.type_name.lower(), get_short_oid(self.context._p_oid)
+            self.context.type_name.lower(), get_short_uid(self.context.__uuid__)
         )
 
     def _get_index_name(self, index_name, version):

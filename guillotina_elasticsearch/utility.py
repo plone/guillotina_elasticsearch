@@ -6,9 +6,9 @@ from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
 from guillotina.exceptions import RequestNotFound
-from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
+from guillotina.utils import get_object_url
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
@@ -208,14 +208,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
             query,
             doc_type=None,
             size=10,
-            request=None,
             scroll=None):
         if query is None:
             query = {}
         build_security_query = resolve_dotted_name(
             app_settings['elasticsearch']['security_query_builder'])
 
-        permission_query = await build_security_query(container, request)
+        permission_query = await build_security_query(container)
         result = {
             'body': merge_dicts(query, permission_query),
             'size': size
@@ -229,7 +228,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     def _get_items_from_result(self, container, request, result):
         items = []
-        container_url = IAbsoluteURL(container, request)()
+        container_url = get_object_url(container, request)
         for item in result['hits']['hits']:
             data = format_hit(item)
             data.update({
@@ -259,7 +258,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if request is None:
             request = get_current_request()
         q = await self._build_security_query(
-            container, query, doc_type, size, request, scroll)
+            container, query, doc_type, size, scroll)
         q['ignore_unavailable'] = True
 
         conn = self.get_connection()
@@ -583,14 +582,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
     def _get_current_tid(self):
         # make sure to get current committed tid or we may be one-behind
         # for what was actually used to commit to db
-        try:
-            request = get_current_request()
-            txn = get_transaction(request)
-            tid = None
-            if txn:
-                tid = txn._tid
-        except RequestNotFound:
-            pass
+        txn = get_transaction()
+        tid = None
+        if txn:
+            tid = txn._tid
         return tid
 
     async def update(self, container, datas, response=noop_response,

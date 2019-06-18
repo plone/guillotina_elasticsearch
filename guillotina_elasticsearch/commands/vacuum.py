@@ -15,7 +15,6 @@ from lru import LRU  # pylint: disable=E0611
 from os.path import join
 
 import aioelasticsearch
-import aiotask_context
 import asyncio
 import json
 import logging
@@ -62,10 +61,9 @@ async def clean_orphan_indexes(container):
 
 class Vacuum:
 
-    def __init__(self, txn, tm, request, container, last_tid=-2):
+    def __init__(self, txn, tm, container, last_tid=-2):
         self.txn = txn
         self.tm = tm
-        self.request = request
         self.container = container
         self.orphaned = set()
         self.missing = set()
@@ -130,7 +128,7 @@ class Vacuum:
                     for record in results:
                         if record['zoid'] in (
                                 ROOT_ID, TRASHED_ID,
-                                self.container._p_oid):
+                                self.container.__uid__):
                             continue
                         records.append(record)
                         self.last_tid = record['tid']
@@ -172,7 +170,7 @@ class Vacuum:
             result = await self.tm._storage.load(self.txn, oid)
 
         obj = reader(result)
-        obj._p_jar = self.txn
+        obj.__txn__ = self.txn
         if result['parent_id']:
             obj.__parent__ = await self.get_object(result['parent_id'])
         return obj
@@ -298,7 +296,7 @@ class Vacuum:
             self.use_tid_query = False
 
         checked = 0
-        async for batch in self.iter_paged_db_keys([self.container._p_oid]):
+        async for batch in self.iter_paged_db_keys([self.container.__uid__]):
             oids = [r['zoid'] for r in batch]
             indexes = self.get_indexes_for_oids(oids)
             results = await self.conn.search(
@@ -325,7 +323,7 @@ class Vacuum:
             for record in batch:
                 oid = record['zoid']
                 tid = record['tid']
-                if oid == self.container._p_oid:
+                if oid == self.container.__uid__:
                     continue
                 if oid not in es_batch:
                     self.missing.add(oid)
@@ -361,32 +359,29 @@ class VacuumCommand(Command):
 
     async def run(self, arguments, settings, app):
         change_transaction_strategy('none')
-        self.request._db_write_enabled = True
-        self.request._message.headers['Host'] = 'localhost'
         await asyncio.gather(
             self.do_check(arguments, 'check_missing'),
             self.do_check(arguments, 'check_orphans'))
 
     async def do_check(self, arguments, check_name):
-        aiotask_context.set('request', self.request)
         first_run = True
         while arguments.continuous or first_run:
             if not first_run:
                 await asyncio.sleep(arguments.sleep)
             else:
                 first_run = False
-            async for txn, tm, container in get_containers(self.request):
+            async for txn, tm, container in get_containers():
                 try:
                     kwargs = {}
-                    if container._p_oid in self.state:
-                        kwargs = self.state[container._p_oid]
+                    if container.__uid__ in self.state:
+                        kwargs = self.state[container.__uid__]
                     vacuum = self.vacuum_klass(
-                        txn, tm, self.request, container, **kwargs)
+                        txn, tm, container, **kwargs)
                     await vacuum.setup()
                     func = getattr(vacuum, check_name)
                     await func()
                     if vacuum.last_tid > 0:
-                        self.state[container._p_oid] = {
+                        self.state[container.__uid__] = {
                             'last_tid': vacuum.last_tid
                         }
                     logger.warning(f'''Finished vacuuming with results:
