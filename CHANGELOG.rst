@@ -1,7 +1,7 @@
 3.4.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- restrict g version
 
 
 3.4.0 (2019-05-28)
