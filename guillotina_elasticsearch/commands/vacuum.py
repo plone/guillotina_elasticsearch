@@ -128,7 +128,7 @@ class Vacuum:
                     for record in results:
                         if record['zoid'] in (
                                 ROOT_ID, TRASHED_ID,
-                                self.container.__uid__):
+                                self.container.__uuid__):
                             continue
                         records.append(record)
                         self.last_tid = record['tid']
@@ -296,7 +296,7 @@ class Vacuum:
             self.use_tid_query = False
 
         checked = 0
-        async for batch in self.iter_paged_db_keys([self.container.__uid__]):
+        async for batch in self.iter_paged_db_keys([self.container.__uuid__]):
             oids = [r['zoid'] for r in batch]
             indexes = self.get_indexes_for_oids(oids)
             results = await self.conn.search(
@@ -323,7 +323,7 @@ class Vacuum:
             for record in batch:
                 oid = record['zoid']
                 tid = record['tid']
-                if oid == self.container.__uid__:
+                if oid == self.container.__uuid__:
                     continue
                 if oid not in es_batch:
                     self.missing.add(oid)
@@ -373,15 +373,15 @@ class VacuumCommand(Command):
             async for txn, tm, container in get_containers():
                 try:
                     kwargs = {}
-                    if container.__uid__ in self.state:
-                        kwargs = self.state[container.__uid__]
+                    if container.__uuid__ in self.state:
+                        kwargs = self.state[container.__uuid__]
                     vacuum = self.vacuum_klass(
                         txn, tm, container, **kwargs)
                     await vacuum.setup()
                     func = getattr(vacuum, check_name)
                     await func()
                     if vacuum.last_tid > 0:
-                        self.state[container.__uid__] = {
+                        self.state[container.__uuid__] = {
                             'last_tid': vacuum.last_tid
                         }
                     logger.warning(f'''Finished vacuuming with results:
