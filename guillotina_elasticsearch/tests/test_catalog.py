@@ -65,7 +65,7 @@ async def test_delete(es_requester):
         assert await search.get_doc_count(container) == current_count + 1
 
         ob = create_content(id='foobar')
-        ob.__uid__ = 'foobar'
+        ob.__uuid__ = 'foobar'
 
         await search.remove(container, [ob])
         await search.refresh(container)

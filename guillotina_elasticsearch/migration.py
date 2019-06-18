@@ -597,8 +597,8 @@ class Migrator:
         async with get_migration_lock(
                 await self.index_manager.get_index_name()):
             self.response.write('Activating new index')
-            async with managed_transaction(read_only=False, adopt_parent_txn=True):
-                await self.index_manager.finish_migration()
+
+            await self.index_manager.finish_migration()
             self.status = 'done'
 
             self.response.write(f'''Update alias({alias_index_name}):

@@ -118,9 +118,12 @@ class ContainerIndexManager:
         return migration_index_name
 
     async def finish_migration(self):
-        registry = await self.get_registry(refresh=True)
-        assert registry['el_next_index_version'] is not None
-        registry['el_index_version'] = registry['el_next_index_version']
+        registry = await self.get_registry()
+        next_version = registry['el_next_index_version']
+        assert next_version is not None
+        await registry.__txn__.refresh(registry)
+
+        registry['el_index_version'] = next_version
         registry['el_next_index_version'] = None
         registry.register()
 
@@ -132,11 +135,8 @@ class ContainerIndexManager:
             version = 1
         return version
 
-    async def get_registry(self, refresh=False):
+    async def get_registry(self):
         registry = await guillotina_get_registry(self.context)
-        if refresh and registry:
-            txn = get_current_transaction()
-            await txn.refresh(registry)
         return registry
 
     async def cancel_migration(self):
@@ -158,20 +158,20 @@ class ContentIndexManager(ContainerIndexManager):
 
     def __init__(self, ob):
         super().__init__(ob)
-        import pdb; pdb.set_trace()
         self.object_settings = None
 
     async def get_registry(self, refresh=False):
         if (refresh and self.object_settings is not None):
             txn = get_transaction()
             await txn.refresh(self.object_settings)
-        annotations_container = IAnnotations(self.context)
-        self.object_settings = await annotations_container.async_get('default')
         if self.object_settings is None:
-            # need to create annotation...
-            self.object_settings = AnnotationData()
-            await annotations_container.async_set(
-                'default', self.object_settings)
+            annotations_container = IAnnotations(self.context)
+            self.object_settings = await annotations_container.async_get('default')
+            if self.object_settings is None:
+                # need to create annotation...
+                self.object_settings = AnnotationData()
+                await annotations_container.async_set(
+                    'default', self.object_settings)
         return self.object_settings
 
     def _generate_new_index_name(self):
@@ -238,10 +238,12 @@ async def init_index(context, subscriber):
         await utility.create_index(real_index_name, im)
         await conn.indices.put_alias(
             name=index_name, index=real_index_name)
+        await conn.indices.close(real_index_name)
+
+        await conn.indices.open(real_index_name)
 
         await conn.cluster.health(
             wait_for_status='yellow')
-
         alsoProvides(context, IIndexActive)
 
         request.add_future(

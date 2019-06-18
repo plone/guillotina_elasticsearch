@@ -122,6 +122,7 @@ async def test_delete_resource(es_requester):
                 'id': 'foobar'
             })
         )
+
         resp, status = await requester(
             'POST',
             '/db/guillotina/foobar',
@@ -184,7 +185,7 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
         catalog = get_utility(ICatalogUtility)
         await requester('DELETE', '/db/guillotina/foobar')
         content_index_name = 'guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
-            get_short_oid(cresp['@uid'])
+            get_short_uid(cresp['@uid'])
         )
 
         async def _test():
