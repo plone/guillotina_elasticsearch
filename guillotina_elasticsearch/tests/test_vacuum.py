@@ -41,7 +41,7 @@ async def test_adds_missing_elasticsearch_entry(es_requester):
 
         await run_with_retries(__test, requester)
 
-        vacuum = Vacuum(txn, tm, request, container)
+        vacuum = Vacuum(txn, tm, container)
         await vacuum.setup()
         await vacuum.check_missing()
         await vacuum.check_orphans()
@@ -84,7 +84,7 @@ async def test_updates_out_of_data_es_entries(es_requester):
 
         await asyncio.sleep(1)
 
-        vacuum = Vacuum(txn, tm, request, container)
+        vacuum = Vacuum(txn, tm, container)
         await vacuum.setup()
         await vacuum.check_missing()
         await vacuum.check_orphans()
@@ -114,7 +114,7 @@ async def test_removes_orphaned_es_entry(es_requester):
 
         await run_with_retries(_test, requester)
 
-        vacuum = Vacuum(txn, tm, request, container)
+        vacuum = Vacuum(txn, tm, container)
         await vacuum.setup()
         await vacuum.check_orphans()
         await vacuum.check_missing()
@@ -200,7 +200,7 @@ async def test_vacuum_with_sub_indexes(es_requester):
 
         await run_with_retries(__test, requester)
 
-        vacuum = Vacuum(txn, tm, request, container)
+        vacuum = Vacuum(txn, tm, container)
         await vacuum.setup()
         await vacuum.check_missing()
         await vacuum.check_orphans()
@@ -305,7 +305,7 @@ async def test_reindexes_moved_content(es_requester):
 
         await asyncio.sleep(2)
 
-        vacuum = Vacuum(txn, tm, request, container)
+        vacuum = Vacuum(txn, tm, container)
         await vacuum.setup()
         await vacuum.check_missing()
 
@@ -351,7 +351,7 @@ async def test_vacuum_with_multiple_containers(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
         task_vars.request.set(request)
 
-        vacuum = Vacuum(txn, tm, request, container)
+        vacuum = Vacuum(txn, tm, container)
         await vacuum.setup()
         await vacuum.check_missing()
         await vacuum.check_orphans()
