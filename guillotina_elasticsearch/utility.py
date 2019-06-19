@@ -5,7 +5,6 @@ from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
-from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_object_url
@@ -302,7 +301,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def get_by_uuids(self, container, uuids, doc_type=None):
         uuid_query = self._get_type_query(doc_type)
         if uuids is not None:
-            query['query']['bool']['must'].append({
+            uuid_query['query']['bool']['must'].append({
                 "terms":
                     {"uuid": uuids}
             })

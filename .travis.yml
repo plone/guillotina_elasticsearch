@@ -22,7 +22,7 @@ cache:
   directories:
     - eggs
 install:
-  - pip install flake8 codecov
+  - pip install flake8 codecov mypy_extensions
   - pip install git+https://github.com/plone/guillotina.git@master
   - pip install -e .[test]
 script:

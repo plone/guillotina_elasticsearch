@@ -13,10 +13,8 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IContainer
 from guillotina.interfaces import IObjectAddedEvent
 from guillotina.interfaces import IResource
-from guillotina.registry import REGISTRY_DATA_KEY
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_current_request
-from guillotina.utils import get_current_transaction
 from guillotina.utils import resolve_dotted_name
 from guillotina.utils import get_registry as guillotina_get_registry
 from guillotina_elasticsearch.directives import index
@@ -166,7 +164,7 @@ class ContentIndexManager(ContainerIndexManager):
             await txn.refresh(self.object_settings)
         if self.object_settings is None:
             annotations_container = IAnnotations(self.context)
-            self.object_settings = await annotations_container.async_get('default')
+            self.object_settings = await annotations_container.async_get('default')  # noqa
             if self.object_settings is None:
                 # need to create annotation...
                 self.object_settings = AnnotationData()
@@ -182,7 +180,8 @@ class ContentIndexManager(ContainerIndexManager):
         container_name = super()._generate_new_index_name()
         return '{}{}{}-{}'.format(
             container_name, SUB_INDEX_SEPERATOR,
-            self.context.type_name.lower(), get_short_uid(self.context.__uuid__)
+            self.context.type_name.lower(),
+            get_short_uid(self.context.__uuid__)
         )
 
     def _get_index_name(self, index_name, version):

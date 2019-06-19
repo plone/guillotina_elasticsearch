@@ -1,5 +1,4 @@
 from guillotina import directives
-from guillotina import task_vars
 from guillotina.catalog.catalog import DefaultCatalogDataAdapter
 from guillotina.component import get_adapter
 from guillotina.component import get_utilities_for
@@ -198,7 +197,8 @@ class Migrator:
         return self.processed / (time.time() - self.index_start_time)
 
     async def create_next_index(self):
-        async with managed_transaction(read_only=False, adopt_parent_txn=True) as txn:
+        async with managed_transaction(
+                read_only=False, adopt_parent_txn=True) as txn:
             await txn.refresh(await self.index_manager.get_registry())
             next_index_name = await self.index_manager.start_migration()
         if await self.conn.indices.exists(next_index_name):

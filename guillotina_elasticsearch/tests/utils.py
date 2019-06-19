@@ -4,7 +4,6 @@ from guillotina import task_vars
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests import utils
-from guillotina.transactions import managed_transaction
 from guillotina.tests.utils import get_container
 
 import aioelasticsearch.exceptions
@@ -49,7 +48,8 @@ async def setup_txn_on_container(requester, container_id='guillotina'):
     utils.login()
     request = utils.get_mocked_request(db=requester.db)
     task_vars.request.set(request)
-    container = await get_container(requester=requester, container_id=container_id)
+    container = await get_container(
+        requester=requester, container_id=container_id)
     tm = task_vars.tm.get()
     txn = await tm.begin()
     return container, request, txn, tm
