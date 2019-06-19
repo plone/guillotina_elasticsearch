@@ -39,7 +39,8 @@ setup(
     include_package_data=True,
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
-        'guillotina>=4.8.7',
+        'guillotina>=5.0.0.dev0',
+        'mypy_extensions',
         'aioelasticsearch',
         'ujson',
         'lru-dict',

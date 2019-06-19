@@ -1,5 +1,6 @@
+from guillotina import task_vars
 from guillotina.component import get_adapter
-from guillotina.db.oid import get_short_oid
+from guillotina.db.uid import get_short_uid
 from guillotina.component import get_utility
 from guillotina.component import globalregistry as gr
 from guillotina.event import notify
@@ -17,7 +18,6 @@ from guillotina_elasticsearch.tests.utils import run_with_retries
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
 import aioelasticsearch
-import aiotask_context
 import asyncio
 import json
 import pytest
@@ -62,6 +62,7 @@ async def test_migrate_get_all_uids(es_requester):
         await add_content(requester)
 
         container, request, txn, tm = await setup_txn_on_container(requester)
+        task_vars.request.set(request)
 
         search = get_utility(ICatalogUtility)
         await asyncio.sleep(1)
@@ -202,7 +203,7 @@ async def test_updates_index_data(es_requester):
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
         doc = await search.get_connection().get(
-            index=new_index_name, doc_type=DOC_TYPE, id=ob._p_oid)
+            index=new_index_name, doc_type=DOC_TYPE, id=ob.uuid)
         assert doc['_source']['title'] == 'foobar-new'
 
 
@@ -288,7 +289,7 @@ async def test_unindex_during_next_index(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
         keys = await container.async_keys()
         item = await container.async_get(keys[0])
-        aiotask_context.set('request', request)
+        task_vars.request.set(request)
         await notify(ObjectRemovedEvent(item, container, item.id))
         request.execute_futures()
         await asyncio.sleep(1)
@@ -518,7 +519,7 @@ async def test_migrate_content_index_works(es_requester):
             container, 'guillotina-db-guillotina_1')
         assert await search.get_doc_count(
             container, '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
-                get_short_oid(cresp['@uid'])
+                get_short_uid(cresp['@uid'])
             )) == 1
 
         migrator = Migrator(search, container, force=True)
@@ -530,16 +531,16 @@ async def test_migrate_content_index_works(es_requester):
             'guillotina-db-guillotina_1')
         assert await search.get_connection().indices.exists(
             '2_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
-                get_short_oid(cresp['@uid'])
+                get_short_uid(cresp['@uid'])
             ))
         assert not await search.get_connection().indices.exists(
             '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
-                get_short_oid(cresp['@uid'])
+                get_short_uid(cresp['@uid'])
             ))
 
         assert (add_count + 1) == await search.get_doc_count(
             container, 'guillotina-db-guillotina_2')
         assert await search.get_doc_count(
             container, '2_guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
-                get_short_oid(cresp['@uid'])
+                get_short_uid(cresp['@uid'])
             )) == 1

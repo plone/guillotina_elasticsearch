@@ -66,7 +66,7 @@ async def _test_new_deletes_are_performed_during_migration(es_requester):
         ob = await ob.async_get(key)
 
         await search.remove(container, [(
-            ob._p_oid, ob.type_name, get_content_path(ob)
+            ob.__uuid__, ob.type_name, get_content_path(ob)
         )], request=request)
 
         await search.refresh(container, migrator.work_index_name)

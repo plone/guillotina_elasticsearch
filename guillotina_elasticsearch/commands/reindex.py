@@ -55,7 +55,7 @@ Objects missing: {len(self.reindexer.missing)}
 Objects orphaned: {len(self.reindexer.orphaned)}
 ''')
             finally:
-                await tm.commit(self.request)
+                await tm.commit()
 
     def run(self, arguments, settings, app):
         change_transaction_strategy('none')

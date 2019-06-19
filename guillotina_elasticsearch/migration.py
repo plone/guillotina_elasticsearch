@@ -11,13 +11,16 @@ from guillotina.interfaces import IAsyncBehavior
 from guillotina.interfaces import ICatalogDataAdapter
 from guillotina.interfaces import IContainer
 from guillotina.interfaces import IFolder
-from guillotina.interfaces import IInteraction
 from guillotina.interfaces import IResourceFactory
 from guillotina.interfaces import ISecurityInfo
 from guillotina.transactions import managed_transaction
 from guillotina.utils import apply_coroutine
+from guillotina.utils import get_authenticated_user
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
+from guillotina.utils import get_current_transaction
+from guillotina.utils import get_current_container
+from guillotina.utils import get_security_policy
 from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IIndexActive
@@ -154,11 +157,12 @@ class Migrator:
         else:
             self.request = request
 
+        self.txn = get_current_transaction()
         if not cache:
             # make sure that we don't cache requests...
-            self.request._txn._cache = DummyCache(self.request._txn)
+            self.txn._cache = DummyCache(self.txn)
 
-        self.container = self.request.container
+        self.container = get_current_container()
         self.conn = utility.get_connection()
 
         if index_manager is None:
@@ -166,7 +170,9 @@ class Migrator:
         else:
             self.index_manager = index_manager
 
-        self.interaction = IInteraction(self.request)
+        self.user = get_authenticated_user()
+
+        self.policy = get_security_policy(self.user)
         self.indexer = Indexer()
 
         self.batch = {}
@@ -192,7 +198,7 @@ class Migrator:
 
     async def create_next_index(self):
         async with managed_transaction(
-                self.request, write=True, adopt_parent_txn=True) as txn:
+                read_only=False, adopt_parent_txn=True) as txn:
             await txn.refresh(await self.index_manager.get_registry())
             next_index_name = await self.index_manager.start_migration()
         if await self.conn.indices.exists(next_index_name):
@@ -318,7 +324,7 @@ class Migrator:
     async def process_folder(self, ob):
         for key in await ob.async_keys():
             try:
-                item = await ob._p_jar.get_child(ob, key)
+                item = await ob.__txn__.get_child(ob, key)
             except (KeyError, ModuleNotFoundError):
                 continue
             if item is None:
@@ -386,8 +392,8 @@ class Migrator:
                 if val is not None:
                     data[index_name] = val
 
-        if ob._p_serial:
-            data['tid'] = ob._p_serial
+        if ob.__serial__:
+            data['tid'] = ob.__serial__
         self.indexed += 1
         self.batch[ob.uuid] = {
             'action': batch_type,
@@ -410,7 +416,7 @@ class Migrator:
     async def attempt_flush(self):
 
         if self.processed % 500 == 0:
-            self.interaction.invalidate_cache()
+            self.policy.invalidate_cache()
             num, _, _ = gc.get_count()
             gc.collect()
             if self.memory_tracking:
@@ -499,7 +505,7 @@ class Migrator:
         '''
         for uuid in self.existing:
             try:
-                ob = await self.context._p_jar.get(uuid)
+                ob = await self.context.__txn__.get(uuid)
             except KeyError:
                 ob = None
             if ob is None:
@@ -532,8 +538,7 @@ class Migrator:
     async def cancel_migration(self):
         # canceling the migration, clearing index
         self.response.write('Canceling migration')
-        async with managed_transaction(
-                self.request, write=True, adopt_parent_txn=True):
+        async with managed_transaction(read_only=False, adopt_parent_txn=True):
             await self.index_manager.cancel_migration()
             self.response.write('Next index disabled')
         if self.active_task_id is not None:
@@ -592,9 +597,8 @@ class Migrator:
         async with get_migration_lock(
                 await self.index_manager.get_index_name()):
             self.response.write('Activating new index')
-            async with managed_transaction(
-                    self.request, write=True, adopt_parent_txn=True):
-                await self.index_manager.finish_migration()
+
+            await self.index_manager.finish_migration()
             self.status = 'done'
 
             self.response.write(f'''Update alias({alias_index_name}):
