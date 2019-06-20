@@ -1,7 +1,9 @@
 5.0.0a2 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Add parser to work with g5 automatic parsing
+
+- Use `@id` in results results instead of `@absolute_url`
 
 
 5.0.0a1 (2019-06-19)

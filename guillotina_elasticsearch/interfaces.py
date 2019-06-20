@@ -1,10 +1,17 @@
 from guillotina.async_util import IAsyncUtility
+from guillotina.catalog.types import BasicParsedQueryInfo
 from guillotina.interfaces import ICatalogUtility
 from zope.interface import Interface
+
+import typing
 
 
 DOC_TYPE = '_doc'
 SUB_INDEX_SEPERATOR = '__'
+
+
+class ParsedQueryInfo(BasicParsedQueryInfo):
+    query: typing.Dict
 
 
 class IElasticSearchUtility(ICatalogUtility, IAsyncUtility):
