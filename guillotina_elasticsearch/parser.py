@@ -39,7 +39,26 @@ def convert(value):
     return value.split(' ')
 
 
-def process_field(field, value, query):
+def process_compound_field(field, value, operator):
+    if not isinstance(value, dict):
+        return
+    query = {}
+    for kk, vv in value.items():
+        if operator == 'or':
+            query[kk + '__should'] = vv
+        else:
+            query[kk] = vv
+    return 'must', {
+        'bool': process_query_level(query)
+    }
+
+
+def process_field(field, value):
+    if field.endswith('__or'):
+        return process_compound_field(field, value, 'or')
+    elif field.endswith('__and'):
+        field = field[:-len('__and')]
+        return process_compound_field(field, value, 'and')
 
     modifier = None
 
@@ -101,52 +120,65 @@ def process_field(field, value, query):
 
     if modifier is None:
         # Keyword we expect an exact match
-        query['query']['bool'][match_type].append(
-            {
-                term_keyword: {
-                    field: value
-                }
-            })
+        return match_type, {
+            term_keyword: {
+                field: value
+            }
+        }
     elif modifier == 'not':
         # Must not be
-        query['query']['bool']['must_not'].append(
-            {
-                term_keyword: {
-                    field: value
-                }
-            })
+        return 'must_not', {
+            term_keyword: {
+                field: value
+            }
+        }
     elif modifier == 'in' and _type in ('text', 'searchabletext'):
         # The value list can be inside the field
-        query['query']['bool'][match_type].append(
-            {
-                'match': {
-                    field: value
-                }
-            })
+        return match_type, {
+            'match': {
+                field: value
+            }
+        }
     elif modifier == 'eq':
         # The sentence must appear as is it
         value = ' '.join(value)
-        query['query']['bool'][match_type].append(
-            {
-                'match': {
-                    field: value
-                }
-            })
+        return match_type, {
+            'match': {
+                field: value
+            }
+        }
     elif modifier in ('gte', 'lte', 'gt', 'lt'):
-        query['query']['bool'][match_type].append(
-            {
-                'range': {field: {modifier: value}}})
+        return match_type, {
+            'range': {field: {modifier: value}}}
     elif modifier == 'wildcard':
-        query['query']['bool'][match_type].append(
-            {
-                'wildcard': {
-                    field: value
-                }
-            })
+        return match_type, {
+            'wildcard': {
+                field: value
+            }
+        }
     else:
         logger.warn(
             'wrong search type: %s modifier: %s field: %s value: %s' %
             (_type, modifier, field, value))
+
+
+def process_query_level(params):
+    query = {
+        'must': [],
+        'should': [],
+        "minimum_should_match": 1,
+        'must_not': []
+    }
+    for field, value in params.items():
+        result = process_field(field, value)
+        if result is not None:
+            match_type, sub_part = result
+            query[match_type].append(sub_part)
+
+    if len(query['should']) == 0:
+        del query['should']
+        del query['minimum_should_match']
+    return query
 
 
 @configure.adapter(
@@ -165,23 +197,10 @@ class Parser(BaseParser):
         query = {
             'stored_fields': SEARCH_DATA_FIELDS,
             'query': {
-                'bool': {
-                    'must': [],
-                    'should': [],
-                    "minimum_should_match": 1,
-                    'must_not': []
-                }
+                'bool': process_query_level(query_info['params'])
             },
             'sort': []
         }
-
-        for field, value in query_info['params'].items():
-            process_field(field, value, query)
-
-        return typing.cast(ParsedQueryInfo, dict(
-            query_info,
-            query=query
-        ))
 
         if query_info['sort_on']:
             query['sort'].append({
@@ -189,10 +208,6 @@ class Parser(BaseParser):
                     query_info['sort_dir'] or 'asc').lower()
             })
         query['sort'].append({'_id': 'desc'})
-
-        if len(query['query']['bool']['should']) == 0:
-            del query['query']['bool']['should']
-            del query['query']['bool']['minimum_should_match']
 
         return typing.cast(ParsedQueryInfo, dict(
             query_info,
