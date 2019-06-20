@@ -81,7 +81,8 @@ def process_field(field, value, query):
         term_keyword = 'terms'
     else:
         term_keyword = 'term'
-        value = value[0]
+        if isinstance(value, list):
+            value = value[0]
 
     _type = index['type']
     if _type == 'int':
