@@ -262,7 +262,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         conn = self.get_connection()
 
-        print(json.dumps(q, indent=4, sort_keys=True))
         result = await conn.search(index=index, **q)
         if result.get('_shards', {}).get('failed', 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
