@@ -1,4 +1,4 @@
-5.0.0a2 (unreleased)
+5.0.0a2 (2019-06-21)
 --------------------
 
 - Add parser to work with g5 automatic parsing
