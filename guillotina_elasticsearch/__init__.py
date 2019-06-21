@@ -52,6 +52,7 @@ app_settings = {
 def includeme(root):
     configure.scan('guillotina_elasticsearch.utility')
     configure.scan('guillotina_elasticsearch.manager')
+    configure.scan('guillotina_elasticsearch.parser')
 
     # add store true to guillotina indexes
     for name, utility in get_utilities_for(IResourceFactory):

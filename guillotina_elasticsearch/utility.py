@@ -1,16 +1,18 @@
 # -*- coding: utf-8 -*-
 from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
+from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
+from guillotina.interfaces import IContainer
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
-from guillotina.utils import get_object_url
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
+from guillotina.utils import get_object_url
 from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
@@ -21,13 +23,13 @@ from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
+from guillotina_elasticsearch.interfaces import ParsedQueryInfo
 from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
 from os.path import join
-from guillotina import configure
 
 import aiohttp
 import asyncio
@@ -195,11 +197,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
                               reindex_security=security, request=request)
         await reindexer.reindex(obj)
 
-    async def search(self, container, query):
-        """
-        XXX transform into el query
-        """
-        pass
+    async def search(self, container: IContainer, query: ParsedQueryInfo):
+        return await self.query(
+            container, query['query'],
+            size=query['size'], scroll=None, index=None)
 
     async def _build_security_query(
             self,
@@ -230,7 +231,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         for item in result['hits']['hits']:
             data = format_hit(item)
             data.update({
-                '@absolute_url': container_url + data.get('path', ''),
+                '@id': container_url + data.get('path', ''),
                 '@type': data.get('type_name'),
                 '@uid': item['_id'],
                 '@name': data.get('id', data.get('path', '').split('/')[-1])
