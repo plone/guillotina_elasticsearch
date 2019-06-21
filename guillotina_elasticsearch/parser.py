@@ -65,32 +65,31 @@ def process_field(field, value):
     match_type = 'must'
     if field.endswith('__should'):
         match_type = 'should'
-        field = field.rstrip('__should')
-
+        field = field[:-len('__should')]
     if field.endswith('__not'):
         modifier = 'not'
-        field = field.rstrip('__not')
+        field = field[:-len('__not')]
     elif field.endswith('__in'):
         modifier = 'in'
-        field = field.rstrip('__in')
+        field = field[:-len('__in')]
     elif field.endswith('__eq'):
         modifier = 'eq'
-        field = field.rstrip('__eq')
+        field = field[:-len('__eq')]
     elif field.endswith('__gt'):
         modifier = 'gt'
-        field = field.rstrip('__gt')
+        field = field[:-len('__gt')]
     elif field.endswith('__lt'):
         modifier = 'lt'
-        field = field.rstrip('__lt')
+        field = field[:-len('__lt')]
     elif field.endswith('__gte'):
         modifier = 'gte'
-        field = field.rstrip('__gte')
+        field = field[:-len('__gte')]
     elif field.endswith('__lte'):
         modifier = 'lte'
-        field = field.rstrip('__lte')
+        field = field[:-len('__lte')]
     elif field.endswith('__wildcard'):
         modifier = 'wildcard'
-        field = field.rstrip('__wildcard')
+        field = field[:-len('__wildcard')]
 
     index = get_index_definition(field)
     if index is None:
