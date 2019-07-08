@@ -16,6 +16,7 @@ from os.path import join
 
 import aioelasticsearch
 import asyncio
+import elasticsearch
 import json
 import logging
 
@@ -299,17 +300,22 @@ class Vacuum:
         async for batch in self.iter_paged_db_keys([self.container.__uuid__]):
             oids = [r['zoid'] for r in batch]
             indexes = self.get_indexes_for_oids(oids)
-            results = await self.conn.search(
-                ','.join(indexes), body={
-                    'query': {
-                        'terms': {
-                            'uuid': oids
+            try:
+                results = await self.conn.search(
+                    ','.join(indexes), body={
+                        'query': {
+                            'terms': {
+                                'uuid': oids
+                            }
                         }
-                    }
-                },
-                _source=False,
-                stored_fields='tid,parent_uuid',
-                size=PAGE_SIZE)
+                    },
+                    _source=False,
+                    stored_fields='tid,parent_uuid',
+                    size=PAGE_SIZE)
+            except elasticsearch.exceptions.NotFoundError:
+                logger.warning(
+                    f'Error searching index: {indexes}', exc_info=True)
+                continue
 
             es_batch = {}
             for result in results['hits']['hits']:

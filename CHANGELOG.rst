@@ -1,7 +1,8 @@
 5.0.0a3 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Do not let index not found errors prevent other objects from being vacuumed
+  [vangheem]
 
 
 5.0.0a2 (2019-06-21)
