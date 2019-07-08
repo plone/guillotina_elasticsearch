@@ -1,4 +1,4 @@
-3.3.2 (unreleased)
+3.3.2 (2019-07-08)
 ------------------
 
 - Handle index not found error
