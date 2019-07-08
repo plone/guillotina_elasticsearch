@@ -1,7 +1,8 @@
 3.3.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Handle index not found error
+  [vangheem]
 
 
 3.3.1 (2019-05-20)
