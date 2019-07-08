@@ -315,6 +315,8 @@ class Vacuum:
                     stored_fields='tid,parent_uuid',
                     size=PAGE_SIZE)
             except elasticsearch.exceptions.NotFoundError:
+                logger.warning(
+                    f'Error searching index: {indexes}', exc_info=True)
                 continue
 
             es_batch = {}

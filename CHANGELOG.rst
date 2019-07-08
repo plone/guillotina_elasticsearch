@@ -1,7 +1,8 @@
 3.3.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- logging
+  [vangheem]
 
 
 3.3.2 (2019-07-08)
