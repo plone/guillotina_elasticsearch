@@ -1,4 +1,4 @@
-3.3.4 (unreleased)
+3.3.4 (2019-07-09)
 ------------------
 
 - Handle another index not found error on vacuum
