@@ -93,14 +93,17 @@ class Vacuum:
             indexes.append(index['index'])
 
         for index_name in indexes:
-            result = await self.conn.search(
-                index=index_name,
-                scroll='15m',
-                size=PAGE_SIZE,
-                _source=False,
-                body={
-                    "sort": ["_doc"]
-                })
+            try:
+                result = await self.conn.search(
+                    index=index_name,
+                    scroll='15m',
+                    size=PAGE_SIZE,
+                    _source=False,
+                    body={
+                        "sort": ["_doc"]
+                    })
+            except elasticsearch.exceptions.NotFoundError:
+                continue
             yield [r['_id'] for r in result['hits']['hits']], index_name
             scroll_id = result['_scroll_id']
             while scroll_id:
