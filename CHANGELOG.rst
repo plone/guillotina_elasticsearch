@@ -1,4 +1,4 @@
-3.3.5 (unreleased)
+3.3.5 (2019-08-07)
 ------------------
 
 - Do not close indexes on create/delete
