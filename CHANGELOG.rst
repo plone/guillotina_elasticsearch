@@ -1,7 +1,8 @@
 3.3.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Do not close indexes on create/delete
+  [vangheem]
 
 
 3.3.4 (2019-07-09)

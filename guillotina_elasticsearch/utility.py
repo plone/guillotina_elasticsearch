@@ -121,9 +121,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         conn = self.get_connection()
         await conn.indices.put_alias(
             name=index_name, index=real_index_name)
-        await conn.indices.close(real_index_name)
-
-        await conn.indices.open(real_index_name)
         await conn.cluster.health(
             wait_for_status='yellow')  # pylint: disable=E1123
 
@@ -146,14 +143,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_name = await im.get_index_name()
         real_index_name = await im.get_real_index_name()
         conn = self.get_connection()
-        await safe_es_call(conn.indices.close, real_index_name)
         await safe_es_call(
             conn.indices.delete_alias, real_index_name, index_name)
         await safe_es_call(conn.indices.delete, real_index_name)
         await safe_es_call(conn.indices.delete, index_name)
         migration_index = await im.get_migration_index_name()
         if migration_index:
-            await safe_es_call(conn.indices.close, migration_index)
             await safe_es_call(conn.indices.delete, migration_index)
 
     async def remove_catalog(self, container):
@@ -399,7 +394,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 for name in data['aliases'].keys():
                     # delete alias
                     try:
-                        await conn.indices.close(index)
                         await conn.indices.delete_alias(index, name)
                         await conn.indices.delete(index)
                     except elasticsearch.exceptions.NotFoundError:

@@ -625,7 +625,6 @@ class Migrator:
                 })
 
         try:
-            await self.conn.indices.close(existing_index)
             await self.conn.indices.delete(existing_index)
             self.response.write('Old index deleted')
         except elasticsearch.exceptions.NotFoundError:
