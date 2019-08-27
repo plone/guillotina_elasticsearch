@@ -6,7 +6,7 @@ from guillotina.content import get_all_possible_schemas_for_type
 from guillotina.content import IResourceFactory
 from guillotina.interfaces import ICatalogUtility
 from guillotina.schema.interfaces import ICollection
-from guillotina.utils import get_current_request
+from guillotina.utils.misc import get_current_container
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.interfaces import SUB_INDEX_SEPERATOR
@@ -127,13 +127,11 @@ async def get_all_indexes_identifier(container=None, index_manager=None):
         index_name, index_name, SUB_INDEX_SEPERATOR)
 
 
-async def get_index_for(context, container=None, request=None):
+async def get_index_for(context, container=None):
     im = find_index_manager(parent=context)
     if im is None:
         if container is None:
-            if request is None:
-                request = get_current_request()
-            container = request.container
+            container = get_current_container()
         im = get_adapter(container, IIndexManager)
     return await im.get_index_name()
 

@@ -1,25 +1,24 @@
-from guillotina.interfaces import IInteraction
-from guillotina.utils import get_current_request
+from guillotina.utils import get_authenticated_user
+from guillotina.utils import get_security_policy
 
 
-async def build_security_query(container, request=None):
+async def build_security_query(container):
     # The users who has plone.AccessContent permission by prinperm
     # The roles who has plone.AccessContent permission by roleperm
     users = []
     roles = []
 
-    if request is None:
-        request = get_current_request()
-    interaction = IInteraction(request)
+    user = get_authenticated_user()
+    policy = get_security_policy(user)
 
-    for user in interaction.participations:  # pylint: disable=E1133
-        users.append(user.principal.id)
-        users.extend(user.principal.groups)
-        roles_dict = interaction.global_principal_roles(
-            user.principal.id,
-            user.principal.groups)
-        roles.extend([key for key, value in roles_dict.items()
-                      if value])
+    users.append(user.id)
+    users.extend(user.groups)
+
+    roles_dict = policy.global_principal_roles(
+        user.id,
+        user.groups)
+    roles.extend([key for key, value in roles_dict.items() if value])
+
     # We got all users and roles
     # users: users and groups
 

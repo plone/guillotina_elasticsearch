@@ -62,7 +62,7 @@ Objects orphaned: {len(self.migrator.orphaned)}
 Mapping Diff: {self.migrator.mapping_diff}
 ''')
             finally:
-                await tm.commit(self.request)
+                await tm.commit()
 
     def run(self, arguments, settings, app):
         loop = self.get_loop()

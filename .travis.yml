@@ -1,8 +1,8 @@
 # we want to make sure it is run on trusty where sudo is provided for postgres
-dist: trusty
+dist: xenial
 language: python
 python:
-    - "3.6"
+    - "3.7"
 sudo: required
 env:
     - ES_VERSION=6

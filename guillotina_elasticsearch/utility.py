@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
+from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
@@ -15,6 +16,7 @@ from guillotina.utils import get_current_request
 from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
+from guillotina.utils.misc import get_current_container
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
@@ -28,7 +30,6 @@ from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
 from os.path import join
-from guillotina import configure
 
 import aiohttp
 import asyncio
@@ -186,14 +187,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
             query,
             doc_type=None,
             size=10,
-            request=None,
             scroll=None):
         if query is None:
             query = {}
         build_security_query = resolve_dotted_name(
             app_settings['elasticsearch']['security_query_builder'])
 
-        permission_query = await build_security_query(container, request)
+        permission_query = await build_security_query(container)
         result = {
             'body': merge_dicts(query, permission_query),
             'size': size
@@ -207,7 +207,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     def _get_items_from_result(self, container, request, result):
         items = []
-        container_url = IAbsoluteURL(container, request)()
+        if request is not None:
+            container_url = IAbsoluteURL(container, request)()
+        else:
+            container_url = ''
         for item in result['hits']['hits']:
             data = format_hit(item)
             data.update({
@@ -235,9 +238,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
             index = await self.get_container_index_name(container)
         t1 = time.time()
         if request is None:
-            request = get_current_request()
+            try:
+                request = get_current_request()
+            except RequestNotFound:
+                pass
         q = await self._build_security_query(
-            container, query, doc_type, size, request, scroll)
+            container, query, doc_type, size, scroll)
         q['ignore_unavailable'] = True
 
         conn = self.get_connection()
@@ -420,11 +426,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def update_by_query(self, query, context=None, indexes=None):
         if indexes is None:
-            request = get_current_request()
-            indexes = await self.get_current_indexes(request.container)
+            container = get_current_container()
+            indexes = await self.get_current_indexes(container)
             if context is not None:
                 for index in await get_content_sub_indexes(
-                        request.container, get_content_path(context)):
+                        container, get_content_path(context)):
                     indexes.append(index['index'])
         return await self._update_by_query(query, ','.join(indexes))
 
@@ -561,8 +567,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         # make sure to get current committed tid or we may be one-behind
         # for what was actually used to commit to db
         try:
-            request = get_current_request()
-            txn = get_transaction(request)
+            txn = get_transaction()
             tid = None
             if txn:
                 tid = txn._tid

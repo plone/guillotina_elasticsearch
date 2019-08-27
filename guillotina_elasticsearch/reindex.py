@@ -4,6 +4,7 @@ from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator
 from guillotina_elasticsearch.utils import find_index_manager
+from guillotina.utils import get_current_container
 
 
 class Reindexer(Migrator):
@@ -17,7 +18,8 @@ class Reindexer(Migrator):
     async def reindex(self, obj):
         index_manager = find_index_manager(obj)
         if index_manager is None:
-            index_manager = get_adapter(self.request.container, IIndexManager)
+            container = get_current_container()
+            index_manager = get_adapter(container, IIndexManager)
         self.work_index_name = await index_manager.get_index_name()
 
         await notify(IndexProgress(
