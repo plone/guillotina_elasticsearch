@@ -1,8 +1,8 @@
-3.3.6 (unreleased)
+3.3.10 (unreleased)
 ------------------
 
-- Nothing changed yet.
-
+- G5 support
+  [vangheem]
 
 3.3.5 (2019-08-07)
 ------------------
