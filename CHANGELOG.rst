@@ -1,4 +1,4 @@
-3.3.13 (unreleased)
+3.3.13 (2019-09-03)
 -------------------
 
 - Pass request on the index progress when possible
