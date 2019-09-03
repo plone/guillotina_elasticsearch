@@ -18,7 +18,6 @@ from guillotina.utils import apply_coroutine
 from guillotina.utils import get_authenticated_user
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_container
-from guillotina.utils import get_current_request
 from guillotina.utils import get_current_transaction
 from guillotina.utils import get_security_policy
 from guillotina_elasticsearch.events import IndexProgress
@@ -135,7 +134,7 @@ class Migrator:
                  log_details=False, memory_tracking=False, request=None,
                  bulk_size=40, full=False, reindex_security=False,
                  mapping_only=False, index_manager=None, children_only=False,
-                 lookup_index=False, cache=True):
+                 lookup_index=False, cache=True, request=None):
         self.utility = utility
         self.context = context
         self.response = response
@@ -151,11 +150,6 @@ class Migrator:
             raise Exception(
                 'Can not do a full reindex and a mapping only migration')
         self.mapping_only = mapping_only
-
-        if request is None:
-            self.request = get_current_request()
-        else:
-            self.request = request
 
         self.txn = get_current_transaction()
         if not cache:
@@ -428,7 +422,7 @@ class Migrator:
             ))
         if len(self.batch) >= self.bulk_size:
             await notify(IndexProgress(
-                self.request, self.context, self.processed,
+                self.context, self.processed,
                 (len(self.existing) + len(self.missing))
             ))
             await self.flush()
@@ -640,7 +634,7 @@ class Migrator:
                 migrator = Migrator(
                     self.utility, ob, response=self.response, force=self.force,
                     log_details=self.log_details,
-                    memory_tracking=self.memory_tracking, request=self.request,
+                    memory_tracking=self.memory_tracking,
                     bulk_size=self.bulk_size, full=self.full,
                     reindex_security=self.reindex_security,
                     mapping_only=self.mapping_only,

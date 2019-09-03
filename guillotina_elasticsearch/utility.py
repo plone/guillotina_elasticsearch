@@ -172,7 +172,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             self, obj, security=False, response=noop_response, request=None):
         from guillotina_elasticsearch.reindex import Reindexer
         reindexer = Reindexer(self, obj, response=response,
-                              reindex_security=security, request=request)
+                              reindex_security=security)
         await reindexer.reindex(obj)
 
     async def search(self, container, query):

@@ -145,7 +145,7 @@ async def test_fixes_missing(es_requester):
                 responses.append(item)
 
         migrator = Migrator(search, container, force=True,
-                            request=request, response=Writer())
+                            response=Writer())
         await migrator.run_migration()
 
         assert migrator.status == 'done'
@@ -166,7 +166,7 @@ async def test_updates_index_data(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
 
-        migrator = Migrator(search, container, force=True, request=request)
+        migrator = Migrator(search, container, force=True)
         new_index_name = await migrator.create_next_index()
         migrator.work_index_name = new_index_name
 
@@ -213,7 +213,7 @@ async def test_calculate_mapping_diff(es_requester):
         search = get_utility(ICatalogUtility)
 
         index_manager = get_adapter(container, IIndexManager)
-        migrator = Migrator(search, container, force=True, request=request)
+        migrator = Migrator(search, container, force=True)
         new_index_name = await index_manager.start_migration()
         migrator.work_index_name = new_index_name
 
@@ -238,7 +238,7 @@ async def test_updates_index_name(es_requester):
         im = get_adapter(container, IIndexManager)
         existing_index = await im.get_real_index_name()
         assert await search.get_connection().indices.exists(existing_index)
-        migrator = Migrator(search, container, force=True, request=request)
+        migrator = Migrator(search, container, force=True)
         await migrator.run_migration()
         assert not await search.get_connection().indices.exists(existing_index)
         assert await search.get_connection().indices.exists(
@@ -257,7 +257,7 @@ async def test_moves_docs_over(es_requester):
         await asyncio.sleep(1)
         current_count = await search.get_doc_count(container)
 
-        migrator = Migrator(search, container, force=True, request=request)
+        migrator = Migrator(search, container, force=True)
         await migrator.run_migration()
 
         im = get_adapter(container, IIndexManager)
@@ -272,7 +272,7 @@ async def test_create_next_index(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
-        migrator = Migrator(search, container, force=True, request=request)
+        migrator = Migrator(search, container, force=True)
         name = await migrator.create_next_index()
         assert name == 'guillotina-db-guillotina_2'
 
@@ -320,7 +320,7 @@ async def test_migrator_emit_events_during_indexing(
         gr.base.adapters.subscribe(
             [IIndexProgress], None, event_handler.subscribe)
         migrator = Reindexer(
-            search, _marker, force=True, request=req, reindex_security=True
+            search, _marker, force=True, reindex_security=True
         )
         migrator.bulk_size = 0
         migrator.batch = {}
@@ -351,7 +351,7 @@ async def test_migrator_emmits_events_on_end(es_requester, event_handler):
         gr.base.adapters.subscribe(
             [IIndexProgress], None, event_handler.subscribe)
         migrator = Reindexer(
-            search, container, force=True, request=req, reindex_security=True
+            search, container, force=True, reindex_security=True
         )
 
         ob = await container.async_get('foobar')
@@ -369,7 +369,7 @@ async def test_search_works_on_new_docs_during_migration(es_requester):
         await add_content(requester, 2)
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
-        migrator = Migrator(search, container, force=True, request=request)
+        migrator = Migrator(search, container, force=True)
         im = get_adapter(container, IIndexManager)
         index_name = await im.get_index_name()
         next_index_name = await migrator.setup_next_index()
@@ -404,7 +404,7 @@ async def test_search_works_on_updated_docs_during_migration_when_missing(es_req
 
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
-        migrator = Migrator(search, container, force=True, request=request)
+        migrator = Migrator(search, container, force=True)
         im = get_adapter(container, IIndexManager)
         index_name = await im.get_index_name()
         next_index_name = await migrator.setup_next_index()
@@ -434,7 +434,7 @@ async def test_search_works_on_updated_docs_during_migration_when_present(es_req
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
-        migrator = Migrator(search, container, force=True, request=request)
+        migrator = Migrator(search, container, force=True)
         im = get_adapter(container, IIndexManager)
         index_name = await im.get_index_name()
         next_index_name = await migrator.setup_next_index()
@@ -467,7 +467,7 @@ async def test_delete_in_both_during_migration(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
-        migrator = Migrator(search, container, force=True, request=request)
+        migrator = Migrator(search, container, force=True)
         im = get_adapter(container, IIndexManager)
         index_name = await im.get_index_name()
         next_index_name = await migrator.setup_next_index()

@@ -23,7 +23,7 @@ class Reindexer(Migrator):
         self.work_index_name = await index_manager.get_index_name()
 
         await notify(IndexProgress(
-            self.request, self.context, 0, self.processed))
+            self.context, 0, self.processed))
         await self.process_object(obj)
         await self.flush()
         if len(self.sub_indexes) > 0:
@@ -34,7 +34,7 @@ class Reindexer(Migrator):
                     self.utility, ob, response=self.response, force=self.force,
                     log_details=self.log_details,
                     memory_tracking=self.memory_tracking,
-                    request=self.request, bulk_size=self.bulk_size,
+                    bulk_size=self.bulk_size,
                     full=self.full, reindex_security=self.reindex_security,
                     mapping_only=self.mapping_only, index_manager=im)
                 reindexer.processed = self.processed
@@ -44,6 +44,6 @@ class Reindexer(Migrator):
                 self.processed = reindexer.processed
 
         await notify(IndexProgress(
-            self.request, self.context, self.processed,
+            self.context, self.processed,
             self.processed, completed=True
         ))

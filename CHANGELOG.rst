@@ -1,7 +1,8 @@
 3.3.11 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Do not require request object for vacuuming
+  [vangheem]
 
 
 3.3.10 (2019-08-29)
