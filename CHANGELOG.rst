@@ -1,7 +1,7 @@
 3.3.12 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix release
 
 
 3.3.11 (2019-09-03)

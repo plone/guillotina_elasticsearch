@@ -134,7 +134,7 @@ class Migrator:
                  log_details=False, memory_tracking=False, request=None,
                  bulk_size=40, full=False, reindex_security=False,
                  mapping_only=False, index_manager=None, children_only=False,
-                 lookup_index=False, cache=True, request=None):
+                 lookup_index=False, cache=True):
         self.utility = utility
         self.context = context
         self.response = response
