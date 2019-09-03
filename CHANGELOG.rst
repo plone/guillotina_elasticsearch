@@ -1,4 +1,4 @@
-3.3.11 (unreleased)
+3.3.11 (2019-09-03)
 -------------------
 
 - Do not require request object for vacuuming
