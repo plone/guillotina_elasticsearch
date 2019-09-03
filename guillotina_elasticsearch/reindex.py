@@ -36,7 +36,8 @@ class Reindexer(Migrator):
                     memory_tracking=self.memory_tracking,
                     bulk_size=self.bulk_size,
                     full=self.full, reindex_security=self.reindex_security,
-                    mapping_only=self.mapping_only, index_manager=im)
+                    mapping_only=self.mapping_only, index_manager=im,
+                    request=self.request)
                 reindexer.processed = self.processed
                 reindexer.work_index_name = await im.get_index_name()
                 await reindexer.process_folder(ob)
@@ -45,5 +46,6 @@ class Reindexer(Migrator):
 
         await notify(IndexProgress(
             self.context, self.processed,
-            self.processed, completed=True
+            self.processed, completed=True,
+            request=self.request
         ))

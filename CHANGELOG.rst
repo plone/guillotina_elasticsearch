@@ -1,7 +1,7 @@
 3.3.13 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Pass request on the index progress when possible
 
 
 3.3.12 (2019-09-03)

@@ -25,6 +25,7 @@ class SearchDoneEvent(object):
 
 
 class IIndexProgress(Interface):
+    request = Attribute('Request responsible')
     context = Attribute("Context where the Index process has started")
     processed = Attribute('Docs finished indexing')
     total = Attribute('Amount of docs to index')
@@ -34,7 +35,8 @@ class IIndexProgress(Interface):
 @implementer(IIndexProgress)
 class IndexProgress(object):
 
-    def __init__(self, context, processed, total, completed=None):
+    def __init__(self, context, processed, total, completed=None, request=None):
+        self.request = request
         self.context = context
         self.processed = processed
         self.total = total

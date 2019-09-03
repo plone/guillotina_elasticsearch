@@ -156,6 +156,7 @@ class Migrator:
             # make sure that we don't cache requests...
             self.txn._cache = DummyCache(self.txn)
 
+        self.request = request
         self.container = get_current_container()
         self.conn = utility.get_connection()
 
@@ -423,7 +424,8 @@ class Migrator:
         if len(self.batch) >= self.bulk_size:
             await notify(IndexProgress(
                 self.context, self.processed,
-                (len(self.existing) + len(self.missing))
+                (len(self.existing) + len(self.missing)),
+                request=self.request
             ))
             await self.flush()
 
