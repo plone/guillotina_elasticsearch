@@ -230,7 +230,8 @@ class Vacuum:
             checked += len(es_batch)
             async with self.txn._lock:
                 sql = self.get_sql(SELECT_BY_KEYS)
-                records = await conn.fetch(sql, es_batch)
+                async with self.txn._lock:
+                    records = await conn.fetch(sql, es_batch)
             db_batch = set()
             for record in records:
                 db_batch.add(record['zoid'])

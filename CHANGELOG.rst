@@ -1,7 +1,8 @@
 3.3.14 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Missing pg conn lock with vacuuming
+  [vangheem]
 
 
 3.3.13 (2019-09-03)
