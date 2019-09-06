@@ -1,4 +1,4 @@
-3.3.14 (unreleased)
+3.3.14 (2019-09-06)
 -------------------
 
 - Missing pg conn lock with vacuuming
