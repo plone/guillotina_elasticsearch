@@ -1,7 +1,8 @@
 5.0.0a3 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- build_security_query(): changed 'query.bool.filter' to use a list instead of a single object
+  [masipcat]
 
 
 5.0.0a2 (2019-06-21)
