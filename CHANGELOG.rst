@@ -1,4 +1,4 @@
-3.3.16 (unreleased)
+3.3.16 (2019-09-09)
 -------------------
 
 - build_security_query(): changed 'query.bool.filter' to use a list instead of a single object
