@@ -1,4 +1,4 @@
-3.3.17 (unreleased)
+3.3.17 (2019-09-18)
 -------------------
 
 - Fix not iterating over all content indexes in elasticsearch
