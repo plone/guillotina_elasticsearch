@@ -81,6 +81,7 @@ async def get_content_sub_indexes(container, path=None):
     im = get_adapter(container, IIndexManager)
     index_name = await im.get_index_name()
     query = {
+        "size": 50,
         "query": {
             "constant_score": {
                 "filter": {
@@ -106,16 +107,25 @@ async def get_content_sub_indexes(container, path=None):
                 "depth": {"gte": path.count('/') + 1}
             }
         })
-    results = await search.get_connection().search(
+    conn = search.get_connection()
+    q_result = await conn.search(
         index=index_name, _source=False,
-        stored_fields='elastic_index,path', body=query)
-    indexes = []
-    for item in results['hits']['hits']:
-        indexes.append({
+        stored_fields='elastic_index,path', body=query,
+        scroll="1m")
+    indexes = [{
+        'path': item['fields']['path'][0],
+        'oid': item['_id'],
+        'index': item['fields']['elastic_index'][0]
+    } for item in q_result['hits']['hits']]
+
+    if len(q_result["hits"]["hits"]) >= 50:
+        q_result = await conn.scroll(
+            scroll_id=q_result['_scroll_id'], scroll="1m")
+        [indexes.append({
             'path': item['fields']['path'][0],
             'oid': item['_id'],
             'index': item['fields']['elastic_index'][0]
-        })
+        }) for item in q_result['hits']['hits']]
     return indexes
 
 

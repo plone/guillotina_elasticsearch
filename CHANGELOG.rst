@@ -1,7 +1,8 @@
 3.3.17 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix not iterating over all content indexes in elasticsearch
+  [vangheem]
 
 
 3.3.16 (2019-09-09)
