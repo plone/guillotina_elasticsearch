@@ -364,7 +364,7 @@ class Migrator:
         batch_type = 'update'
         if self.reindex_security:
             try:
-                data = ISecurityInfo(ob)()
+                data = await apply_coroutine(ISecurityInfo(ob))
             except TypeError:
                 self.response.write(f'Could not index {ob}')
                 return

@@ -1,7 +1,7 @@
 3.3.18 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- ISecurityInfo can be async
 
 
 3.3.17 (2019-09-18)
