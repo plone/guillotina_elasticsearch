@@ -1,7 +1,7 @@
 3.3.19 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fix commands using missing attribute `self.request`
 
 
 3.3.18 (2019-09-27)

@@ -42,7 +42,7 @@ class MigrateCommand(Command):
         search = get_utility(ICatalogUtility)
         change_transaction_strategy('none')
         await asyncio.sleep(1)  # since something initialize custom types...
-        async for _, tm, container in get_containers(self.request):
+        async for _, tm, container in get_containers():
             try:
                 self.migrator = Migrator(
                     search, container, response=printer(), full=arguments.full,
