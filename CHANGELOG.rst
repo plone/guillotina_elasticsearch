@@ -1,4 +1,4 @@
-3.3.19 (unreleased)
+3.3.19 (2019-10-18)
 -------------------
 
 - Pay attention to trashed objects in pg
