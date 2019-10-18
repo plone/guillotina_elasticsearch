@@ -1,6 +1,7 @@
 3.3.19 (unreleased)
 -------------------
 
+- Pay attention to trashed objects in pg
 - Fix commands using missing attribute `self.request`
 
 

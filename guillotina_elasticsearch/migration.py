@@ -465,7 +465,7 @@ class Migrator:
                 for key, value in result.items():
                     if not isinstance(value, dict):
                         continue
-                    if 'status' in value and value['status'] != 200:
+                    if 'status' in value and value['status'] not in (200, 201):
                         _id = value.get('_id')
 
                         # retry conflict errors and thread pool exceeded errors
