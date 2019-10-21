@@ -97,6 +97,8 @@ def process_field(field, value):
 
     if len(value) > 1:
         term_keyword = 'terms'
+        if not isinstance(value, list):
+            value = [value]
     else:
         term_keyword = 'term'
         if isinstance(value, list):

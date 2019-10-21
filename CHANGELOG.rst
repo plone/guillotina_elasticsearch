@@ -1,7 +1,7 @@
 5.0.0a3 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- more G5 fixes
 
 
 5.0.0a2 (2019-06-21)

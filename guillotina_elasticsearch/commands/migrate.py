@@ -1,7 +1,10 @@
+from guillotina import task_vars
 from guillotina.commands import Command
 from guillotina.commands.utils import change_transaction_strategy
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
+from guillotina.tests.utils import get_mocked_request
+from guillotina.tests.utils import login
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.migration import Migrator
 
@@ -42,7 +45,7 @@ class MigrateCommand(Command):
         search = get_utility(ICatalogUtility)
         change_transaction_strategy('none')
         await asyncio.sleep(1)  # since something initialize custom types...
-        async for _, tm, container in get_containers(self.request):
+        async for _, tm, container in get_containers():
             try:
                 self.migrator = Migrator(
                     search, container, response=printer(), full=arguments.full,
@@ -65,6 +68,9 @@ Mapping Diff: {self.migrator.mapping_diff}
                 await tm.commit()
 
     def run(self, arguments, settings, app):
+        request = get_mocked_request()
+        login()
+        task_vars.request.set(request)
         loop = self.get_loop()
         try:
             loop.run_until_complete(self.migrate_all(arguments))

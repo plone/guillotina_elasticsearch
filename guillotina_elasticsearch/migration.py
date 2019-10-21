@@ -197,8 +197,7 @@ class Migrator:
         return self.processed / (time.time() - self.index_start_time)
 
     async def create_next_index(self):
-        async with managed_transaction(
-                read_only=False, adopt_parent_txn=True) as txn:
+        async with managed_transaction(tm=self.txn.manager) as txn:
             await txn.refresh(await self.index_manager.get_registry())
             next_index_name = await self.index_manager.start_migration()
         if await self.conn.indices.exists(next_index_name):
@@ -471,7 +470,7 @@ class Migrator:
                 for key, value in result.items():
                     if not isinstance(value, dict):
                         continue
-                    if 'status' in value and value['status'] != 200:
+                    if 'status' in value and value['status'] not in (200, 201):
                         _id = value.get('_id')
 
                         # retry conflict errors and thread pool exceeded errors
@@ -538,7 +537,7 @@ class Migrator:
     async def cancel_migration(self):
         # canceling the migration, clearing index
         self.response.write('Canceling migration')
-        async with managed_transaction(read_only=False, adopt_parent_txn=True):
+        async with managed_transaction(tm=self.txn.manager):
             await self.index_manager.cancel_migration()
             self.response.write('Next index disabled')
         if self.active_task_id is not None:

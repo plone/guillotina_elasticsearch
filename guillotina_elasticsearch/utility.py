@@ -197,11 +197,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
                               reindex_security=security, request=request)
         await reindexer.reindex(obj)
 
-    async def search(self, container: IContainer, query: ParsedQueryInfo):
-        return await self.query(
-            container, query['query'],
-            size=query['size'], scroll=None, index=None)
-
     async def _build_security_query(
             self,
             container,
@@ -244,8 +239,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
             items.append(data)
         return items
 
-    async def query(
-            self, container, query,
+    # async def search(self, container: IContainer, query: ParsedQueryInfo):
+    #     return await self.query(
+    #         container, query['query'],
+    #         size=query['size'], scroll=None, index=None)
+
+    async def search(
+            self, container, query_info: ParsedQueryInfo,
             size=10, request=None, scroll=None, index=None):
         """
         transform into query...
@@ -256,6 +256,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         t1 = time.time()
         if request is None:
             request = get_current_request()
+        query = query_info['query']
         q = await self._build_security_query(
             container, query, size, scroll)
         q['ignore_unavailable'] = True
