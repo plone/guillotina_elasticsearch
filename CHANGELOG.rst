@@ -1,7 +1,7 @@
-5.0.0a4 (unreleased)
---------------------
+5.0.0 (unreleased)
+------------------
 
-- Nothing changed yet.
+- final
 
 
 5.0.0a3 (2019-10-21)
