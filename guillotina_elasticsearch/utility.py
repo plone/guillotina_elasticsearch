@@ -7,6 +7,7 @@ from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
 from guillotina.exceptions import RequestNotFound
+from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
@@ -376,9 +377,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             b'Removing all children of %s' % content_path.encode('utf-8'))
         # use future here because this can potentially take some
         # time to clean up indexes, etc
-        asyncio.ensure_future(
-            self.call_unindex_all_children(
-                container, index_name, content_path))
+        await self.call_unindex_all_children(
+            container, index_name, content_path)
 
     @backoff.on_exception(
         backoff.constant,
@@ -406,18 +406,29 @@ class ElasticSearchUtility(DefaultSearchUtility):
                         pass
 
         path_query = await self.get_path_query(content_path)
+        await self._delete_by_query(path_query, index_name)
+
+    @backoff.on_exception(
+        backoff.constant, (ElasticsearchConflictException,),
+        interval=0.5, max_tries=5)
+    async def _delete_by_query(self, path_query, index_name):
+        conn = self.get_connection()
         conn_es = await conn.transport.get_connection()
         async with conn_es.session.post(
                 join(conn_es.base_url.human_repr(),
                      index_name, '_delete_by_query'),
                 data=json.dumps(path_query),
                 params={
-                    'ignore_unavailable': 'true'
+                    'ignore_unavailable': 'true',
+                    'conflicts': 'proceed'
                 },
                 headers={
                     'Content-Type': 'application/json'
                 }) as resp:
             result = await resp.json()
+            if result['version_conflicts'] > 0:
+                raise ElasticsearchConflictException(
+                    result['version_conflicts'], resp)
             if 'deleted' in result:
                 logger.debug(f'Deleted {result["deleted"]} children')
                 logger.debug(f'Deleted {json.dumps(path_query)}')
