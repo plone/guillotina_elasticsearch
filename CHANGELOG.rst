@@ -1,4 +1,4 @@
-3.3.20 (unreleased)
+3.3.20 (2019-10-31)
 -------------------
 
 - Retry conflict errors on delete by query
