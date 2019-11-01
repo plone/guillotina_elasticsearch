@@ -29,12 +29,12 @@ from zope.interface import alsoProvides
 from zope.interface.interface import TAGGED_DATA
 
 import logging
-
+from typing import Dict, Any
 
 logger = logging.getLogger('guillotina_elasticsearch')
 
 
-DEFAULT_SETTINGS = {
+DEFAULT_SETTINGS: Dict[str, Any] = {
     "analysis": {
         "analyzer": {
             "path_analyzer": {

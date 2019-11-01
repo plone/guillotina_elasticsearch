@@ -4,9 +4,9 @@ from guillotina.content import IResourceFactory
 from guillotina import app_settings
 
 import guillotina.directives
+from typing import Dict, Any
 
-
-CATALOG_TYPES = {
+CATALOG_TYPES: Dict[str, Any] = {
     'searchabletext': {
         'type': 'text',
         'index': True

@@ -1,7 +1,8 @@
 3.3.21 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Be able to import types
+  [vangheem]
 
 
 3.3.20 (2019-10-31)

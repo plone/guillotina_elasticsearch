@@ -37,6 +37,7 @@ setup(
     ],
     zip_safe=True,
     include_package_data=True,
+    package_data={"": ["*.txt", "*.rst"], "guillotina_elasticsearch": ["py.typed"]},
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
         'guillotina>=4.6.0',
