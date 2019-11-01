@@ -1,4 +1,4 @@
-3.3.21 (unreleased)
+3.3.21 (2019-11-01)
 -------------------
 
 - Be able to import types
