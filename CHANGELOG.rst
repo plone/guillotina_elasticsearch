@@ -1,7 +1,8 @@
 3.3.22 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Pinned aioelasticsearch to <0.6.0
+  [masipcat]
 
 
 3.3.21 (2019-11-01)
