@@ -1,4 +1,4 @@
-3.3.22 (unreleased)
+3.3.22 (2019-11-12)
 -------------------
 
 - Pinned aioelasticsearch to <0.6.0
