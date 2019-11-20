@@ -1,4 +1,4 @@
-3.3.23 (unreleased)
+3.3.23 (2019-11-20)
 -------------------
 
 - Fix default index settings
