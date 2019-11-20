@@ -1,8 +1,8 @@
 3.3.23 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Fix default index settings
+  [vangheem]
 
 3.3.22 (2019-11-12)
 -------------------
