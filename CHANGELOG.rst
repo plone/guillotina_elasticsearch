@@ -1,7 +1,8 @@
 3.3.24 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Make sure to save sub index changes in ES
+  [vangheem]
 
 
 3.3.23 (2019-11-20)

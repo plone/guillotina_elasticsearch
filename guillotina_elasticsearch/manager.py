@@ -1,4 +1,5 @@
 from copy import deepcopy
+from guillotina.catalog.index import index_object
 from guillotina import app_settings
 from guillotina import configure
 from guillotina import task_vars
@@ -237,6 +238,11 @@ class ContentIndexManager(ContainerIndexManager):
                 [resolve_dotted_name(s) for s in
                  index_data.get('schemas') or []])
             return set(schemas)
+
+    async def finish_migration(self):
+        await super().finish_migration()
+        await index_object(self.context, indexes=["elastic_index"],
+                           modified=True)
 
 
 async def _teardown_failed_request_with_index(im):

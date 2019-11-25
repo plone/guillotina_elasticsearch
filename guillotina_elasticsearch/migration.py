@@ -450,7 +450,7 @@ class Migrator:
             data = payload['data']
             if payload['action'] == 'update':
                 data = {'doc': data}
-                action_data['_retry_on_conflict'] = 3
+                action_data['retry_on_conflict'] = 3
             bulk_data.append({
                 payload['action']: action_data
             })

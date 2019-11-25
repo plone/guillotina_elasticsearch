@@ -94,7 +94,8 @@ async def cleanup_es(es_host, prefix=''):
             try:
                 await conn.indices.delete_alias(index, name)
                 await conn.indices.delete(index)
-            except elasticsearch.exceptions.AuthorizationException:
+            except (elasticsearch.exceptions.AuthorizationException,
+                    elasticsearch.exceptions.NotFoundError):
                 pass
     for index in (await conn.cat.indices()).splitlines():
         _, _, index_name = index.split()[:3]
