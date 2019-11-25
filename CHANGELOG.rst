@@ -1,4 +1,4 @@
-3.3.24 (unreleased)
+3.3.24 (2019-11-25)
 -------------------
 
 - Make sure to save sub index changes in ES
