@@ -25,11 +25,13 @@ from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
+from guillotina_elasticsearch.interfaces import ParsedQueryInfo
 from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
+
 from os.path import join
 
 import aiohttp
@@ -176,11 +178,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
                               reindex_security=security)
         await reindexer.reindex(obj)
 
-    async def search(self, container, query):
-        """
-        XXX transform into el query
-        """
-        pass
+    # async def search(self, container, query):
+    #     """
+    #     XXX transform into el query
+    #     """
+    #     pass
 
     async def _build_security_query(
             self,
@@ -228,7 +230,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             items.append(data)
         return items
 
-    async def query(
+
+    async def search(
             self, container, query,
             doc_type=None, size=10, request=None, scroll=None, index=None):
         """
@@ -243,6 +246,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 request = get_current_request()
             except RequestNotFound:
                 pass
+        query = query_info['query']
         q = await self._build_security_query(
             container, query, doc_type, size, scroll)
         q['ignore_unavailable'] = True
