@@ -1,7 +1,8 @@
 3.3.25 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Be able to provide base es query for vacuum
+  [vangheem]
 
 
 3.3.24 (2019-11-25)
