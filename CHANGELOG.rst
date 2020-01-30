@@ -1,7 +1,7 @@
 3.3.25 (unreleased)
 -------------------
 
-- Be able to provide base es query for vacuum
+- Be able to provide es query for vacuum
   [vangheem]
 
 

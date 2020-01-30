@@ -66,7 +66,7 @@ async def clean_orphan_indexes(container):
 
 class Vacuum:
 
-    _base_es_query = {
+    _es_query = {
         "sort": ["_doc"]
     }
 
@@ -107,7 +107,7 @@ class Vacuum:
                     scroll='15m',
                     size=PAGE_SIZE,
                     _source=False,
-                    body=self._base_es_query)
+                    body=self._es_query)
             except elasticsearch.exceptions.NotFoundError:
                 continue
             yield [r['_id'] for r in result['hits']['hits']], index_name
