@@ -1,4 +1,4 @@
-3.3.25 (unreleased)
+3.3.25 (2020-01-30)
 -------------------
 
 - Be able to provide es query for vacuum
