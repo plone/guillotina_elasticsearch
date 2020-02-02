@@ -52,8 +52,7 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
         },
         "char_filter": {
         }
-    },
-    'index.mapper.dynamic': False
+    }
 }
 
 

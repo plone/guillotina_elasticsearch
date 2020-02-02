@@ -121,7 +121,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         index_name = await index_manager.get_index_name()
         real_index_name = await index_manager.get_real_index_name()
-
         await self.create_index(real_index_name, index_manager)
         conn = self.get_connection()
         await conn.indices.put_alias(
@@ -137,11 +136,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
             mappings = await index_manager.get_mappings()
         settings = {
             'settings': settings,
-            'mappings': {
-                DOC_TYPE: mappings
-            }
+            'mappings': mappings,
         }
         conn = self.get_connection()
+        print(json.dumps(settings))
         await conn.indices.create(real_index_name, settings)
 
     async def _delete_index(self, im):

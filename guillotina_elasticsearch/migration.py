@@ -293,7 +293,7 @@ class Migrator:
         next_mappings = await self.conn.indices.get_mapping(
             self.work_index_name)
         next_mappings = next_mappings[self.work_index_name]['mappings']
-        next_mappings = next_mappings[DOC_TYPE]['properties']
+        next_mappings = next_mappings['properties']
 
         existing_index_name = await self.index_manager.get_real_index_name()
         try:
@@ -302,9 +302,8 @@ class Migrator:
         except elasticsearch.exceptions.NotFoundError:
             # allows us to upgrade when no index is present yet
             return next_mappings
-
         existing_mappings = existing_mappings[existing_index_name]['mappings']
-        existing_mappings = existing_mappings[DOC_TYPE]['properties']
+        existing_mappings = existing_mappings['properties']
 
         new_definitions = {}
         for field_name, definition in next_mappings.items():

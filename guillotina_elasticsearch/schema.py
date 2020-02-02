@@ -117,8 +117,5 @@ Registered mapping: {field_mapping}
             schema_field_mappings[index_name] = catalog_info['__schema__']
             mappings[index_name] = field_mapping
     return {
-        'properties': mappings,
-        '_all': {
-            'enabled': False
-        }
+        'properties': mappings
     }
