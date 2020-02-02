@@ -7,7 +7,8 @@ from guillotina.interfaces import IResource
 from guillotina.interfaces import ISearchParser
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.interfaces import ParsedQueryInfo
-
+from guillotina.utils import get_content_depth
+from guillotina.utils import get_content_path
 import logging
 import typing
 
@@ -182,10 +183,10 @@ def process_query_level(params):
     return query
 
 
-@configure.adapter(
-    for_=(IElasticSearchUtility, IResource),
-    provides=ISearchParser,
-    name='default')
+# @configure.adapter(
+#     for_=(IElasticSearchUtility, IResource),
+#     provides=ISearchParser,
+#     name='default')
 class Parser(BaseParser):
 
     def __init__(self, request, context):
@@ -214,3 +215,11 @@ class Parser(BaseParser):
             query_info,
             query=query
         ))
+
+    def get_context_params(self) -> (str, int,):
+        depth = int(self.request.query.get("depth", 5))
+        path = get_content_path(self.context)
+        return (
+            get_content_path(self.context),
+            get_content_depth(self.context) + depth
+        )

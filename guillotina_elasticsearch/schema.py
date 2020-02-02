@@ -116,10 +116,8 @@ Registered mapping: {field_mapping}
 
             schema_field_mappings[index_name] = catalog_info['__schema__']
             mappings[index_name] = field_mapping
-
     return {
         'properties': mappings,
-        'dynamic': False,
         '_all': {
             'enabled': False
         }

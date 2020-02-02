@@ -3,6 +3,7 @@ from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
 from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
+from guillotina.catalog import index
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
@@ -25,12 +26,12 @@ from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
-from guillotina_elasticsearch.interfaces import ParsedQueryInfo
 from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
+from guillotina_elasticsearch.parser import Parser
 
 from os.path import join
 
@@ -178,12 +179,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
                               reindex_security=security)
         await reindexer.reindex(obj)
 
-    # async def search(self, container, query):
-    #     """
-    #     XXX transform into el query
-    #     """
-    #     pass
-
     async def _build_security_query(
             self,
             container,
@@ -218,6 +213,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             data = format_hit(item)
             data.update({
                 '@absolute_url': container_url + data.get('path', ''),
+                '@id': container_url + data.get('path', ''),
                 '@type': data.get('type_name'),
                 '@uid': item['_id'],
                 '@name': data.get('id', data.get('path', '').split('/')[-1])
@@ -229,7 +225,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 data['@highlight'] = item['highlight']
             items.append(data)
         return items
-
 
     async def search(
             self, container, query,
@@ -246,7 +241,62 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 request = get_current_request()
             except RequestNotFound:
                 pass
-        query = query_info['query']
+
+        parser = Parser(request, container)
+
+        path, depth = parser.get_context_params()
+        qs = parser(query)
+
+        q = await self._build_security_query(
+            container, qs['query'], doc_type, size, scroll)
+        q['ignore_unavailable'] = True
+
+        logger.debug("Generated query %s", json.dumps(qs['query']))
+        conn = self.get_connection()
+        print(json.dumps(qs['query']))
+
+        result = await conn.search(index=index, **q)
+        if result.get('_shards', {}).get('failed', 0) > 0:
+            logger.warning(f'Error running query: {result["_shards"]}')
+            error_message = 'Unknown'
+            for failure in result["_shards"].get('failures') or []:
+                error_message = failure['reason']
+            raise QueryErrorException(reason=error_message)
+        items = self._get_items_from_result(container, request, result)
+        final = {
+            'items_count': result['hits']['total'],
+            'member': items
+        }
+        if 'aggregations' in result:
+            final['aggregations'] = result['aggregations']
+        if 'suggest' in result:
+            final['suggest'] = result['suggest']
+        if 'profile' in result:
+            final['profile'] = result['profile']
+        if '_scroll_id' in result:
+            final['_scroll_id'] = result['_scroll_id']
+
+        tdif = time.time() - t1
+        logger.debug(f'Time ELASTIC {tdif}')
+        await notify(SearchDoneEvent(
+            query, result['hits']['total'], request, tdif))
+        return final
+
+    async def query(
+            self, container, query,
+            doc_type=None, size=10, request=None, scroll=None, index=None):
+        """
+        transform into query...
+        right now, it's just passing through into elasticsearch
+        """
+        if index is None:
+            index = await self.get_container_index_name(container)
+        t1 = time.time()
+        if request is None:
+            try:
+                request = get_current_request()
+            except RequestNotFound:
+                pass
         q = await self._build_security_query(
             container, query, doc_type, size, scroll)
         q['ignore_unavailable'] = True
@@ -279,6 +329,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         await notify(SearchDoneEvent(
             query, result['hits']['total'], request, tdif))
         return final
+
 
     async def get_by_uuid(self, container, uuid):
         query = {
@@ -500,10 +551,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
         conn = self.get_connection()
         result = {}
         try:
+            print("Indexing....")
             response.write(b'Indexing %d' % (len(idents),))
             result = await conn.bulk(
                 index=index_name, doc_type=DOC_TYPE,
-                body=bulk_data)
+                body=bulk_data, refresh="wait_for")
         except aiohttp.client_exceptions.ClientResponseError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
@@ -709,3 +761,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
         else:
             data = await super().get_data(content, indexes)
         return data
+
+
+class DummyIndexer(index.Indexer):
+    class_ = None
+
+    @classmethod
+    def get(cls):
+        return cls.class_
+
+    async def add_object(self, obj, indexes, modified, security):
+        await super().add_object(obj, indexes, modified, security)
+        await self()
+
+    def register(self):
+        self.class_ = self
