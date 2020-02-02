@@ -139,7 +139,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
             'mappings': mappings,
         }
         conn = self.get_connection()
-        print(json.dumps(settings))
         await conn.indices.create(real_index_name, settings)
 
     async def _delete_index(self, im):
@@ -553,7 +552,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             response.write(b'Indexing %d' % (len(idents),))
             result = await conn.bulk(
                 index=index_name, doc_type=DOC_TYPE,
-                body=bulk_data, refresh="wait_for")
+                body=bulk_data)
         except aiohttp.client_exceptions.ClientResponseError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
@@ -759,18 +758,3 @@ class ElasticSearchUtility(DefaultSearchUtility):
         else:
             data = await super().get_data(content, indexes)
         return data
-
-
-class DummyIndexer(index.Indexer):
-    class_ = None
-
-    @classmethod
-    def get(cls):
-        return cls.class_
-
-    async def add_object(self, obj, indexes, modified, security):
-        await super().add_object(obj, indexes, modified, security)
-        await self()
-
-    def register(self):
-        self.class_ = self
