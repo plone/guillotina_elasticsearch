@@ -42,7 +42,7 @@ setup(
     install_requires=[
         'guillotina>=4.6.0',
         'mypy_extensions',
-        'aioelasticsearch<0.6.0',
+        'aioelasticsearch<0.7.0',
         'ujson',
         'lru-dict',
         'backoff',
