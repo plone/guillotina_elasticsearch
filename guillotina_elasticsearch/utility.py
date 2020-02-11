@@ -261,7 +261,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         final = {
-            'items_count': result['hits']['total'],
+            'items_count': result['hits']['total']['value'],
             'member': items
         }
         if 'aggregations' in result:
@@ -309,7 +309,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         final = {
-            'items_count': result['hits']['total'],
+            'items_count': result['hits']['total']['value'],
             'member': items
         }
         if 'aggregations' in result:
