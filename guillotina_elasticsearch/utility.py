@@ -276,7 +276,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         tdif = time.time() - t1
         logger.debug(f'Time ELASTIC {tdif}')
         await notify(SearchDoneEvent(
-            query, result['hits']['total'], request, tdif))
+            query, result['hits']['total']['value'], request, tdif))
         return final
 
     async def query(
@@ -324,7 +324,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         tdif = time.time() - t1
         logger.debug(f'Time ELASTIC {tdif}')
         await notify(SearchDoneEvent(
-            query, result['hits']['total'], request, tdif))
+            query, result['hits']['total']['value'], request, tdif))
         return final
 
 
@@ -452,6 +452,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 for name in data['aliases'].keys():
                     # delete alias
                     try:
+                        await conn.indices.close(index)
                         await conn.indices.delete_alias(index, name)
                         await conn.indices.delete(index)
                     except elasticsearch.exceptions.NotFoundError:
@@ -714,7 +715,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     bulk_data.append({
                         'delete': {
                             '_index': index,
-                            '_id': obj.uuid
+                            '_id': obj.__uuid__
                         }
                     })
                 if IFolder.providedBy(obj):
