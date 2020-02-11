@@ -64,7 +64,7 @@ class ContainerIndexManager:
     Default index manager which uses the global index
     '''
 
-    def __init__(self, ob, request=None):
+    def __init__(self, ob):
         self.container = task_vars.container.get()
         self.db = task_vars.db.get()
         self.context = ob
@@ -182,13 +182,13 @@ class ContentIndexManager(ContainerIndexManager):
     Custom index manager which uses a different index from global
     '''
 
-    def __init__(self, ob, request=None):
-        super().__init__(ob, request=request)
+    def __init__(self, ob):
+        super().__init__(ob)
         self.object_settings = None
 
     async def get_registry(self, refresh=False):
         if (refresh and self.object_settings is not None):
-            txn = get_transaction(self.request)
+            txn = get_transaction()
             await txn.refresh(self.object_settings)
         if self.object_settings is None:
             annotations_container = IAnnotations(self.context)
@@ -208,7 +208,8 @@ class ContentIndexManager(ContainerIndexManager):
         container_name = super()._generate_new_index_name()
         return '{}{}{}-{}'.format(
             container_name, SUB_INDEX_SEPERATOR,
-            self.context.type_name.lower(), get_short_uid(self.context.__uuid__)
+            self.context.type_name.lower(),
+            get_short_uid(self.context.__uuid__)
         )
 
     def _get_index_name(self, index_name, version):
