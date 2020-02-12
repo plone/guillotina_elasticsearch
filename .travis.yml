@@ -2,12 +2,11 @@
 dist: xenial
 language: python
 python:
-    - "3.7"
+  - "3.7"
 sudo: required
 env:
-    - ES_VERSION=6
-    - ES_VERSION=6 DATABASE=postgresql
-    - ES_VERSION=OPEN_DISTRO
+  - ES_VERSION=7
+  - ES_VERSION=7 DATABASE=postgresql
 
 services:
   - postgresql
