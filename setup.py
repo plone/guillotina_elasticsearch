@@ -5,7 +5,7 @@ from setuptools import setup
 
 test_requires = [
     'async_asgi_testclient',
-    'pytest>=3.6',
+    'pytest>=5.0',
     'docker',
     'backoff',
     'psycopg2-binary',

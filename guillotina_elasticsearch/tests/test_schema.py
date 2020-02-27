@@ -5,6 +5,8 @@ from zope.interface import Interface
 
 import pytest
 
+pytestmark = [pytest.mark.asyncio]
+
 
 class IA(Interface):
     index_field('item', field_mapping={'type': 'integer'})

@@ -16,7 +16,6 @@ from guillotina.interfaces import IObjectAddedEvent
 from guillotina.interfaces import IResource
 from guillotina.transactions import get_transaction
 from guillotina.utils import execute
-from guillotina.utils import find_container
 from guillotina.utils import get_registry as guillotina_get_registry
 from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.directives import index
@@ -26,7 +25,6 @@ from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.interfaces import SUB_INDEX_SEPERATOR
 from guillotina_elasticsearch.schema import get_mappings
 from guillotina_elasticsearch.utils import get_migration_lock
-from typing import Dict, Any
 from zope.interface import alsoProvides
 from zope.interface.interface import TAGGED_DATA
 

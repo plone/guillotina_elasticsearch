@@ -3,14 +3,11 @@ from aioelasticsearch import Elasticsearch
 from guillotina import app_settings
 from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
-from guillotina.catalog import index
-from guillotina.catalog.utils import parse_query
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
 from guillotina.exceptions import RequestNotFound
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
-from guillotina.interfaces import IAbsoluteURL
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_content_depth
@@ -28,13 +25,11 @@ from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
-from guillotina_elasticsearch.interfaces import ParsedQueryInfo
 from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
-
 from os.path import join
 
 import aiohttp

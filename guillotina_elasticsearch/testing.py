@@ -4,7 +4,6 @@ from guillotina import configure
 from guillotina.content import Folder
 from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IResource
-from guillotina.utils import get_current_request
 from guillotina_elasticsearch.directives import index
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IContentIndex

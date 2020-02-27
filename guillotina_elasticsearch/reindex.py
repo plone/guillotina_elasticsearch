@@ -5,7 +5,6 @@ from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator
 from guillotina_elasticsearch.utils import find_index_manager
-from guillotina.utils import get_current_container
 
 
 class Reindexer(Migrator):

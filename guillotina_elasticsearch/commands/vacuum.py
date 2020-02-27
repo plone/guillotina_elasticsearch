@@ -293,7 +293,8 @@ class Vacuum:
             indexes = self.get_indexes_for_oids(oids)
             try:
                 results = await self.conn.search(
-                    ','.join(indexes), body={
+                    index=','.join(indexes),
+                    body={
                         'query': {
                             'terms': {
                                 'uuid': oids

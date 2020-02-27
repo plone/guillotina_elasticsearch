@@ -119,5 +119,3 @@ Registered mapping: {field_mapping}
     return {
         'properties': mappings
     }
-
-    return result

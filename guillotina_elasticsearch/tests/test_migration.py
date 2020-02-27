@@ -118,7 +118,7 @@ async def test_removes_orphans(es_requester):
         await run_with_retries(_test, requester)
 
 
-@pytest.mark.flaky(reruns=5)
+# @pytest.mark.flaky(reruns=5)
 async def test_fixes_missing(es_requester):
     async with es_requester as requester:
         await add_content(requester, 2, 2)

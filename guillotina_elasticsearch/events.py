@@ -35,7 +35,7 @@ class IIndexProgress(Interface):
 @implementer(IIndexProgress)
 class IndexProgress(object):
 
-    def __init__(self, context, processed, total, completed=None, request=None):
+    def __init__(self, context, processed, total, completed=None, request=None):  # noqa
         self.request = request
         self.context = context
         self.processed = processed
