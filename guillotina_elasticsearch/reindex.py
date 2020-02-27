@@ -1,5 +1,6 @@
 from guillotina.component import get_adapter
 from guillotina.event import notify
+from guillotina.utils import get_current_container
 from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator

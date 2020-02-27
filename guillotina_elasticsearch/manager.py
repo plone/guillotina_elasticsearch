@@ -26,34 +26,18 @@ from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.interfaces import SUB_INDEX_SEPERATOR
 from guillotina_elasticsearch.schema import get_mappings
 from guillotina_elasticsearch.utils import get_migration_lock
+from typing import Dict, Any
 from zope.interface import alsoProvides
 from zope.interface.interface import TAGGED_DATA
 
 import logging
-from typing import Dict, Any
 
 logger = logging.getLogger('guillotina_elasticsearch')
 
 
-DEFAULT_SETTINGS: Dict[str, Any] = {
-    "analysis": {
-        "analyzer": {
-            "path_analyzer": {
-                "tokenizer": "path_tokenizer"
-            }
-        },
-        "tokenizer": {
-            "path_tokenizer": {
-                "type": "path_hierarchy",
-                "delimiter": "/"
-            }
-        },
-        "filter": {
-        },
-        "char_filter": {
-        }
-    }
-}
+def default_settings():
+    settings = app_settings['elasticsearch']['default_settings']
+    return deepcopy(settings)
 
 
 @configure.adapter(
@@ -68,11 +52,6 @@ class ContainerIndexManager:
         self.container = task_vars.container.get()
         self.db = task_vars.db.get()
         self.context = ob
-        if self.container is None:
-            if IContainer.providedBy(ob):
-                self.container = ob
-            else:
-                self.container = find_container(ob)
 
     async def get_indexes(self):
         indexes = []
@@ -86,8 +65,8 @@ class ContainerIndexManager:
         return indexes
 
     async def get_index_settings(self):
-        index_settings = deepcopy(DEFAULT_SETTINGS)
-        index_settings.update(app_settings['elasticsearch'].get('index', {}))
+        index_settings = default_settings()
+        index_settings.update(app_settings.get('index', {}))
         return index_settings
 
     async def get_mappings(self):
@@ -142,7 +121,8 @@ class ContainerIndexManager:
         registry = await self.get_registry()
         next_version = registry['el_next_index_version']
         assert next_version is not None
-        await registry.__txn__.refresh(registry)
+        txn = get_transaction()
+        await txn.refresh(registry)
         registry['el_index_version'] = next_version
         registry['el_next_index_version'] = None
         registry.register()
@@ -154,12 +134,6 @@ class ContainerIndexManager:
         except KeyError:
             version = 1
         return version
-
-    def _get_annotations(self):
-        try:
-            return self.container.__gannotations__
-        except AttributeError:
-            return self.container.__annotations__
 
     async def get_registry(self):
         registry = await guillotina_get_registry(self.context)
@@ -187,12 +161,13 @@ class ContentIndexManager(ContainerIndexManager):
         self.object_settings = None
 
     async def get_registry(self, refresh=False):
-        if (refresh and self.object_settings is not None):
+        assert get_transaction()
+        if refresh and self.object_settings is not None:
             txn = get_transaction()
             await txn.refresh(self.object_settings)
         if self.object_settings is None:
             annotations_container = IAnnotations(self.context)
-            self.object_settings = await annotations_container.async_get('default')
+            self.object_settings = await annotations_container.async_get('default')  # noqa
             if self.object_settings is None:
                 # need to create annotation...
                 self.object_settings = AnnotationData()
@@ -269,10 +244,12 @@ async def init_index(context, subscriber):
         await utility.create_index(real_index_name, im)
         await conn.indices.put_alias(
             name=index_name, index=real_index_name)
+        await conn.indices.close(real_index_name)
+
+        await conn.indices.open(real_index_name)
 
         await conn.cluster.health(
             wait_for_status='yellow')
-
         alsoProvides(context, IIndexActive)
 
         execute.add_future(

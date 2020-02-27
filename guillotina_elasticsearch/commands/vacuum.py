@@ -1,3 +1,4 @@
+from guillotina import task_vars
 from guillotina.commands import Command
 from guillotina.commands.utils import change_transaction_strategy
 from guillotina.component import get_adapter
@@ -6,6 +7,8 @@ from guillotina.db import ROOT_ID
 from guillotina.db import TRASHED_ID
 from guillotina.utils import get_object_by_uid
 from guillotina.interfaces import ICatalogUtility
+from guillotina.tests.utils import get_mocked_request
+from guillotina.tests.utils import login
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator
@@ -353,6 +356,9 @@ class VacuumCommand(Command):
         return parser
 
     async def run(self, arguments, settings, app):
+        request = get_mocked_request()
+        login()
+        task_vars.request.set(request)
         change_transaction_strategy('none')
         await asyncio.gather(
             self.do_check(arguments, 'check_missing'),

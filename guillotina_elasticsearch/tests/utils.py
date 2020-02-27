@@ -51,7 +51,6 @@ async def setup_txn_on_container(requester, container_id='guillotina'):
     container = await get_container(requester=requester, container_id=container_id)
     tm = task_vars.tm.get()
     txn = await tm.begin()
-
     return container, request, txn, tm
 
 

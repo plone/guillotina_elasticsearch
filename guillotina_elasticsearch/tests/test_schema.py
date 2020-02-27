@@ -21,14 +21,14 @@ class IC(Interface):
     item = Float()
 
 
-async def test_get_mappings_fails_on_conflict():
+async def test_get_mappings_fails_on_conflict(es_requester):
     with pytest.raises(Exception):
         # Two content types define DIFFERENT mapping for same field ->
         #   conflict!
         get_mappings(schemas=[IA, IB])
 
 
-async def test_get_mappings_nofails():
+async def test_get_mappings_nofails(es_requester):
     try:
         # Two content types define SAME mapping for same field ->
         #   everything is ok

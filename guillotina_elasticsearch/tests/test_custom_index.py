@@ -122,6 +122,7 @@ async def test_delete_resource(es_requester):
                 'id': 'foobar'
             })
         )
+
         resp, status = await requester(
             'POST',
             '/db/guillotina/foobar',

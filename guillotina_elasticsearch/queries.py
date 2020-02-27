@@ -7,7 +7,6 @@ async def build_security_query(container):
     # The roles who has plone.AccessContent permission by roleperm
     users = []
     roles = []
-
     user = get_authenticated_user()
     policy = get_security_policy(user)
 

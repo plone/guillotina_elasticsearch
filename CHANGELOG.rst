@@ -1,133 +1,101 @@
-3.3.25 (unreleased)
--------------------
+6.0.0 (unreleased)
+------------------
 
-- Nothing changed yet.
-
-
-3.3.24 (2019-11-25)
--------------------
+- Support elasticsearch 7.0
+  [jordic]
 
 - Make sure to save sub index changes in ES
   [vangheem]
 
-
-3.3.23 (2019-11-20)
--------------------
-
 - Fix default index settings
   [vangheem]
-
-3.3.22 (2019-11-12)
--------------------
 
 - Pinned aioelasticsearch to <0.6.0
   [masipcat]
 
-
-3.3.21 (2019-11-01)
--------------------
-
 - Be able to import types
   [vangheem]
 
-
-3.3.20 (2019-10-31)
--------------------
-
 - Retry conflict errors on delete by query
-
-
-3.3.19 (2019-10-18)
--------------------
 
 - Pay attention to trashed objects in pg
 - Fix commands using missing attribute `self.request`
 
-
-3.3.18 (2019-09-27)
--------------------
-
 - ISecurityInfo can be async
-
-
-3.3.17 (2019-09-18)
--------------------
 
 - Fix not iterating over all content indexes in elasticsearch
   [vangheem]
 
-
-3.3.16 (2019-09-09)
--------------------
-
 - build_security_query(): changed 'query.bool.filter' to use a list instead of a single object
   [masipcat]
 
-
-3.3.15 (2019-09-06)
--------------------
-
 - Fix release
-
-
-3.3.14 (2019-09-06)
--------------------
 
 - Missing pg conn lock with vacuuming
   [vangheem]
 
-
-3.3.13 (2019-09-03)
--------------------
-
 - Pass request on the index progress when possible
 
-
-3.3.12 (2019-09-03)
--------------------
-
 - Fix release
-
-
-3.3.11 (2019-09-03)
--------------------
 
 - Do not require request object for vacuuming
   [vangheem]
 
-
-3.3.10 (2019-08-29)
--------------------
-
 - G5 support
   [vangheem]
-
-3.3.5 (2019-08-07)
-------------------
 
 - Do not close indexes on create/delete
   [vangheem]
 
-
-3.3.4 (2019-07-09)
-------------------
-
 - Handle another index not found error on vacuum
   [vangheem]
-
-
-3.3.3 (2019-07-08)
-------------------
 
 - logging
   [vangheem]
 
-
-3.3.2 (2019-07-08)
-------------------
-
 - Handle index not found error
   [vangheem]
+
+
+5.0.0 (2019-10-21)
+------------------
+
+- final
+
+
+5.0.0a3 (2019-10-21)
+--------------------
+
+- more G5 fixes
+
+
+5.0.0a2 (2019-06-21)
+--------------------
+
+- Add parser to work with g5 automatic parsing
+
+- Use `@id` in results results instead of `@absolute_url`
+
+
+5.0.0a1 (2019-06-19)
+--------------------
+
+- Support only elasticsearch 7
+
+- We may want to pin newest version of aioelasticsearch when that also
+  supports ES7: https://github.com/aio-libs/aioelasticsearch/pull/165
+
+- Check supported ES version on utility initialize
+
+- Validate index name does not have ':' characters
+
+[lferran]
+
+3.4.0 (2019-05-28)
+------------------
+
+- Support for elasticsearch 7
+  [bloodbare]
 
 
 3.3.1 (2019-05-20)

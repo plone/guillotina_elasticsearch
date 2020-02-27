@@ -15,6 +15,7 @@ from guillotina.transactions import get_transaction
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
+from guillotina.utils import get_object_url
 from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
@@ -26,6 +27,7 @@ from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
+from guillotina_elasticsearch.interfaces import ParsedQueryInfo
 from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
@@ -108,10 +110,25 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def initialize(self, app):
         self.app = app
+        await self.check_supported_version()
 
     async def finalize(self, app):
         if self._conn_util is not None:
             await self._conn_util.close()
+
+    async def check_supported_version(self):
+        try:
+            connection = self.get_connection()
+            info = await connection.info()
+        except Exception:
+            logger.warning('Could not check current es version. '
+                           'Only 7.x is supported')
+            return
+
+        es_version = info['version']['number']
+        # We currently support 7.x versions
+        if not es_version.startswith('7'):
+            raise Exception(f'ES cluster version not supported: {es_version}')
 
     async def initialize_catalog(self, container):
         if not self.enabled:
@@ -130,6 +147,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def create_index(self, real_index_name, index_manager,
                            settings=None, mappings=None):
+        if ':' in real_index_name:
+            raise Exception(
+                f"Ivalid character ':' in index name: {real_index_name}")
+
         if settings is None:
             settings = await index_manager.get_index_settings()
         if mappings is None:
@@ -138,6 +159,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             'settings': settings,
             'mappings': mappings,
         }
+        settings['mappings'] = mappings
         conn = self.get_connection()
         await conn.indices.create(real_index_name, settings)
 
@@ -180,7 +202,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
             self,
             container,
             query,
-            doc_type=None,
             size=10,
             scroll=None):
         if query is None:
@@ -202,14 +223,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     def _get_items_from_result(self, container, request, result):
         items = []
-        if request is not None:
-            container_url = IAbsoluteURL(container, request)()
-        else:
-            container_url = ''
+        container_url = get_object_url(container, request)
         for item in result['hits']['hits']:
             data = format_hit(item)
             data.update({
-                '@absolute_url': container_url + data.get('path', ''),
                 '@id': container_url + data.get('path', ''),
                 '@type': data.get('type_name'),
                 '@uid': item['_id'],
@@ -227,64 +244,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
             self, container, query,
             doc_type=None, size=10, request=None, scroll=None, index=None):
         """
-        transform into query...
-        right now, it's just passing through into elasticsearch
+        Search parsed query
         """
-        if index is None:
-            index = await self.get_container_index_name(container)
-        t1 = time.time()
-        if request is None:
-            try:
-                request = get_current_request()
-            except RequestNotFound:
-                pass
-
         parser = Parser(request, container)
-
         path, depth = parser.get_context_params()
         qs = parser(query)
-
-        q = await self._build_security_query(
-            container, qs['query'], doc_type, size, scroll)
-        q['ignore_unavailable'] = True
-
-        logger.debug("Generated query %s", json.dumps(qs['query']))
-        conn = self.get_connection()
-        print(json.dumps(qs['query']))
-
-        result = await conn.search(index=index, **q)
-        if result.get('_shards', {}).get('failed', 0) > 0:
-            logger.warning(f'Error running query: {result["_shards"]}')
-            error_message = 'Unknown'
-            for failure in result["_shards"].get('failures') or []:
-                error_message = failure['reason']
-            raise QueryErrorException(reason=error_message)
-        items = self._get_items_from_result(container, request, result)
-        final = {
-            'items_count': result['hits']['total']['value'],
-            'member': items
-        }
-        if 'aggregations' in result:
-            final['aggregations'] = result['aggregations']
-        if 'suggest' in result:
-            final['suggest'] = result['suggest']
-        if 'profile' in result:
-            final['profile'] = result['profile']
-        if '_scroll_id' in result:
-            final['_scroll_id'] = result['_scroll_id']
-
-        tdif = time.time() - t1
-        logger.debug(f'Time ELASTIC {tdif}')
-        await notify(SearchDoneEvent(
-            query, result['hits']['total']['value'], request, tdif))
-        return final
+        return await self.query(container, qs["query"], doc_type=doc_type, size=size, request=request, scroll=scroll, index=index)
 
     async def query(
             self, container, query,
             doc_type=None, size=10, request=None, scroll=None, index=None):
         """
-        transform into query...
-        right now, it's just passing through into elasticsearch
+        Raw search query, uses parser to transform query
         """
         if index is None:
             index = await self.get_container_index_name(container)
@@ -294,11 +265,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 request = get_current_request()
             except RequestNotFound:
                 pass
+
         q = await self._build_security_query(
             container, query, doc_type, size, scroll)
         q['ignore_unavailable'] = True
 
+        logger.debug("Generated query %s", json.dumps(query))
         conn = self.get_connection()
+        print(json.dumps(query))
 
         result = await conn.search(index=index, **q)
         if result.get('_shards', {}).get('failed', 0) > 0:
@@ -326,7 +300,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         await notify(SearchDoneEvent(
             query, result['hits']['total']['value'], request, tdif))
         return final
-
 
     async def get_by_uuid(self, container, uuid):
         query = {
@@ -339,17 +312,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return await self.query(container, query, container)
 
     async def get_by_uuids(self, container, uuids, doc_type=None):
-        query = {
-            "query": {
-                "bool": {
-                    "must": [{
-                        "terms":
-                            {"uuid": uuids}
-                    }]
-                }
-            }
-        }
-        return await self.query(container, query, doc_type)
+        uuid_query = self._get_type_query(doc_type)
+        if uuids is not None:
+            uuid_query['query']['bool']['must'].append({
+                "terms":
+                    {"uuid": uuids}
+            })
+        return await self.query(container, uuid_query)
 
     async def get_object_by_uuid(self, container, uuid):
         result = await self.get_by_uuid(container, uuid)
@@ -360,10 +329,26 @@ class ElasticSearchUtility(DefaultSearchUtility):
         obj = await navigate_to(container, path)
         return obj
 
+    def _get_type_query(self, doc_type):
+        query = {
+            'query': {
+                'bool': {
+                    'must': []
+                }
+            }
+        }
+
+        if doc_type is not None:
+            query['query']['bool']['must'].append({
+                    'term': {'type_name': doc_type}
+            })
+        return query
+
     async def get_by_type(self, container, doc_type, query=None, size=10):
-        if query is None:
-            query = {}
-        return await self.query(container, query, doc_type=doc_type, size=size)
+        type_query = self._get_type_query(doc_type)
+        if query is not None:
+            type_query = merge_dicts(query, type_query)
+        return await self.query(container, type_query, size=size)
 
     async def get_by_path(
             self, container, path, depth=-1, query=None,
@@ -373,25 +358,22 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if not isinstance(path, str):
             path = get_content_path(path)
 
+        path_query = self._get_type_query(doc_type)
+
         if path is not None and path != '/':
-            path_query = {
-                'query': {
-                    'bool': {
-                        'must': [{
-                            'match': {'path': path}
-                        }]
-                    }
-                }
-            }
+            path_query['query']['bool']['must'].append({
+                'match': {'path': path}
+            })
+
             if depth > -1:
                 query['query']['bool']['must'].append({
                     'range':
                         {'depth': {'gte': depth}}
                 })
-            query = merge_dicts(query, path_query)
-            # We need the local roles
 
-        return await self.query(container, query, doc_type,
+        query = merge_dicts(query, path_query)
+
+        return await self.query(container, query,
                                 size=size, scroll=scroll, index=index)
 
     async def get_path_query(self, resource, response=noop_response):
@@ -549,7 +531,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         conn = self.get_connection()
         result = {}
         try:
-            print("Indexing....")
             response.write(b'Indexing %d' % (len(idents),))
             result = await conn.bulk(
                 index=index_name, doc_type=DOC_TYPE,
@@ -631,9 +612,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
     def _get_current_tid(self):
         # make sure to get current committed tid or we may be one-behind
         # for what was actually used to commit to db
+        tid = None
         try:
             txn = get_transaction()
-            tid = None
             if txn:
                 tid = txn._tid
         except RequestNotFound:
@@ -704,7 +685,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 indexes = await self.get_current_indexes(container)
             else:
                 indexes = [index_name]
-
             bulk_data = []
             for obj in objects:
                 item_indexes = indexes
@@ -727,7 +707,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     else:
                         await self.unindex_all_children(
                             container, obj, index_name=','.join(item_indexes))
-
             conn = self.get_connection()
             await conn.bulk(
                 index=indexes[0], body=bulk_data, doc_type=DOC_TYPE)

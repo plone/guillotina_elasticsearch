@@ -2,9 +2,9 @@ from guillotina.component import get_utilities_for
 from guillotina.content import get_all_possible_schemas_for_type
 from guillotina.content import IResourceFactory
 from guillotina import app_settings
+from typing import Dict, Any
 
 import guillotina.directives
-from typing import Dict, Any
 
 CATALOG_TYPES: Dict[str, Any] = {
     'searchabletext': {
@@ -119,3 +119,5 @@ Registered mapping: {field_mapping}
     return {
         'properties': mappings
     }
+
+    return result

@@ -4,6 +4,7 @@ from setuptools import setup
 
 
 test_requires = [
+    'async_asgi_testclient',
     'pytest>=3.6',
     'docker',
     'backoff',
@@ -11,7 +12,6 @@ test_requires = [
     'pytest-asyncio',
     'coverage',
     'pytest-cov',
-    'pytest-aiohttp',
     'pytest-rerunfailures',
     'pytest-docker-fixtures>=1.3.0'
 ]
@@ -40,7 +40,7 @@ setup(
     package_data={"": ["*.txt", "*.rst"], "guillotina_elasticsearch": ["py.typed"]},
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
-        'guillotina>=4.6.0',
+        'guillotina>=6.0.0a14',
         'mypy_extensions',
         'aioelasticsearch<0.7.0',
         'ujson',
