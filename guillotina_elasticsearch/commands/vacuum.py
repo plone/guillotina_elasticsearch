@@ -60,7 +60,6 @@ async def clean_orphan_indexes(container):
     conn = search.get_connection()
     for alias_name, index in installed_indexes.items():
         if alias_name not in content_indexes:
-            print(f'Deleting index: {index}')
             # delete, no longer content available
             await conn.indices.close(alias_name)
             await conn.indices.delete_alias(index, alias_name)

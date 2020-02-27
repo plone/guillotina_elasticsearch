@@ -1,6 +1,7 @@
 from guillotina.component import get_utility
 from guillotina.db.uid import get_short_uid
 from guillotina.interfaces import ICatalogUtility
+from guillotina.transactions import transaction
 from guillotina_elasticsearch.tests.utils import run_with_retries
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 from guillotina_elasticsearch.utils import get_content_sub_indexes
@@ -9,6 +10,9 @@ from guillotina_elasticsearch.utils import get_installed_sub_indexes
 import aioelasticsearch
 import json
 import pytest
+
+
+pytestmark = [pytest.mark.asyncio]
 
 
 async def test_create_index(es_requester):
@@ -189,11 +193,12 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
             get_short_uid(cresp['@uid'])
         )
 
+        container, request, txn, tm = await setup_txn_on_container(requester)
+
         async def _test():
             # should find in content index but not main index
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await catalog.get_connection().get(
-                    index=content_index_name, doc_type='_all', id=resp['@uid'])
+            await catalog.get_connection().get(
+                index=content_index_name, doc_type='_all', id=resp['@uid'])
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
                 await catalog.get_connection().get(
                     index='guillotina-guillotina',

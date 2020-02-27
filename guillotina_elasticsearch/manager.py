@@ -161,7 +161,6 @@ class ContentIndexManager(ContainerIndexManager):
         self.object_settings = None
 
     async def get_registry(self, refresh=False):
-        assert get_transaction()
         if refresh and self.object_settings is not None:
             txn = get_transaction()
             await txn.refresh(self.object_settings)

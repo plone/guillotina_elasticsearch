@@ -4,6 +4,7 @@ from guillotina import app_settings
 from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.catalog import index
+from guillotina.catalog.utils import parse_query
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
@@ -33,7 +34,6 @@ from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
-from guillotina_elasticsearch.parser import Parser
 
 from os.path import join
 
@@ -240,22 +240,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
             items.append(data)
         return items
 
-    async def search(
+    async def search_raw(
             self, container, query,
             doc_type=None, size=10, request=None, scroll=None, index=None):
         """
-        Search parsed query
-        """
-        parser = Parser(request, container)
-        path, depth = parser.get_context_params()
-        qs = parser(query)
-        return await self.query(container, qs["query"], doc_type=doc_type, size=size, request=request, scroll=scroll, index=index)
-
-    async def query(
-            self, container, query,
-            doc_type=None, size=10, request=None, scroll=None, index=None):
-        """
-        Raw search query, uses parser to transform query
+        Search raw query
         """
         if index is None:
             index = await self.get_container_index_name(container)
@@ -266,8 +255,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             except RequestNotFound:
                 pass
 
-        q = await self._build_security_query(
-            container, query, doc_type, size, scroll)
+        q = await self._build_security_query(container, query, size, scroll)
         q['ignore_unavailable'] = True
 
         logger.debug("Generated query %s", json.dumps(query))
@@ -283,8 +271,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         final = {
-            'items_count': result['hits']['total']['value'],
-            'member': items
+            'items_total': result['hits']['total']['value'],
+            'items': items
         }
         if 'aggregations' in result:
             final['aggregations'] = result['aggregations']
@@ -309,7 +297,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 }
             }
         }
-        return await self.query(container, query, container)
+        return await self.search_raw(container, query, container)
 
     async def get_by_uuids(self, container, uuids, doc_type=None):
         uuid_query = self._get_type_query(doc_type)
@@ -318,14 +306,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 "terms":
                     {"uuid": uuids}
             })
-        return await self.query(container, uuid_query)
+        return await self.search_raw(container, uuid_query)
 
     async def get_object_by_uuid(self, container, uuid):
         result = await self.get_by_uuid(container, uuid)
-        if result['items_count'] == 0 or result['items_count'] > 1:
+        if result['items_total'] == 0 or result['items_total'] > 1:
             raise AttributeError('Not found a unique object')
 
-        path = result['members'][0]['path']
+        path = result['items'][0]['path']
         obj = await navigate_to(container, path)
         return obj
 

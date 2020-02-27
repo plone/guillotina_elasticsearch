@@ -183,15 +183,11 @@ def process_query_level(params):
     return query
 
 
-# @configure.adapter(
-#     for_=(IElasticSearchUtility, IResource),
-#     provides=ISearchParser,
-#     name='default')
+@configure.adapter(
+    for_=(IElasticSearchUtility, IResource),
+    provides=ISearchParser,
+    name='default')
 class Parser(BaseParser):
-
-    def __init__(self, request, context):
-        self.request = request
-        self.context = context
 
     def __call__(self, params: typing.Dict) -> ParsedQueryInfo:
         query_info = super().__call__(params)

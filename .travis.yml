@@ -23,7 +23,7 @@ cache:
     - eggs
 install:
   - pip install flake8 codecov mypy_extensions
-  - pip install git+https://github.com/plone/guillotina.git@master
+  - pip install git+https://github.com/plone/guillotina.git@fix-catalog-interface
   - pip install -e .[test]
 script:
   - flake8 guillotina_elasticsearch --config=setup.cfg

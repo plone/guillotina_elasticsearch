@@ -21,7 +21,7 @@ DATABASE = os.environ.get('DATABASE', 'DUMMY')
 
 
 @pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
-#@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 async def test_adds_missing_elasticsearch_entry(es_requester):
     async with es_requester as requester:
         await add_content(requester)
@@ -62,7 +62,7 @@ async def test_adds_missing_elasticsearch_entry(es_requester):
 
 
 @pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
-#@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 async def test_updates_out_of_data_es_entries(es_requester):
     async with es_requester as requester:
         await add_content(requester)
@@ -100,7 +100,7 @@ async def test_updates_out_of_data_es_entries(es_requester):
 
 
 @pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
-#@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 async def test_removes_orphaned_es_entry(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -135,7 +135,7 @@ async def test_removes_orphaned_es_entry(es_requester):
 
 
 @pytest.mark.skipif(DATABASE == 'DUMMY', reason='Not for dummy db')
-#@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 async def test_vacuum_with_sub_indexes(es_requester):
     async with es_requester as requester:
         await add_content(

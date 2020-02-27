@@ -27,7 +27,7 @@ import random
 pytestmark = [pytest.mark.asyncio]
 
 
-#@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 async def _test_migrate_while_content_getting_added(es_requester):
     async with es_requester as requester:
         add_count = await add_content(requester)
@@ -83,7 +83,7 @@ async def test_migrate_get_all_uids(es_requester):
         await tm.abort(txn=txn)
 
 
-#@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 async def test_removes_orphans(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -118,7 +118,7 @@ async def test_removes_orphans(es_requester):
         await run_with_retries(_test, requester)
 
 
-# #@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 async def test_fixes_missing(es_requester):
     async with es_requester as requester:
         await add_content(requester, 2, 2)
@@ -164,7 +164,7 @@ async def test_fixes_missing(es_requester):
         assert old_index_name != await im.get_real_index_name()
 
 
-#@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 async def test_updates_index_data(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -466,7 +466,7 @@ async def test_search_works_on_updated_docs_during_migration_when_present(es_req
         await run_with_retries(_test, requester)
 
 
-#@pytest.mark.flaky(reruns=5)
+@pytest.mark.flaky(reruns=5)
 async def test_delete_in_both_during_migration(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)

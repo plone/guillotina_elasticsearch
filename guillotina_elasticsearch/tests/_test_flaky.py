@@ -17,7 +17,7 @@ async def _test_new_indexes_are_performed_during_migration(es_requester):
         container, request, txn, tm = await setup_txn_on_container(requester)
 
         search = get_utility(ICatalogUtility)
-        migrator = Migrator(search, container, force=True,)
+        migrator = Migrator(search, container, force=True)
         await migrator.setup_next_index()
         await migrator.copy_to_next_index()
 
