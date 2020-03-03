@@ -1,0 +1,61 @@
+name: guillotina_elasticsearch
+
+on: [push]
+
+jobs:
+
+  pre-checks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install flake8 black isort
+
+      - name: Pre-checks
+        run: |
+          flake8 guillotina_elasticsearch --config=setup.cfg
+          isort -c -rc guillotina_elasticsearch
+          black --check --verbose guillotina_elasticsearch
+
+  tests:
+    needs: pre-checks
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7]
+        database: [DUMMY, postgres]
+    env:
+      DATABASE: ${{ matrix.database }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install codecov
+          pip install git+https://github.com/plone/guillotina.git@master
+          pip install -e .[test]
+
+      - name: Run tests
+        run: |
+          pytest --cov=guillotina_elasticsearch -v --cov-report term-missing guillotina_elasticsearch
+
+      - name: Code coverage
+        run: |
+          codecov
