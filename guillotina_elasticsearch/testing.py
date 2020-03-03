@@ -21,30 +21,21 @@ class IIndexItemContent(IResource):
     pass
 
 
-@configure.contenttype(
-    type_name="UniqueIndexContent",
-    schema=IUniqueIndexContent)
+@configure.contenttype(type_name="UniqueIndexContent", schema=IUniqueIndexContent)
 class UniqueIndexContent(Folder):
-    index(
-        schemas=[IResource],
-        settings={
-
-        }
-    )
+    index(schemas=[IResource], settings={})
 
 
-@configure.contenttype(
-    type_name="IndexItemContent",
-    schema=IIndexItemContent)
+@configure.contenttype(type_name="IndexItemContent", schema=IIndexItemContent)
 class IndexItemContent(Folder):
     pass
 
 
 @configure.utility(provides=IConnectionFactoryUtility)
 class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
-    '''
+    """
     test to demonstrate using different settings from configuration
-    '''
+    """
 
     def __init__(self):
         super().__init__()
@@ -54,21 +45,21 @@ class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
         container_id = None
         try:
             request = get_current_request()
-            container_id = getattr(request, '_container_id', None)
+            container_id = getattr(request, "_container_id", None)
         except RequestNotFound:
             return super().get(loop)
 
-        settings = app_settings.get('elasticsearch', {}).get(
-            'connection_settings'
-        )
-        if (container_id is None or container_id != 'new_container' or
-                'new_container_settings' not in app_settings['elasticsearch']):
+        settings = app_settings.get("elasticsearch", {}).get("connection_settings")
+        if (
+            container_id is None
+            or container_id != "new_container"
+            or "new_container_settings" not in app_settings["elasticsearch"]
+        ):
             return super().get(loop)
         else:
             if self._special_conn is None:
                 settings = settings.copy()
-                settings.update(
-                    app_settings['elasticsearch']['new_container_settings'])
+                settings.update(app_settings["elasticsearch"]["new_container_settings"])
                 self._special_conn = Elasticsearch(loop=loop, **settings)
             return self._special_conn
 
