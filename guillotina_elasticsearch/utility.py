@@ -19,7 +19,7 @@ from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
-from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
+from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.interfaces import ParsedQueryInfo
