@@ -6,7 +6,6 @@ from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
-from guillotina.interfaces import IContainer
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_content_depth
