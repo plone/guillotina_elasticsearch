@@ -15,8 +15,8 @@ from guillotina.interfaces import IObjectAddedEvent
 from guillotina.interfaces import IResource
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_current_request
-from guillotina.utils import resolve_dotted_name
 from guillotina.utils import get_registry as guillotina_get_registry
+from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.directives import index
 from guillotina_elasticsearch.interfaces import IContentIndex
 from guillotina_elasticsearch.interfaces import IIndexActive

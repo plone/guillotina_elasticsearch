@@ -17,9 +17,9 @@ from guillotina.transactions import managed_transaction
 from guillotina.utils import apply_coroutine
 from guillotina.utils import get_authenticated_user
 from guillotina.utils import get_content_path
+from guillotina.utils import get_current_container
 from guillotina.utils import get_current_request
 from guillotina.utils import get_current_transaction
-from guillotina.utils import get_current_container
 from guillotina.utils import get_security_policy
 from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import DOC_TYPE

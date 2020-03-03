@@ -1,5 +1,6 @@
-from guillotina.schema import Int, Float
 from guillotina.directives import index_field
+from guillotina.schema import Float
+from guillotina.schema import Int
 from guillotina_elasticsearch.schema import get_mappings
 from zope.interface import Interface
 

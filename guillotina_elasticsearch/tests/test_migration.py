@@ -1,8 +1,8 @@
 from guillotina import task_vars
 from guillotina.component import get_adapter
-from guillotina.db.uid import get_short_uid
 from guillotina.component import get_utility
 from guillotina.component import globalregistry as gr
+from guillotina.db.uid import get_short_uid
 from guillotina.event import notify
 from guillotina.events import ObjectRemovedEvent
 from guillotina.interfaces import ICatalogUtility

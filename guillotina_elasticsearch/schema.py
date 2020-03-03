@@ -1,7 +1,7 @@
+from guillotina import app_settings
 from guillotina.component import get_utilities_for
 from guillotina.content import get_all_possible_schemas_for_type
 from guillotina.content import IResourceFactory
-from guillotina import app_settings
 
 import guillotina.directives
 

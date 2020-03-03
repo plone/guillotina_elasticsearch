@@ -1,5 +1,5 @@
-from guillotina_elasticsearch.parser import Parser
 from guillotina.tests import utils as test_utils
+from guillotina_elasticsearch.parser import Parser
 
 
 async def test_es_field_parser(dummy_guillotina):
