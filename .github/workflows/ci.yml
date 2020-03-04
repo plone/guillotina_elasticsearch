@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install codecov
-          pip install git+https://github.com/plone/guillotina.git@master
+          pip install guillotina
           pip install -e .[test]
 
       - name: Run tests
