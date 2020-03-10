@@ -250,8 +250,10 @@ class Migrator:
                 response = data['response']
                 failures = response['failures']
                 if len(failures) > 0:
-                    failures = json.dumps(failures, sort_keys=True, indent=4,
-                                        separators=(',', ': '))
+                    failures = json.dumps(
+                        failures, sort_keys=True,
+                        indent=4, separators=(',', ': ')
+                    )
                     self.response.write(
                         f'Reindex encountered failures: {failures}')
                 else:

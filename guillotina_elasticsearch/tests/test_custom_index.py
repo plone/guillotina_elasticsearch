@@ -165,7 +165,6 @@ async def test_delete_resource(es_requester):
         await run_with_retries(_test, requester)
 
 
-@pytest.mark.flaky(reruns=5)
 async def test_delete_base_removes_index_from_elastic(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -215,7 +214,6 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
             ))
 
 
-@pytest.mark.flaky(reruns=5)
 async def test_delete_parent_gets_cleaned_up(es_requester):
     async with es_requester as requester:
         await requester(

@@ -12,7 +12,6 @@ test_requires = [
     'pytest-asyncio',
     'coverage',
     'pytest-cov',
-    'pytest-rerunfailures',
     'pytest-docker-fixtures>=1.3.0'
 ]
 

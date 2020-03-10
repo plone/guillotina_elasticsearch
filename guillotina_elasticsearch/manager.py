@@ -66,7 +66,9 @@ class ContainerIndexManager:
 
     async def get_index_settings(self):
         index_settings = default_settings()
-        index_settings.update(app_settings.get('elasticsearch', {}).get("index", {}))
+        index_settings.update(
+            app_settings.get('elasticsearch', {}).get("index", {})
+        )
         return index_settings
 
     async def get_mappings(self):
