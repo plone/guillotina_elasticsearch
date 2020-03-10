@@ -168,6 +168,7 @@ async def test_delete_resource(es_requester):
 @pytest.mark.flaky(reruns=5)
 async def test_delete_base_removes_index_from_elastic(es_requester):
     async with es_requester as requester:
+        container, request, txn, tm = await setup_txn_on_container(requester)
         cresp, _ = await requester(
             'POST',
             '/db/guillotina/',
@@ -191,8 +192,6 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
         content_index_name = 'guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
             get_short_uid(cresp['@uid'])
         )
-
-        container, request, txn, tm = await setup_txn_on_container(requester)
 
         async def _test():
             # should find in content index but not main index

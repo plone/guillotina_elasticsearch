@@ -225,7 +225,8 @@ class Migrator:
                 })) as resp:
             data = await resp.json()
             self.active_task_id = task_id = data['task']
-            while True:
+            task_completed = False
+            while not task_completed:
                 await asyncio.sleep(10)
                 async with conn_es.session.get(
                         join(str(conn_es.base_url), '_tasks', task_id),
@@ -235,7 +236,8 @@ class Migrator:
                     if resp.status in (400, 404):
                         break
                     data = await resp.json()
-                    if data['completed']:
+                    task_completed = data['completed']
+                    if task_completed:
                         break
                     status = data["task"]["status"]
                     self.response.write(
@@ -244,16 +246,19 @@ class Migrator:
                     self.copied_docs = status["created"]
 
             self.active_task_id = None
-            response = data['response']
-            failures = response['failures']
-            if len(failures) > 0:
-                failures = json.dumps(failures, sort_keys=True, indent=4,
-                                      separators=(',', ': '))
-                self.response.write(
-                    f'Reindex encountered failures: {failures}')
+            if task_completed:
+                response = data['response']
+                failures = response['failures']
+                if len(failures) > 0:
+                    failures = json.dumps(failures, sort_keys=True, indent=4,
+                                        separators=(',', ': '))
+                    self.response.write(
+                        f'Reindex encountered failures: {failures}')
+                else:
+                    self.response.write(
+                        f'Finished copying to new index: {self.copied_docs}')
             else:
-                self.response.write(
-                    f'Finished copying to new index: {self.copied_docs}')
+                self.response.write(f'Unknown state for task {task_id}')
 
     async def get_all_uids(self):
         self.response.write('Retrieving existing doc ids')
