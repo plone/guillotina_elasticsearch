@@ -15,17 +15,13 @@ logger = logging.getLogger('guillotina_cms')
 
 MAX_AGGS = 20
 SEARCH_DATA_FIELDS = [
-    'content_layout',
     'contributors',
     'creation_date',
     'creators',
-    'hidden_navigation',
     'id',
-    'language',
     'modification_date',
     'parent_uuid',
     'path',
-    'review_state',
     'tags',
     'title',
     'type_name',
@@ -191,7 +187,7 @@ class Parser(BaseParser):
         query_info = super().__call__(params)
 
         query = {
-            # 'stored_fields': SEARCH_DATA_FIELDS,
+            'stored_fields': SEARCH_DATA_FIELDS,
             'query': {
                 'bool': process_query_level(query_info['params'])
             },
