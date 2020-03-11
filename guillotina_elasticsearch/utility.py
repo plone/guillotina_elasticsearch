@@ -255,7 +255,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         logger.debug("Generated query %s", json.dumps(query))
         conn = self.get_connection()
-        print(json.dumps(query))
 
         result = await conn.search(index=index, **q)
         if result.get('_shards', {}).get('failed', 0) > 0:
