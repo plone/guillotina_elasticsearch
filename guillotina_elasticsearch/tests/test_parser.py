@@ -1,8 +1,12 @@
 from guillotina_elasticsearch.parser import Parser
 from guillotina.tests import utils as test_utils
 
+import pytest
 
-async def test_es_field_parser(dummy_guillotina):
+pytestmark = [pytest.mark.asyncio]
+
+
+async def _test_es_field_parser(dummy_guillotina):
     content = test_utils.create_content()
     parser = Parser(None, content)
 

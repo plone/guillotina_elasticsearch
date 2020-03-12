@@ -7,7 +7,6 @@ from guillotina.interfaces import IResource
 from guillotina.interfaces import ISearchParser
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.interfaces import ParsedQueryInfo
-
 import logging
 import typing
 
@@ -16,17 +15,13 @@ logger = logging.getLogger('guillotina_cms')
 
 MAX_AGGS = 20
 SEARCH_DATA_FIELDS = [
-    'content_layout',
     'contributors',
     'creation_date',
     'creators',
-    'hidden_navigation',
     'id',
-    'language',
     'modification_date',
     'parent_uuid',
     'path',
-    'review_state',
     'tags',
     'title',
     'type_name',
@@ -187,10 +182,6 @@ def process_query_level(params):
     provides=ISearchParser,
     name='default')
 class Parser(BaseParser):
-
-    def __init__(self, request, context):
-        self.request = request
-        self.context = context
 
     def __call__(self, params: typing.Dict) -> ParsedQueryInfo:
         query_info = super().__call__(params)

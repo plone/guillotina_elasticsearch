@@ -5,7 +5,7 @@ from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.db import ROOT_ID
 from guillotina.db import TRASHED_ID
-from guillotina.db.reader import reader
+from guillotina.utils import get_object_by_uid
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import get_mocked_request
 from guillotina.tests.utils import login
@@ -19,6 +19,7 @@ from os.path import join
 
 import aioelasticsearch
 import asyncio
+import elasticsearch
 import json
 import logging
 
@@ -26,7 +27,10 @@ import logging
 logger = logging.getLogger('guillotina_elasticsearch_vacuum')
 
 GET_CONTAINERS = 'select zoid from {objects_table} where parent_id = $1'
-SELECT_BY_KEYS = '''SELECT zoid from {objects_table} where zoid = ANY($1)'''
+SELECT_BY_KEYS = f'''
+SELECT zoid from {{objects_table}}
+where zoid = ANY($1) AND parent_id != '{TRASHED_ID}'
+'''
 GET_CHILDREN_BY_PARENT = """
 SELECT zoid, parent_id, tid
 FROM {objects_table}
@@ -36,10 +40,10 @@ ORDER BY parent_id
 
 PAGE_SIZE = 1000
 
-GET_OBS_BY_TID = """
+GET_OBS_BY_TID = f"""
 SELECT zoid, parent_id, tid
-FROM {objects_table}
-WHERE of is NULL
+FROM {{objects_table}}
+WHERE of is NULL and parent_id != '{TRASHED_ID}'
 ORDER BY tid ASC, zoid ASC
 """
 
@@ -95,14 +99,17 @@ class Vacuum:
             indexes.append(index['index'])
 
         for index_name in indexes:
-            result = await self.conn.search(
-                index=index_name,
-                scroll='15m',
-                size=PAGE_SIZE,
-                _source=False,
-                body={
-                    "sort": ["_doc"]
-                })
+            try:
+                result = await self.conn.search(
+                    index=index_name,
+                    scroll='15m',
+                    size=PAGE_SIZE,
+                    _source=False,
+                    body={
+                        "sort": ["_doc"]
+                    })
+            except elasticsearch.exceptions.NotFoundError:
+                continue
             yield [r['_id'] for r in result['hits']['hits']], index_name
             scroll_id = result['_scroll_id']
             while scroll_id:
@@ -161,33 +168,15 @@ class Vacuum:
         if oid in self.cache:
             return self.cache[oid]
 
-        try:
-            result = self.txn._manager._hard_cache.get(oid, None)
-        except AttributeError:
-            from guillotina.db.transaction import HARD_CACHE  # noqa
-            result = HARD_CACHE.get(oid, None)
-        if result is None:
-            result = await self.txn._cache.get(oid=oid)
-
-        if result is None:
-            result = await self.tm._storage.load(self.txn, oid)
-
-        obj = reader(result)
-        obj.__txn__ = self.txn
-        if result['parent_id']:
-            obj.__parent__ = await self.get_object(result['parent_id'])
-        return obj
+        return await get_object_by_uid(oid)
 
     async def process_missing(self, oid, index_type='missing', folder=False):
         # need to fill in parents in order for indexing to work...
         logger.warning(f'Index {index_type} {oid}')
         try:
             obj = await self.get_object(oid)
-        except KeyError:
+        except (AttributeError, KeyError, TypeError, ModuleNotFoundError):
             logger.warning(f'Could not find {oid}')
-            return
-        except (AttributeError, TypeError, ModuleNotFoundError):
-            logger.warning(f'Could not find {oid}', exc_info=True)
             return  # object or parent of object was removed, ignore
         try:
             if folder:
@@ -302,17 +291,23 @@ class Vacuum:
         async for batch in self.iter_paged_db_keys([self.container.__uuid__]):
             oids = [r['zoid'] for r in batch]
             indexes = self.get_indexes_for_oids(oids)
-            results = await self.conn.search(
-                ','.join(indexes), body={
-                    'query': {
-                        'terms': {
-                            'uuid': oids
+            try:
+                results = await self.conn.search(
+                    index=','.join(indexes),
+                    body={
+                        'query': {
+                            'terms': {
+                                'uuid': oids
+                            }
                         }
-                    }
-                },
-                _source=False,
-                stored_fields='tid,parent_uuid',
-                size=PAGE_SIZE)
+                    },
+                    _source=False,
+                    stored_fields='tid,parent_uuid',
+                    size=PAGE_SIZE)
+            except elasticsearch.exceptions.NotFoundError:
+                logger.warning(
+                    f'Error searching index: {indexes}', exc_info=True)
+                continue
 
             es_batch = {}
             for result in results['hits']['hits']:

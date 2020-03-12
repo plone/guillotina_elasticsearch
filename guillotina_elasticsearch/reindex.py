@@ -17,13 +17,13 @@ class Reindexer(Migrator):
 
     async def reindex(self, obj):
         index_manager = find_index_manager(obj)
-        container = get_current_container()
         if index_manager is None:
+            container = get_current_container()
             index_manager = get_adapter(container, IIndexManager)
         self.work_index_name = await index_manager.get_index_name()
 
         await notify(IndexProgress(
-            self.request, self.context, 0, self.processed))
+            self.context, 0, self.processed))
         await self.process_object(obj)
         await self.flush()
         if len(self.sub_indexes) > 0:
@@ -34,9 +34,10 @@ class Reindexer(Migrator):
                     self.utility, ob, response=self.response, force=self.force,
                     log_details=self.log_details,
                     memory_tracking=self.memory_tracking,
-                    request=self.request, bulk_size=self.bulk_size,
+                    bulk_size=self.bulk_size,
                     full=self.full, reindex_security=self.reindex_security,
-                    mapping_only=self.mapping_only, index_manager=im)
+                    mapping_only=self.mapping_only, index_manager=im,
+                    request=self.request)
                 reindexer.processed = self.processed
                 reindexer.work_index_name = await im.get_index_name()
                 await reindexer.process_folder(ob)
@@ -44,6 +45,7 @@ class Reindexer(Migrator):
                 self.processed = reindexer.processed
 
         await notify(IndexProgress(
-            self.request, self.context, self.processed,
-            self.processed, completed=True
+            self.context, self.processed,
+            self.processed, completed=True,
+            request=self.request
         ))

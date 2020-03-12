@@ -1,4 +1,5 @@
 from copy import deepcopy
+from guillotina.catalog.index import index_object
 from guillotina import app_settings
 from guillotina import configure
 from guillotina import task_vars
@@ -6,6 +7,7 @@ from guillotina.annotations import AnnotationData
 from guillotina.component import get_adapter
 from guillotina.component import query_utility
 from guillotina.db.uid import get_short_uid
+from guillotina.db.transaction import Status
 from guillotina.directives import index_field
 from guillotina.exceptions import NoIndexField
 from guillotina.interfaces import IAnnotations
@@ -14,9 +16,10 @@ from guillotina.interfaces import IContainer
 from guillotina.interfaces import IObjectAddedEvent
 from guillotina.interfaces import IResource
 from guillotina.transactions import get_transaction
-from guillotina.utils import get_current_request
-from guillotina.utils import resolve_dotted_name
+from guillotina.transactions import transaction
+from guillotina.utils import execute
 from guillotina.utils import get_registry as guillotina_get_registry
+from guillotina.utils import resolve_dotted_name
 from guillotina_elasticsearch.directives import index
 from guillotina_elasticsearch.interfaces import IContentIndex
 from guillotina_elasticsearch.interfaces import IIndexActive
@@ -28,7 +31,6 @@ from zope.interface import alsoProvides
 from zope.interface.interface import TAGGED_DATA
 
 import logging
-
 
 logger = logging.getLogger('guillotina_elasticsearch')
 
@@ -64,7 +66,9 @@ class ContainerIndexManager:
 
     async def get_index_settings(self):
         index_settings = default_settings()
-        index_settings.update(app_settings.get('index', {}))
+        index_settings.update(
+            app_settings.get('elasticsearch', {}).get("index", {})
+        )
         return index_settings
 
     async def get_mappings(self):
@@ -86,9 +90,17 @@ class ContainerIndexManager:
         try:
             result = registry['el_index_name']
         except KeyError:
-            result = self._generate_new_index_name()
-            registry['el_index_name'] = result
-            registry.register()
+            txn = get_transaction()
+            is_active = txn.status in (Status.ACTIVE, Status.COMMITTING)
+            if is_active:
+                result = self._generate_new_index_name()
+                registry['el_index_name'] = result
+                registry.register()
+            else:
+                async with transaction():
+                    result = self._generate_new_index_name()
+                    registry['el_index_name'] = result
+                    registry.register()
         return result
 
     async def get_real_index_name(self):
@@ -119,8 +131,8 @@ class ContainerIndexManager:
         registry = await self.get_registry()
         next_version = registry['el_next_index_version']
         assert next_version is not None
-        await registry.__txn__.refresh(registry)
-
+        txn = get_transaction()
+        await txn.refresh(registry)
         registry['el_index_version'] = next_version
         registry['el_next_index_version'] = None
         registry.register()
@@ -159,18 +171,28 @@ class ContentIndexManager(ContainerIndexManager):
         self.object_settings = None
 
     async def get_registry(self, refresh=False):
-        if (refresh and self.object_settings is not None):
+        if refresh and self.object_settings is not None:
             txn = get_transaction()
             await txn.refresh(self.object_settings)
         if self.object_settings is None:
-            annotations_container = IAnnotations(self.context)
-            self.object_settings = await annotations_container.async_get('default')  # noqa
-            if self.object_settings is None:
-                # need to create annotation...
-                self.object_settings = AnnotationData()
-                await annotations_container.async_set(
-                    'default', self.object_settings)
+            txn = get_transaction()
+            is_active = txn.status in (Status.ACTIVE, Status.COMMITTING)
+            if is_active:
+                self.object_settings = await self._get_registry_or_create()
+            else:
+                async with transaction():
+                    self.object_settings = await self._get_registry_or_create()
         return self.object_settings
+
+    async def _get_registry_or_create(self):
+        annotations_container = IAnnotations(self.context)
+        object_settings = await annotations_container.async_get('default')  # noqa
+        if object_settings is None:
+            # need to create annotation...
+            object_settings = AnnotationData()
+            await annotations_container.async_set(
+                'default', object_settings)
+        return object_settings
 
     def _generate_new_index_name(self):
         '''
@@ -211,6 +233,11 @@ class ContentIndexManager(ContainerIndexManager):
                  index_data.get('schemas') or []])
             return set(schemas)
 
+    async def finish_migration(self):
+        await super().finish_migration()
+        await index_object(self.context, indexes=["elastic_index"],
+                           modified=True)
+
 
 async def _teardown_failed_request_with_index(im):
     utility = query_utility(ICatalogUtility)
@@ -231,7 +258,6 @@ async def init_index(context, subscriber):
         index_name = await im.get_index_name()
         real_index_name = await im.get_real_index_name()
 
-        request = get_current_request()
         conn = utility.get_connection()
 
         await utility.create_index(real_index_name, im)
@@ -245,7 +271,7 @@ async def init_index(context, subscriber):
             wait_for_status='yellow')
         alsoProvides(context, IIndexActive)
 
-        request.add_future(
+        execute.add_future(
             'cleanup-' + context.uuid,
             _teardown_failed_request_with_index, scope='failure',
             args=[im])

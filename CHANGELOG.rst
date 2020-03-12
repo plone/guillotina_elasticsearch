@@ -1,7 +1,63 @@
-5.0.1 (unreleased)
+6.0.0 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Support Guillotina 6
+  [masipcat]
+
+- Support elasticsearch 7.0
+  [jordic]
+
+- Make sure to save sub index changes in ES
+  [vangheem]
+
+- Fix default index settings
+  [vangheem]
+
+- Pinned aioelasticsearch to <0.6.0
+  [masipcat]
+
+- Be able to import types
+  [vangheem]
+
+- Retry conflict errors on delete by query
+
+- Pay attention to trashed objects in pg
+- Fix commands using missing attribute `self.request`
+
+- ISecurityInfo can be async
+
+- Fix not iterating over all content indexes in elasticsearch
+  [vangheem]
+
+- build_security_query(): changed 'query.bool.filter' to use a list instead of a single object
+  [masipcat]
+
+- Fix release
+
+- Missing pg conn lock with vacuuming
+  [vangheem]
+
+- Pass request on the index progress when possible
+
+- Fix release
+
+- Do not require request object for vacuuming
+  [vangheem]
+
+- G5 support
+  [vangheem]
+
+- Do not close indexes on create/delete
+  [vangheem]
+
+- Handle another index not found error on vacuum
+  [vangheem]
+
+- logging
+  [vangheem]
+
+- Handle index not found error
+  [vangheem]
 
 
 5.0.0 (2019-10-21)

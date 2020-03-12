@@ -4,16 +4,13 @@ from setuptools import setup
 
 
 test_requires = [
-    'pytest>=3.6',
-    'docker',
-    'backoff',
-    'psycopg2-binary',
+    'async_asgi_testclient',
+    'pytest>=5.0',
     'pytest-asyncio',
     'coverage',
     'pytest-cov',
-    'pytest-aiohttp',
-    'pytest-rerunfailures',
-    'pytest-docker-fixtures>=1.3.0'
+    'pytest-docker-fixtures>=1.3.0',
+    'pytest-docker-fixtures[pg]'
 ]
 
 
@@ -27,25 +24,25 @@ setup(
     long_description=(open('README.rst').read() + '\n' +
                       open('CHANGELOG.rst').read()),
     classifiers=[
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    url='https://pypi.python.org/pypi/guillotina_elasticsearch',
+    url='https://github.com/plone/guillotina_elasticsearch',
     license='GPL version 3',
     setup_requires=[
         'pytest-runner',
     ],
     zip_safe=True,
     include_package_data=True,
+    package_data={"": ["*.txt", "*.rst"], "guillotina_elasticsearch": ["py.typed"]},
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
-        'guillotina>=5.0.0a3',
+        'guillotina>=6.0.0a16',
         'mypy_extensions',
-        'aioelasticsearch',
-        'ujson',
+        'aioelasticsearch<0.7.0',
         'lru-dict',
         'backoff',
-        'asyncpg'
     ],
     tests_require=test_requires,
     extras_require={

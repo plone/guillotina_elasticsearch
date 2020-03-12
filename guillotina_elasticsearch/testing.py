@@ -1,10 +1,9 @@
 from aioelasticsearch import Elasticsearch
-from guillotina import app_settings
+from guillotina import app_settings, task_vars
 from guillotina import configure
 from guillotina.content import Folder
 from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IResource
-from guillotina.utils import get_current_request
 from guillotina_elasticsearch.directives import index
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IContentIndex
@@ -51,17 +50,16 @@ class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
         self._special_conn = None
 
     def get(self, loop=None):
-        container_id = None
+        container = None
         try:
-            request = get_current_request()
-            container_id = getattr(request, '_container_id', None)
+            container = task_vars.container.get()
         except RequestNotFound:
             return super().get(loop)
 
         settings = app_settings.get('elasticsearch', {}).get(
             'connection_settings'
         )
-        if (container_id is None or container_id != 'new_container' or
+        if (container is None or container.id != 'new_container' or
                 'new_container_settings' not in app_settings['elasticsearch']):
             return super().get(loop)
         else:

@@ -2,11 +2,11 @@
 dist: xenial
 language: python
 python:
-    - "3.7"
+  - "3.7"
 sudo: required
 env:
-  - DATABASE=DUMMY
-  - DATABASE=postgresql
+  - ES_VERSION=7
+  - ES_VERSION=7 DATABASE=postgresql
 
 services:
   - postgresql
@@ -23,7 +23,7 @@ cache:
     - eggs
 install:
   - pip install flake8 codecov mypy_extensions
-  - pip install git+https://github.com/plone/guillotina.git@master
+  - pip install -e .
   - pip install -e .[test]
 script:
   - flake8 guillotina_elasticsearch --config=setup.cfg

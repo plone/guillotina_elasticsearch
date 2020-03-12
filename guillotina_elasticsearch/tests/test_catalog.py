@@ -6,6 +6,10 @@ from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
+import pytest
+
+pytestmark = [pytest.mark.asyncio]
+
 
 async def test_index(es_requester):
     async with es_requester as requester:

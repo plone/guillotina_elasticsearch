@@ -3,6 +3,10 @@ from guillotina_elasticsearch.migration import Indexer
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
 import json
+import pytest
+
+
+pytestmark = [pytest.mark.asyncio]
 
 
 async def test_indexer_matches_manual(es_requester):

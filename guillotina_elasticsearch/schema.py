@@ -2,11 +2,11 @@ from guillotina.component import get_utilities_for
 from guillotina.content import get_all_possible_schemas_for_type
 from guillotina.content import IResourceFactory
 from guillotina import app_settings
+from typing import Dict, Any
 
 import guillotina.directives
 
-
-CATALOG_TYPES = {
+CATALOG_TYPES: Dict[str, Any] = {
     'searchabletext': {
         'type': 'text',
         'index': True
@@ -116,10 +116,6 @@ Registered mapping: {field_mapping}
 
             schema_field_mappings[index_name] = catalog_info['__schema__']
             mappings[index_name] = field_mapping
-
-    result = {
-        'properties': mappings,
-        'dynamic': False,
+    return {
+        'properties': mappings
     }
-
-    return result

@@ -6,7 +6,7 @@ from guillotina.content import get_all_possible_schemas_for_type
 from guillotina.content import IResourceFactory
 from guillotina.interfaces import ICatalogUtility
 from guillotina.schema.interfaces import ICollection
-from guillotina.utils import get_current_request
+from guillotina.utils.misc import get_current_container
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.interfaces import SUB_INDEX_SEPERATOR
@@ -81,6 +81,7 @@ async def get_content_sub_indexes(container, path=None):
     im = get_adapter(container, IIndexManager)
     index_name = await im.get_index_name()
     query = {
+        "size": 50,
         "query": {
             "constant_score": {
                 "filter": {
@@ -106,16 +107,25 @@ async def get_content_sub_indexes(container, path=None):
                 "depth": {"gte": path.count('/') + 1}
             }
         })
-    results = await search.get_connection().search(
+    conn = search.get_connection()
+    q_result = await conn.search(
         index=index_name, _source=False,
-        stored_fields='elastic_index,path', body=query)
-    indexes = []
-    for item in results['hits']['hits']:
-        indexes.append({
+        stored_fields='elastic_index,path', body=query,
+        scroll="1m")
+    indexes = [{
+        'path': item['fields']['path'][0],
+        'oid': item['_id'],
+        'index': item['fields']['elastic_index'][0]
+    } for item in q_result['hits']['hits']]
+
+    if len(q_result["hits"]["hits"]) >= 50:
+        q_result = await conn.scroll(
+            scroll_id=q_result['_scroll_id'], scroll="1m")
+        [indexes.append({
             'path': item['fields']['path'][0],
             'oid': item['_id'],
             'index': item['fields']['elastic_index'][0]
-        })
+        }) for item in q_result['hits']['hits']]
     return indexes
 
 
@@ -127,13 +137,11 @@ async def get_all_indexes_identifier(container=None, index_manager=None):
         index_name, index_name, SUB_INDEX_SEPERATOR)
 
 
-async def get_index_for(context, container=None, request=None):
+async def get_index_for(context, container=None):
     im = find_index_manager(parent=context)
     if im is None:
         if container is None:
-            if request is None:
-                request = get_current_request()
-            container = request.container
+            container = get_current_container()
         im = get_adapter(container, IIndexManager)
     return await im.get_index_name()
 

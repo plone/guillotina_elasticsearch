@@ -13,13 +13,12 @@ from guillotina.interfaces import IContainer
 from guillotina.interfaces import IFolder
 from guillotina.interfaces import IResourceFactory
 from guillotina.interfaces import ISecurityInfo
-from guillotina.transactions import managed_transaction
+from guillotina.transactions import transaction
 from guillotina.utils import apply_coroutine
 from guillotina.utils import get_authenticated_user
 from guillotina.utils import get_content_path
-from guillotina.utils import get_current_request
-from guillotina.utils import get_current_transaction
 from guillotina.utils import get_current_container
+from guillotina.utils import get_current_transaction
 from guillotina.utils import get_security_policy
 from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import DOC_TYPE
@@ -152,16 +151,12 @@ class Migrator:
                 'Can not do a full reindex and a mapping only migration')
         self.mapping_only = mapping_only
 
-        if request is None:
-            self.request = get_current_request()
-        else:
-            self.request = request
-
         self.txn = get_current_transaction()
         if not cache:
             # make sure that we don't cache requests...
             self.txn._cache = DummyCache(self.txn)
 
+        self.request = request
         self.container = get_current_container()
         self.conn = utility.get_connection()
 
@@ -171,7 +166,6 @@ class Migrator:
             self.index_manager = index_manager
 
         self.user = get_authenticated_user()
-
         self.policy = get_security_policy(self.user)
         self.indexer = Indexer()
 
@@ -197,7 +191,7 @@ class Migrator:
         return self.processed / (time.time() - self.index_start_time)
 
     async def create_next_index(self):
-        async with managed_transaction(tm=self.txn.manager) as txn:
+        async with transaction(adopt_parent_txn=True) as txn:
             await txn.refresh(await self.index_manager.get_registry())
             next_index_name = await self.index_manager.start_migration()
         if await self.conn.indices.exists(next_index_name):
@@ -231,7 +225,8 @@ class Migrator:
                 })) as resp:
             data = await resp.json()
             self.active_task_id = task_id = data['task']
-            while True:
+            task_completed = False
+            while not task_completed:
                 await asyncio.sleep(10)
                 async with conn_es.session.get(
                         join(str(conn_es.base_url), '_tasks', task_id),
@@ -241,7 +236,8 @@ class Migrator:
                     if resp.status in (400, 404):
                         break
                     data = await resp.json()
-                    if data['completed']:
+                    task_completed = data['completed']
+                    if task_completed:
                         break
                     status = data["task"]["status"]
                     self.response.write(
@@ -250,16 +246,21 @@ class Migrator:
                     self.copied_docs = status["created"]
 
             self.active_task_id = None
-            response = data['response']
-            failures = response['failures']
-            if len(failures) > 0:
-                failures = json.dumps(failures, sort_keys=True, indent=4,
-                                      separators=(',', ': '))
-                self.response.write(
-                    f'Reindex encountered failures: {failures}')
+            if task_completed:
+                response = data['response']
+                failures = response['failures']
+                if len(failures) > 0:
+                    failures = json.dumps(
+                        failures, sort_keys=True,
+                        indent=4, separators=(',', ': ')
+                    )
+                    self.response.write(
+                        f'Reindex encountered failures: {failures}')
+                else:
+                    self.response.write(
+                        f'Finished copying to new index: {self.copied_docs}')
             else:
-                self.response.write(
-                    f'Finished copying to new index: {self.copied_docs}')
+                self.response.write(f'Unknown state for task {task_id}')
 
     async def get_all_uids(self):
         self.response.write('Retrieving existing doc ids')
@@ -308,7 +309,6 @@ class Migrator:
         except elasticsearch.exceptions.NotFoundError:
             # allows us to upgrade when no index is present yet
             return next_mappings
-
         existing_mappings = existing_mappings[existing_index_name]['mappings']
         existing_mappings = existing_mappings['properties']
 
@@ -370,7 +370,7 @@ class Migrator:
         batch_type = 'update'
         if self.reindex_security:
             try:
-                data = ISecurityInfo(ob)()
+                data = await apply_coroutine(ISecurityInfo(ob))
             except TypeError:
                 self.response.write(f'Could not index {ob}')
                 return
@@ -429,8 +429,9 @@ class Migrator:
             ))
         if len(self.batch) >= self.bulk_size:
             await notify(IndexProgress(
-                self.request, self.context, self.processed,
-                (len(self.existing) + len(self.missing))
+                self.context, self.processed,
+                (len(self.existing) + len(self.missing)),
+                request=self.request
             ))
             await self.flush()
 
@@ -537,7 +538,7 @@ class Migrator:
     async def cancel_migration(self):
         # canceling the migration, clearing index
         self.response.write('Canceling migration')
-        async with managed_transaction(tm=self.txn.manager):
+        async with transaction(adopt_parent_txn=True):
             await self.index_manager.cancel_migration()
             self.response.write('Next index disabled')
         if self.active_task_id is not None:
@@ -596,8 +597,8 @@ class Migrator:
         async with get_migration_lock(
                 await self.index_manager.get_index_name()):
             self.response.write('Activating new index')
-
-            await self.index_manager.finish_migration()
+            async with transaction(adopt_parent_txn=True):
+                await self.index_manager.finish_migration()
             self.status = 'done'
 
             self.response.write(f'''Update alias({alias_index_name}):
@@ -642,7 +643,7 @@ class Migrator:
                 migrator = Migrator(
                     self.utility, ob, response=self.response, force=self.force,
                     log_details=self.log_details,
-                    memory_tracking=self.memory_tracking, request=self.request,
+                    memory_tracking=self.memory_tracking,
                     bulk_size=self.bulk_size, full=self.full,
                     reindex_security=self.reindex_security,
                     mapping_only=self.mapping_only,

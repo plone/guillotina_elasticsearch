@@ -6,7 +6,8 @@ from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
-from guillotina.interfaces import IContainer
+from guillotina.exceptions import RequestNotFound
+from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_content_depth
@@ -16,6 +17,7 @@ from guillotina.utils import get_object_url
 from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
+from guillotina.utils.misc import get_current_container
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
@@ -23,7 +25,6 @@ from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
-from guillotina_elasticsearch.interfaces import ParsedQueryInfo
 from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
@@ -132,14 +133,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         index_name = await index_manager.get_index_name()
         real_index_name = await index_manager.get_real_index_name()
-
         await self.create_index(real_index_name, index_manager)
         conn = self.get_connection()
         await conn.indices.put_alias(
             name=index_name, index=real_index_name)
-        await conn.indices.close(real_index_name)
-
-        await conn.indices.open(real_index_name)
         await conn.cluster.health(
             wait_for_status='yellow')  # pylint: disable=E1123
 
@@ -154,7 +151,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if mappings is None:
             mappings = await index_manager.get_mappings()
         settings = {
-            'settings': settings
+            'settings': settings,
+            'mappings': mappings,
         }
         settings['mappings'] = mappings
         conn = self.get_connection()
@@ -164,14 +162,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_name = await im.get_index_name()
         real_index_name = await im.get_real_index_name()
         conn = self.get_connection()
-        await safe_es_call(conn.indices.close, real_index_name)
         await safe_es_call(
             conn.indices.delete_alias, real_index_name, index_name)
         await safe_es_call(conn.indices.delete, real_index_name)
         await safe_es_call(conn.indices.delete, index_name)
         migration_index = await im.get_migration_index_name()
         if migration_index:
-            await safe_es_call(conn.indices.close, migration_index)
             await safe_es_call(conn.indices.delete, migration_index)
 
     async def remove_catalog(self, container):
@@ -194,7 +190,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             self, obj, security=False, response=noop_response, request=None):
         from guillotina_elasticsearch.reindex import Reindexer
         reindexer = Reindexer(self, obj, response=response,
-                              reindex_security=security, request=request)
+                              reindex_security=security)
         await reindexer.reindex(obj)
 
     async def _build_security_query(
@@ -239,28 +235,25 @@ class ElasticSearchUtility(DefaultSearchUtility):
             items.append(data)
         return items
 
-    # async def search(self, container: IContainer, query: ParsedQueryInfo):
-    #     return await self.query(
-    #         container, query['query'],
-    #         size=query['size'], scroll=None, index=None)
-
-    async def search(
-            self, container, query_info: ParsedQueryInfo,
-            size=10, request=None, scroll=None, index=None):
+    async def search_raw(
+            self, container, query,
+            doc_type=None, size=10, request=None, scroll=None, index=None):
         """
-        transform into query...
-        right now, it's just passing through into elasticsearch
+        Search raw query
         """
         if index is None:
             index = await self.get_container_index_name(container)
         t1 = time.time()
         if request is None:
-            request = get_current_request()
-        query = query_info['query']
-        q = await self._build_security_query(
-            container, query, size, scroll)
+            try:
+                request = get_current_request()
+            except RequestNotFound:
+                pass
+
+        q = await self._build_security_query(container, query, size, scroll)
         q['ignore_unavailable'] = True
 
+        logger.debug("Generated query %s", json.dumps(query))
         conn = self.get_connection()
 
         result = await conn.search(index=index, **q)
@@ -272,8 +265,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         final = {
-            'items_count': result['hits']['total']['value'],
-            'member': items
+            'items_total': result['hits']['total']['value'],
+            'items': items
         }
         if 'aggregations' in result:
             final['aggregations'] = result['aggregations']
@@ -298,7 +291,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 }
             }
         }
-        return await self.query(container, query, container)
+        return await self.search_raw(container, query, container)
 
     async def get_by_uuids(self, container, uuids, doc_type=None):
         uuid_query = self._get_type_query(doc_type)
@@ -307,14 +300,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 "terms":
                     {"uuid": uuids}
             })
-        return await self.query(container, uuid_query)
+        return await self.search_raw(container, uuid_query)
 
     async def get_object_by_uuid(self, container, uuid):
         result = await self.get_by_uuid(container, uuid)
-        if result['items_count'] == 0 or result['items_count'] > 1:
+        if result['items_total'] == 0 or result['items_total'] > 1:
             raise AttributeError('Not found a unique object')
 
-        path = result['members'][0]['path']
+        path = result['items'][0]['path']
         obj = await navigate_to(container, path)
         return obj
 
@@ -400,9 +393,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             b'Removing all children of %s' % content_path.encode('utf-8'))
         # use future here because this can potentially take some
         # time to clean up indexes, etc
-        asyncio.ensure_future(
-            self.call_unindex_all_children(
-                container, index_name, content_path))
+        await self.call_unindex_all_children(
+            container, index_name, content_path)
 
     @backoff.on_exception(
         backoff.constant,
@@ -431,18 +423,29 @@ class ElasticSearchUtility(DefaultSearchUtility):
                         pass
 
         path_query = await self.get_path_query(content_path)
+        await self._delete_by_query(path_query, index_name)
+
+    @backoff.on_exception(
+        backoff.constant, (ElasticsearchConflictException,),
+        interval=0.5, max_tries=5)
+    async def _delete_by_query(self, path_query, index_name):
+        conn = self.get_connection()
         conn_es = await conn.transport.get_connection()
         async with conn_es.session.post(
                 join(conn_es.base_url.human_repr(),
                      index_name, '_delete_by_query'),
                 data=json.dumps(path_query),
                 params={
-                    'ignore_unavailable': 'true'
+                    'ignore_unavailable': 'true',
+                    'conflicts': 'proceed'
                 },
                 headers={
                     'Content-Type': 'application/json'
                 }) as resp:
             result = await resp.json()
+            if result['version_conflicts'] > 0:
+                raise ElasticsearchConflictException(
+                    result['version_conflicts'], resp)
             if 'deleted' in result:
                 logger.debug(f'Deleted {result["deleted"]} children')
                 logger.debug(f'Deleted {json.dumps(path_query)}')
@@ -451,11 +454,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def update_by_query(self, query, context=None, indexes=None):
         if indexes is None:
-            request = get_current_request()
-            indexes = await self.get_current_indexes(request.container)
+            container = get_current_container()
+            indexes = await self.get_current_indexes(container)
             if context is not None:
                 for index in await get_content_sub_indexes(
-                        request.container, get_content_path(context)):
+                        container, get_content_path(context)):
                     indexes.append(index['index'])
         return await self._update_by_query(query, ','.join(indexes))
 
@@ -591,10 +594,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
     def _get_current_tid(self):
         # make sure to get current committed tid or we may be one-behind
         # for what was actually used to commit to db
-        txn = get_transaction()
         tid = None
-        if txn:
-            tid = txn._tid
+        try:
+            txn = get_transaction()
+            if txn:
+                tid = txn._tid
+        except RequestNotFound:
+            pass
         return tid
 
     async def update(self, container, datas, response=noop_response,

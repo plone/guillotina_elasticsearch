@@ -76,9 +76,9 @@ class ESRequester(ContainerRequesterAsyncContextManager):
 
 
 @pytest.fixture(scope='function')
-async def es_requester(elasticsearch, guillotina, loop):
+async def es_requester(elasticsearch, guillotina, event_loop):
     # clean up all existing indexes
     es_host = '{}:{}'.format(
         elasticsearch[0], elasticsearch[1])
     await cleanup_es(es_host)
-    return ESRequester(guillotina, loop)
+    return ESRequester(guillotina, event_loop)

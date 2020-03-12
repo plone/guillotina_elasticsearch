@@ -48,8 +48,7 @@ async def setup_txn_on_container(requester, container_id='guillotina'):
     utils.login()
     request = utils.get_mocked_request(db=requester.db)
     task_vars.request.set(request)
-    container = await get_container(
-        requester=requester, container_id=container_id)
+    container = await get_container(requester=requester, container_id=container_id)  # noqa
     tm = task_vars.tm.get()
     txn = await tm.begin()
     return container, request, txn, tm
@@ -94,7 +93,8 @@ async def cleanup_es(es_host, prefix=''):
             try:
                 await conn.indices.delete_alias(index, name)
                 await conn.indices.delete(index)
-            except elasticsearch.exceptions.AuthorizationException:
+            except (elasticsearch.exceptions.AuthorizationException,
+                    elasticsearch.exceptions.NotFoundError):
                 pass
     for index in (await conn.cat.indices()).splitlines():
         _, _, index_name = index.split()[:3]
