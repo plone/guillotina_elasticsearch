@@ -1,6 +1,9 @@
 6.0.0 (unreleased)
 ------------------
 
+- Support Guillotina 6
+  [masipcat]
+
 - Support elasticsearch 7.0
   [jordic]
 

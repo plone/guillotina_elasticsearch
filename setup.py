@@ -6,13 +6,11 @@ from setuptools import setup
 test_requires = [
     'async_asgi_testclient',
     'pytest>=5.0',
-    'docker',
-    'backoff',
-    'psycopg2-binary',
     'pytest-asyncio',
     'coverage',
     'pytest-cov',
-    'pytest-docker-fixtures>=1.3.0'
+    'pytest-docker-fixtures>=1.3.0',
+    'pytest-docker-fixtures[pg]'
 ]
 
 
@@ -26,10 +24,11 @@ setup(
     long_description=(open('README.rst').read() + '\n' +
                       open('CHANGELOG.rst').read()),
     classifiers=[
-        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
-    url='https://pypi.python.org/pypi/guillotina_elasticsearch',
+    url='https://github.com/plone/guillotina_elasticsearch',
     license='GPL version 3',
     setup_requires=[
         'pytest-runner',
@@ -39,13 +38,11 @@ setup(
     package_data={"": ["*.txt", "*.rst"], "guillotina_elasticsearch": ["py.typed"]},
     packages=find_packages(exclude=['ez_setup']),
     install_requires=[
-        'guillotina>=6.0.0a14',
+        'guillotina>=6.0.0a16',
         'mypy_extensions',
         'aioelasticsearch<0.7.0',
-        'ujson',
         'lru-dict',
         'backoff',
-        'asyncpg'
     ],
     tests_require=test_requires,
     extras_require={
