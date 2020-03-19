@@ -1,4 +1,3 @@
-from copy import deepcopy
 from guillotina.catalog.index import index_object
 from guillotina import app_settings
 from guillotina import configure
@@ -36,8 +35,23 @@ logger = logging.getLogger('guillotina_elasticsearch')
 
 
 def default_settings():
-    settings = app_settings['elasticsearch']['default_settings']
-    return deepcopy(settings)
+    return {
+        "analysis": {
+            "analyzer": {
+                "path_analyzer": {
+                    "tokenizer": "path_tokenizer"
+                }
+            },
+            "tokenizer": {
+                "path_tokenizer": {
+                    "type": "path_hierarchy",
+                    "delimiter": "/"
+                }
+            },
+            "filter": {},
+            "char_filter": {}
+        }
+    }
 
 
 @configure.adapter(
