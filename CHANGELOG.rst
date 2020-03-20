@@ -1,8 +1,7 @@
 3.3.26 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Be able to only close indexes on elastic cleanup [lferran]
 
 3.3.25 (2020-01-30)
 -------------------
