@@ -15,23 +15,6 @@ app_settings = {
         },
         "index": {},
         'security_query_builder': 'guillotina_elasticsearch.queries.build_security_query',  # noqa
-        "default_settings": {
-            "analysis": {
-                "analyzer": {
-                    "path_analyzer": {
-                        "tokenizer": "path_tokenizer"
-                    }
-                },
-                "tokenizer": {
-                    "path_tokenizer": {
-                        "type": "path_hierarchy",
-                        "delimiter": "/"
-                    }
-                },
-                "filter": {},
-                "char_filter": {}
-            }
-        }
     },
     "load_utilities": {
         "catalog": {

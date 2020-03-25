@@ -1,7 +1,8 @@
 6.0.0a1 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Move default settings definition to function `default_settings()`
+  [masipcat]
 
 
 6.0.0a0 (2020-03-12)
