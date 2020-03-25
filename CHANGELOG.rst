@@ -1,4 +1,4 @@
-6.0.0a1 (unreleased)
+6.0.0a1 (2020-03-25)
 --------------------
 
 - Move default settings definition to function `default_settings()`
