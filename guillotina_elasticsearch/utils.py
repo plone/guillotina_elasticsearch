@@ -16,7 +16,7 @@ import guillotina.directives
 import logging
 
 
-logger = logging.getLogger('guillotina_elasticsearch')
+logger = logging.getLogger("guillotina_elasticsearch")
 
 
 class NoopResponse:
@@ -31,17 +31,16 @@ async def safe_es_call(func, *args, **kwargs):
     try:
         return await func(*args, **kwargs)
     except exceptions.ConnectionError:
-        logger.warning('elasticsearch not installed', exc_info=True)
-    except (exceptions.RequestError, exceptions.NotFoundError,
-            RuntimeError):
+        logger.warning("elasticsearch not installed", exc_info=True)
+    except (exceptions.RequestError, exceptions.NotFoundError, RuntimeError):
         pass
     except exceptions.TransportError as e:
-        logger.warning('Transport Error', exc_info=e)
+        logger.warning("Transport Error", exc_info=e)
 
 
 def get_migration_lock(name):
     loop = asyncio.get_event_loop()
-    key = '_es_migration_lock__' + name
+    key = "_es_migration_lock__" + name
     if not hasattr(loop, key):
         setattr(loop, key, asyncio.Lock())
     return getattr(loop, key)
@@ -49,13 +48,13 @@ def get_migration_lock(name):
 
 def find_index_manager(content=None, parent=None):
     if parent is None:
-        content = getattr(content, '__parent__', None)
+        content = getattr(content, "__parent__", None)
     else:
         content = parent
     while content:
         if IIndexActive.providedBy(content):
             return get_adapter(content, IIndexManager)
-        content = getattr(content, '__parent__', None)
+        content = getattr(content, "__parent__", None)
 
 
 async def get_installed_sub_indexes(container):
@@ -66,11 +65,12 @@ async def get_installed_sub_indexes(container):
     results = {}
     try:
         all_aliases = await search.get_connection().indices.get_alias(
-            name=index_name + '__*')
+            name=index_name + "__*"
+        )
     except exceptions.NotFoundError:
         return results
     for index, data in all_aliases.items():
-        for name in data['aliases'].keys():
+        for name in data["aliases"].keys():
             results[name] = index
 
     return results
@@ -84,48 +84,46 @@ async def get_content_sub_indexes(container, path=None):
         "size": 50,
         "query": {
             "constant_score": {
-                "filter": {
-                    "bool": {
-                        "must": [{
-                            "exists": {
-                                "field": "elastic_index"
-                            }
-                        }]
-                    }
-                }
+                "filter": {"bool": {"must": [{"exists": {"field": "elastic_index"}}]}}
             }
-        }
+        },
     }
     if path is not None:
-        query['query']['constant_score']['filter']['bool']['must'].append({
-            "term": {
-                "path": path
-            }
-        })
-        query['query']['constant_score']['filter']['bool']['must'].append({
-            "range": {
-                "depth": {"gte": path.count('/') + 1}
-            }
-        })
+        query["query"]["constant_score"]["filter"]["bool"]["must"].append(
+            {"term": {"path": path}}
+        )
+        query["query"]["constant_score"]["filter"]["bool"]["must"].append(
+            {"range": {"depth": {"gte": path.count("/") + 1}}}
+        )
     conn = search.get_connection()
     q_result = await conn.search(
-        index=index_name, _source=False,
-        stored_fields='elastic_index,path', body=query,
-        scroll="1m")
-    indexes = [{
-        'path': item['fields']['path'][0],
-        'oid': item['_id'],
-        'index': item['fields']['elastic_index'][0]
-    } for item in q_result['hits']['hits']]
+        index=index_name,
+        _source=False,
+        stored_fields="elastic_index,path",
+        body=query,
+        scroll="1m",
+    )
+    indexes = [
+        {
+            "path": item["fields"]["path"][0],
+            "oid": item["_id"],
+            "index": item["fields"]["elastic_index"][0],
+        }
+        for item in q_result["hits"]["hits"]
+    ]
 
     if len(q_result["hits"]["hits"]) >= 50:
-        q_result = await conn.scroll(
-            scroll_id=q_result['_scroll_id'], scroll="1m")
-        [indexes.append({
-            'path': item['fields']['path'][0],
-            'oid': item['_id'],
-            'index': item['fields']['elastic_index'][0]
-        }) for item in q_result['hits']['hits']]
+        q_result = await conn.scroll(scroll_id=q_result["_scroll_id"], scroll="1m")
+        [
+            indexes.append(
+                {
+                    "path": item["fields"]["path"][0],
+                    "oid": item["_id"],
+                    "index": item["fields"]["elastic_index"][0],
+                }
+            )
+            for item in q_result["hits"]["hits"]
+        ]
     return indexes
 
 
@@ -133,8 +131,7 @@ async def get_all_indexes_identifier(container=None, index_manager=None):
     if index_manager is None:
         index_manager = get_adapter(container, IIndexManager)
     index_name = await index_manager.get_index_name()
-    return '{},{}{}*'.format(
-        index_name, index_name, SUB_INDEX_SEPERATOR)
+    return "{},{}{}*".format(index_name, index_name, SUB_INDEX_SEPERATOR)
 
 
 async def get_index_for(context, container=None):
@@ -156,12 +153,15 @@ def _is_multi_valued(check_field_name):
             # For each type
             for schema in get_all_possible_schemas_for_type(name):
                 index_fields = guillotina.directives.merged_tagged_value_dict(
-                    schema, guillotina.directives.index.key)
+                    schema, guillotina.directives.index.key
+                )
                 for field_name, catalog_info in index_fields.items():
-                    index_name = catalog_info.get('index_name', field_name)
+                    index_name = catalog_info.get("index_name", field_name)
                     try:
                         field = schema[field_name]
-                        _stored_multi_valued[index_name] = ICollection.providedBy(field)  # noqa
+                        _stored_multi_valued[index_name] = ICollection.providedBy(
+                            field
+                        )  # noqa
                     except KeyError:
                         _stored_multi_valued[index_name] = False
 
@@ -171,8 +171,8 @@ def _is_multi_valued(check_field_name):
 
 
 def format_hit(item):
-    data = item.pop('_source', {})
-    for key, val in item.get('fields', {}).items():
+    data = item.pop("_source", {})
+    for key, val in item.get("fields", {}).items():
         container_data = data
         if isinstance(val, list):
             if not _is_multi_valued(key):
@@ -180,8 +180,8 @@ def format_hit(item):
                     val = val[0]
                 elif len(val) == 0:
                     val = None
-        if '.' in key:
-            name, key = key.split('.', 1)
+        if "." in key:
+            name, key = key.split(".", 1)
             if name not in container_data:
                 container_data[name] = {}
             container_data = container_data[name]
