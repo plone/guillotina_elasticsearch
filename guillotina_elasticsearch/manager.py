@@ -38,19 +38,12 @@ logger = logging.getLogger("guillotina_elasticsearch")
 def default_settings():
     return {
         "analysis": {
-            "analyzer": {
-                "path_analyzer": {
-                    "tokenizer": "path_tokenizer"
-                }
-            },
+            "analyzer": {"path_analyzer": {"tokenizer": "path_tokenizer"}},
             "tokenizer": {
-                "path_tokenizer": {
-                    "type": "path_hierarchy",
-                    "delimiter": "/"
-                }
+                "path_tokenizer": {"type": "path_hierarchy", "delimiter": "/"}
             },
             "filter": {},
-            "char_filter": {}
+            "char_filter": {},
         }
     }
 

@@ -12,7 +12,7 @@ app_settings = {
         "index_name_prefix": "guillotina-",
         "connection_settings": {"hosts": [], "timeout": 2},
         "index": {},
-        'security_query_builder': 'guillotina_elasticsearch.queries.build_security_query',  # noqa
+        "security_query_builder": "guillotina_elasticsearch.queries.build_security_query",  # noqa
     },
     "load_utilities": {
         "catalog": {
