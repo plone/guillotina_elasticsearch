@@ -1,7 +1,8 @@
-from guillotina_elasticsearch.parser import Parser
 from guillotina.tests import utils as test_utils
+from guillotina_elasticsearch.parser import Parser
 
 import pytest
+
 
 pytestmark = [pytest.mark.asyncio]
 

@@ -7,6 +7,7 @@ from guillotina.interfaces import IResource
 from guillotina.interfaces import ISearchParser
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.interfaces import ParsedQueryInfo
+
 import logging
 import typing
 

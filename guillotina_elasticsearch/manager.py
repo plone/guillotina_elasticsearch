@@ -1,13 +1,13 @@
 from copy import deepcopy
-from guillotina.catalog.index import index_object
 from guillotina import app_settings
 from guillotina import configure
 from guillotina import task_vars
 from guillotina.annotations import AnnotationData
+from guillotina.catalog.index import index_object
 from guillotina.component import get_adapter
 from guillotina.component import query_utility
-from guillotina.db.uid import get_short_uid
 from guillotina.db.transaction import Status
+from guillotina.db.uid import get_short_uid
 from guillotina.directives import index_field
 from guillotina.exceptions import NoIndexField
 from guillotina.interfaces import IAnnotations
@@ -31,6 +31,7 @@ from zope.interface import alsoProvides
 from zope.interface.interface import TAGGED_DATA
 
 import logging
+
 
 logger = logging.getLogger('guillotina_elasticsearch')
 

@@ -1,6 +1,7 @@
 from aioelasticsearch import Elasticsearch
-from guillotina import app_settings, task_vars
+from guillotina import app_settings
 from guillotina import configure
+from guillotina import task_vars
 from guillotina.content import Folder
 from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IResource

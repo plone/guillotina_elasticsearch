@@ -5,11 +5,11 @@ from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.db import ROOT_ID
 from guillotina.db import TRASHED_ID
-from guillotina.utils import get_object_by_uid
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import get_mocked_request
 from guillotina.tests.utils import login
 from guillotina.utils import get_containers
+from guillotina.utils import get_object_by_uid
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator
 from guillotina_elasticsearch.utils import get_content_sub_indexes

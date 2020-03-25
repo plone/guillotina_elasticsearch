@@ -7,7 +7,6 @@ from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
 from guillotina.exceptions import RequestNotFound
-from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
 from guillotina.utils import get_content_depth
@@ -19,6 +18,7 @@ from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
 from guillotina.utils.misc import get_current_container
 from guillotina_elasticsearch.events import SearchDoneEvent
+from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility

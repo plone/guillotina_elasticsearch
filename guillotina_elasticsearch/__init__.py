@@ -5,6 +5,7 @@ from guillotina.component import get_utilities_for
 from guillotina.content import IResourceFactory
 from guillotina.utils import get_dotted_name
 
+
 app_settings = {
     "elasticsearch": {
         "bulk_size": 50,

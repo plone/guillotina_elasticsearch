@@ -8,6 +8,7 @@ from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
 import pytest
 
+
 pytestmark = [pytest.mark.asyncio]
 
 
