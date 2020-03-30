@@ -7,31 +7,32 @@ from guillotina.interfaces import IResource
 from guillotina.interfaces import ISearchParser
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.interfaces import ParsedQueryInfo
+
 import logging
 import typing
 
 
-logger = logging.getLogger('guillotina_cms')
+logger = logging.getLogger("guillotina_cms")
 
 MAX_AGGS = 20
 SEARCH_DATA_FIELDS = [
-    'contributors',
-    'creation_date',
-    'creators',
-    'id',
-    'modification_date',
-    'parent_uuid',
-    'path',
-    'tags',
-    'title',
-    'type_name',
-    'uuid'
+    "contributors",
+    "creation_date",
+    "creators",
+    "id",
+    "modification_date",
+    "parent_uuid",
+    "path",
+    "tags",
+    "title",
+    "type_name",
+    "uuid",
 ]
 
 
 def convert(value):
     # XXX: Check for possible json injection
-    return value.split(' ')
+    return value.split(" ")
 
 
 def process_compound_field(field, value, operator):
@@ -39,169 +40,134 @@ def process_compound_field(field, value, operator):
         return
     query = {}
     for kk, vv in value.items():
-        if operator == 'or':
-            query[kk + '__should'] = vv
+        if operator == "or":
+            query[kk + "__should"] = vv
         else:
             query[kk] = vv
-    return 'must', {
-        'bool': process_query_level(query)
-    }
+    return "must", {"bool": process_query_level(query)}
 
 
 def process_field(field, value):
-    if field.endswith('__or'):
-        return process_compound_field(field, value, 'or')
-    elif field.endswith('__and'):
-        field = field[:-len('__and')]
-        return process_compound_field(field, value, 'and')
+    if field.endswith("__or"):
+        return process_compound_field(field, value, "or")
+    elif field.endswith("__and"):
+        field = field[: -len("__and")]
+        return process_compound_field(field, value, "and")
 
     modifier = None
 
-    match_type = 'must'
-    if field.endswith('__should'):
-        match_type = 'should'
-        field = field[:-len('__should')]
-    if field.endswith('__not'):
-        modifier = 'not'
-        field = field[:-len('__not')]
-    elif field.endswith('__in'):
-        modifier = 'in'
-        field = field[:-len('__in')]
-    elif field.endswith('__eq'):
-        modifier = 'eq'
-        field = field[:-len('__eq')]
-    elif field.endswith('__gt'):
-        modifier = 'gt'
-        field = field[:-len('__gt')]
-    elif field.endswith('__lt'):
-        modifier = 'lt'
-        field = field[:-len('__lt')]
-    elif field.endswith('__gte'):
-        modifier = 'gte'
-        field = field[:-len('__gte')]
-    elif field.endswith('__lte'):
-        modifier = 'lte'
-        field = field[:-len('__lte')]
-    elif field.endswith('__wildcard'):
-        modifier = 'wildcard'
-        field = field[:-len('__wildcard')]
+    match_type = "must"
+    if field.endswith("__should"):
+        match_type = "should"
+        field = field[: -len("__should")]
+    if field.endswith("__not"):
+        modifier = "not"
+        field = field[: -len("__not")]
+    elif field.endswith("__in"):
+        modifier = "in"
+        field = field[: -len("__in")]
+    elif field.endswith("__eq"):
+        modifier = "eq"
+        field = field[: -len("__eq")]
+    elif field.endswith("__gt"):
+        modifier = "gt"
+        field = field[: -len("__gt")]
+    elif field.endswith("__lt"):
+        modifier = "lt"
+        field = field[: -len("__lt")]
+    elif field.endswith("__gte"):
+        modifier = "gte"
+        field = field[: -len("__gte")]
+    elif field.endswith("__lte"):
+        modifier = "lte"
+        field = field[: -len("__lte")]
+    elif field.endswith("__wildcard"):
+        modifier = "wildcard"
+        field = field[: -len("__wildcard")]
 
     index = get_index_definition(field)
     if index is None:
         return
 
     if len(value) > 1:
-        term_keyword = 'terms'
+        term_keyword = "terms"
         if not isinstance(value, list):
             value = [value]
     else:
-        term_keyword = 'term'
+        term_keyword = "term"
         if isinstance(value, list):
             value = value[0]
 
-    _type = index['type']
-    if _type == 'int':
+    _type = index["type"]
+    if _type == "int":
         try:
             value = int(value)
         except ValueError:
             pass
-    elif _type == 'date':
+    elif _type == "date":
         value = parse(value).timestamp()
 
-    elif _type == 'boolean':
-        if value in ('true', 'True', 'yes'):
+    elif _type == "boolean":
+        if value in ("true", "True", "yes"):
             value = True
         else:
             value = False
 
     if modifier is None:
         # Keyword we expect an exact match
-        return match_type, {
-            term_keyword: {
-                field: value
-            }
-        }
-    elif modifier == 'not':
+        return match_type, {term_keyword: {field: value}}
+    elif modifier == "not":
         # Must not be
-        return 'must_not', {
-            term_keyword: {
-                field: value
-            }
-        }
-    elif modifier == 'in' and _type in ('text', 'searchabletext'):
+        return "must_not", {term_keyword: {field: value}}
+    elif modifier == "in" and _type in ("text", "searchabletext"):
         # The value list can be inside the field
-        return match_type, {
-            'match': {
-                field: value
-            }
-        }
-    elif modifier == 'eq':
+        return match_type, {"match": {field: value}}
+    elif modifier == "eq":
         # The sentence must appear as is it
-        value = ' '.join(value)
-        return match_type, {
-            'match': {
-                field: value
-            }
-        }
-    elif modifier in ('gte', 'lte', 'gt', 'lt'):
-        return match_type, {
-            'range': {field: {modifier: value}}}
-    elif modifier == 'wildcard':
-        return match_type, {
-            'wildcard': {
-                field: value
-            }
-        }
+        value = " ".join(value)
+        return match_type, {"match": {field: value}}
+    elif modifier in ("gte", "lte", "gt", "lt"):
+        return match_type, {"range": {field: {modifier: value}}}
+    elif modifier == "wildcard":
+        return match_type, {"wildcard": {field: value}}
     else:
         logger.warn(
-            'wrong search type: %s modifier: %s field: %s value: %s' %
-            (_type, modifier, field, value))
+            "wrong search type: %s modifier: %s field: %s value: %s"
+            % (_type, modifier, field, value)
+        )
 
 
 def process_query_level(params):
-    query = {
-        'must': [],
-        'should': [],
-        "minimum_should_match": 1,
-        'must_not': []
-    }
+    query = {"must": [], "should": [], "minimum_should_match": 1, "must_not": []}
     for field, value in params.items():
         result = process_field(field, value)
         if result is not None:
             match_type, sub_part = result
             query[match_type].append(sub_part)
 
-    if len(query['should']) == 0:
-        del query['should']
-        del query['minimum_should_match']
+    if len(query["should"]) == 0:
+        del query["should"]
+        del query["minimum_should_match"]
     return query
 
 
 @configure.adapter(
-    for_=(IElasticSearchUtility, IResource),
-    provides=ISearchParser,
-    name='default')
+    for_=(IElasticSearchUtility, IResource), provides=ISearchParser, name="default"
+)
 class Parser(BaseParser):
-
     def __call__(self, params: typing.Dict) -> ParsedQueryInfo:
         query_info = super().__call__(params)
 
         query = {
-            'stored_fields': SEARCH_DATA_FIELDS,
-            'query': {
-                'bool': process_query_level(query_info['params'])
-            },
-            'sort': []
+            "stored_fields": SEARCH_DATA_FIELDS,
+            "query": {"bool": process_query_level(query_info["params"])},
+            "sort": [],
         }
 
-        if query_info['sort_on']:
-            query['sort'].append({
-                query_info['sort_on']: (
-                    query_info['sort_dir'] or 'asc').lower()
-            })
-        query['sort'].append({'_id': 'desc'})
+        if query_info["sort_on"]:
+            query["sort"].append(
+                {query_info["sort_on"]: (query_info["sort_dir"] or "asc").lower()}
+            )
+        query["sort"].append({"_id": "desc"})
 
-        return typing.cast(ParsedQueryInfo, dict(
-            query_info,
-            query=query
-        ))
+        return typing.cast(ParsedQueryInfo, dict(query_info, query=query))

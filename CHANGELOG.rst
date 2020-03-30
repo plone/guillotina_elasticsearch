@@ -1,7 +1,8 @@
 6.0.0a2 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Check code format
+  [acatlla]
 
 
 6.0.0a1 (2020-03-25)
