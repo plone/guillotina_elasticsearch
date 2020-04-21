@@ -492,7 +492,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
     ):
         conn = self.get_connection()
         result = {}
-
         try:
             response.write(b"Indexing %d" % (len(idents),))
             result = await conn.bulk(
