@@ -84,6 +84,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
     def bulk_size(self):
         return self.settings.get("bulk_size", 50)
 
+    def _refresh(self):
+        if not hasattr(self, "__refresh"):
+            val = self.settings.get("refresh") or False
+            if val:
+                val = resolve_dotted_name(val)
+            self.__refresh = val
+
+        if isinstance(self.__refresh, bool):
+            return self.__refresh
+
+        return self.__refresh()
+
     @property
     def settings(self):
         return app_settings.get("elasticsearch", {})
@@ -480,10 +492,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
     ):
         conn = self.get_connection()
         result = {}
+
         try:
             response.write(b"Indexing %d" % (len(idents),))
             result = await conn.bulk(
-                index=index_name, doc_type=DOC_TYPE, body=bulk_data
+                index=index_name,
+                doc_type=DOC_TYPE,
+                body=bulk_data,
+                refresh=self._refresh(),
             )
         except aiohttp.client_exceptions.ClientResponseError as e:
             count += 1
@@ -658,7 +674,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
                             container, obj, index_name=",".join(item_indexes)
                         )
             conn = self.get_connection()
-            await conn.bulk(index=indexes[0], body=bulk_data, doc_type=DOC_TYPE)
+            await conn.bulk(
+                index=indexes[0],
+                body=bulk_data,
+                doc_type=DOC_TYPE,
+                refresh=self._refresh(),
+            )
 
     async def get_doc_count(self, container=None, index_name=None):
         if index_name is None:

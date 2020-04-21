@@ -1,6 +1,9 @@
 6.0.0a2 (unreleased)
 --------------------
 
+- Add setting 'refresh'
+  [masipcat]
+
 - Check code format
   [acatlla]
 

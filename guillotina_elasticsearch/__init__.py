@@ -8,6 +8,7 @@ from guillotina.utils import get_dotted_name
 
 app_settings = {
     "elasticsearch": {
+        "refresh": False,
         "bulk_size": 50,
         "index_name_prefix": "guillotina-",
         "connection_settings": {"hosts": [], "timeout": 2},
