@@ -6,10 +6,14 @@ from guillotina.content import IResourceFactory
 from guillotina.utils import get_dotted_name
 
 
+def default_refresh():
+    return False
+
+
 app_settings = {
     "elasticsearch": {
-        "refresh": False,
         "bulk_size": 50,
+        "refresh": "guillotina_elasticsearch.default_refresh",
         "index_name_prefix": "guillotina-",
         "connection_settings": {"hosts": [], "timeout": 2},
         "index": {},

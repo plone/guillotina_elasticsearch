@@ -86,15 +86,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     def _refresh(self):
         if not hasattr(self, "__refresh"):
-            val = self.settings.get("refresh") or False
+            val = self.settings.get("refresh")
             if val:
                 val = resolve_dotted_name(val)
             self.__refresh = val
 
-        if isinstance(self.__refresh, bool):
-            return self.__refresh
-
-        return self.__refresh()
+        if self.__refresh:
+            return self.__refresh()
+        return False
 
     @property
     def settings(self):
