@@ -10,6 +10,7 @@ import aioelasticsearch
 
 
 ES_CLIENT_VERSION = version.parse(aioelasticsearch.__version__)
+ELASTIC6 = ES_CLIENT_VERSION.minor == 5
 
 
 def default_refresh():

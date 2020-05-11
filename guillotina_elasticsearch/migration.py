@@ -20,7 +20,7 @@ from guillotina.utils import get_content_path
 from guillotina.utils import get_current_container
 from guillotina.utils import get_current_transaction
 from guillotina.utils import get_security_policy
-from guillotina_elasticsearch import ES_CLIENT_VERSION
+from guillotina_elasticsearch import ELASTIC6
 from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IIndexActive
@@ -302,10 +302,11 @@ class Migrator:
         """
         next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
         next_mappings = next_mappings[self.work_index_name]["mappings"]
-        if ES_CLIENT_VERSION.minor > 5:
-            next_mappings = next_mappings["properties"]
-        else:
+
+        if ELASTIC6:
             next_mappings = next_mappings[DOC_TYPE]["properties"]
+        else:
+            next_mappings = next_mappings["properties"]
 
         existing_index_name = await self.index_manager.get_real_index_name()
         try:
@@ -315,10 +316,11 @@ class Migrator:
             return next_mappings
 
         existing_mappings = existing_mappings[existing_index_name]["mappings"]
-        if ES_CLIENT_VERSION.minor > 5:
-            existing_mappings = existing_mappings["properties"]
-        else:
+
+        if ELASTIC6:
             existing_mappings = existing_mappings[DOC_TYPE]["properties"]
+        else:
+            existing_mappings = existing_mappings["properties"]
 
         new_definitions = {}
         for field_name, definition in next_mappings.items():

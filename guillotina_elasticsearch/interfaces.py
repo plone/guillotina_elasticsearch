@@ -1,15 +1,14 @@
 from guillotina.async_util import IAsyncUtility
 from guillotina.catalog.types import BasicParsedQueryInfo
 from guillotina.interfaces import ICatalogUtility
-from guillotina_elasticsearch import ES_CLIENT_VERSION
+from guillotina_elasticsearch import ELASTIC6
 from zope.interface import Interface
 
 import typing
 
 
-if ES_CLIENT_VERSION.minor > 5:
-    DOC_TYPE = "_doc"
-else:
+DOC_TYPE = "_doc"
+if ELASTIC6:
     DOC_TYPE = "doc"
 
 

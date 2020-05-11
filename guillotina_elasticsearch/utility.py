@@ -17,7 +17,7 @@ from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
 from guillotina.utils.misc import get_current_container
-from guillotina_elasticsearch import ES_CLIENT_VERSION
+from guillotina_elasticsearch import ELASTIC6
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina_elasticsearch.exceptions import QueryErrorException
@@ -135,9 +135,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         es_version = info["version"]["number"]
 
         # We currently support 6.x and 7.x versions
-        if ES_CLIENT_VERSION.minor == 5 and not es_version.startswith("6"):
+        if ELASTIC6 and not es_version.startswith("6"):
             raise Exception(f"ES cluster version not supported: {es_version}")
-        elif ES_CLIENT_VERSION.minor == 6 and not es_version.startswith("7"):
+        elif not es_version.startswith("7"):
             raise Exception(f"ES cluster version not supported: {es_version}")
 
     async def initialize_catalog(self, container):
@@ -163,11 +163,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
             settings = await index_manager.get_index_settings()
         if mappings is None:
             mappings = await index_manager.get_mappings()
-        if ES_CLIENT_VERSION.minor > 5:
+
+        if ELASTIC6:
             settings = {"settings": settings, "mappings": {DOC_TYPE: mappings}}
         else:
             settings = {"settings": settings, "mappings": mappings}
             settings["mappings"] = mappings
+
         conn = self.get_connection()
         await conn.indices.create(real_index_name, settings)
 
@@ -279,10 +281,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 error_message = failure["reason"]
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
-        if ES_CLIENT_VERSION.minor > 5:
-            items_total = result["hits"]["total"]["value"]
-        else:
+
+        if ELASTIC6:
             items_total = result["hits"]["total"]
+        else:
+            items_total = result["hits"]["total"]["value"]
+
         final = {"items_total": items_total, "items": items}
 
         if "aggregations" in result:

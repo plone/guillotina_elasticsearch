@@ -1,10 +1,9 @@
-from guillotina_elasticsearch import ES_CLIENT_VERSION
+from guillotina_elasticsearch import ELASTIC6
 from pytest_docker_fixtures import images
 
 
-if ES_CLIENT_VERSION.minor > 5:
-    image_version = "7.5.1"
-else:
+image_version = "7.5.1"
+if ELASTIC6:
     image_version = "6.4.3"
 
 images.configure(
