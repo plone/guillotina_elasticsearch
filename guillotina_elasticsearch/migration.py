@@ -302,7 +302,7 @@ class Migrator:
         """
         next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
         next_mappings = next_mappings[self.work_index_name]["mappings"]
-        if ES_CLIENT_VERSION.minor > 6:
+        if ES_CLIENT_VERSION.minor > 5:
             next_mappings = next_mappings["properties"]
         else:
             next_mappings = next_mappings[DOC_TYPE]["properties"]
@@ -315,7 +315,7 @@ class Migrator:
             return next_mappings
 
         existing_mappings = existing_mappings[existing_index_name]["mappings"]
-        if ES_CLIENT_VERSION.minor > 6:
+        if ES_CLIENT_VERSION.minor > 5:
             existing_mappings = existing_mappings["properties"]
         else:
             existing_mappings = existing_mappings[DOC_TYPE]["properties"]

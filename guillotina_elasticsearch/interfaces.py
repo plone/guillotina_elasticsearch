@@ -7,7 +7,7 @@ from zope.interface import Interface
 import typing
 
 
-if ES_CLIENT_VERSION.minor > 6:
+if ES_CLIENT_VERSION.minor > 5:
     DOC_TYPE = "_doc"
 else:
     DOC_TYPE = "doc"

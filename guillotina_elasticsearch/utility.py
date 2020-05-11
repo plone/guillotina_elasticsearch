@@ -135,9 +135,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         es_version = info["version"]["number"]
 
         # We currently support 6.x and 7.x versions
-        if ES_CLIENT_VERSION.minor == 6 and not es_version.startswith("6"):
+        if ES_CLIENT_VERSION.minor == 5 and not es_version.startswith("6"):
             raise Exception(f"ES cluster version not supported: {es_version}")
-        elif ES_CLIENT_VERSION.minor == 7 and not es_version.startswith("7"):
+        elif ES_CLIENT_VERSION.minor == 6 and not es_version.startswith("7"):
             raise Exception(f"ES cluster version not supported: {es_version}")
 
     async def initialize_catalog(self, container):
@@ -163,7 +163,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             settings = await index_manager.get_index_settings()
         if mappings is None:
             mappings = await index_manager.get_mappings()
-        if ES_CLIENT_VERSION.minor > 6:
+        if ES_CLIENT_VERSION.minor > 5:
             settings = {"settings": settings, "mappings": {DOC_TYPE: mappings}}
         else:
             settings = {"settings": settings, "mappings": mappings}
@@ -279,7 +279,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 error_message = failure["reason"]
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
-        if ES_CLIENT_VERSION.minor > 6:
+        if ES_CLIENT_VERSION.minor > 5:
             items_total = result["hits"]["total"]["value"]
         else:
             items_total = result["hits"]["total"]
