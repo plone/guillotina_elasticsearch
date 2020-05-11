@@ -22,7 +22,6 @@ from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import DOC_TYPE  # noqa b/w compat import
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
-from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.utils import find_index_manager
