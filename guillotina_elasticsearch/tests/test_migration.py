@@ -381,7 +381,7 @@ async def test_search_works_on_new_docs_during_migration(es_requester):
 
 
 async def test_search_works_on_updated_docs_during_migration_when_missing(
-    es_requester
+    es_requester,
 ):  # noqa
     """
     - started migration
@@ -421,7 +421,7 @@ async def test_search_works_on_updated_docs_during_migration_when_missing(
 
 
 async def test_search_works_on_updated_docs_during_migration_when_present(
-    es_requester
+    es_requester,
 ):  # noqa
     """
     - started migration
