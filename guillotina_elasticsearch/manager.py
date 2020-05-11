@@ -134,7 +134,8 @@ class ContainerIndexManager:
         registry = await self.get_registry()
         next_version = registry["el_next_index_version"]
         assert next_version is not None
-        await registry.__txn__.refresh(registry)
+        txn = get_transaction()
+        await txn.refresh(registry)
         registry["el_index_version"] = next_version
         registry["el_next_index_version"] = None
         registry.register()
@@ -178,7 +179,7 @@ class ContentIndexManager(ContainerIndexManager):
 
     async def get_registry(self, refresh=False):
         if refresh and self.object_settings is not None:
-            txn = get_transaction(self.request)
+            txn = get_transaction()
             await txn.refresh(self.object_settings)
         if self.object_settings is None:
             annotations_container = IAnnotations(self.context)
