@@ -14,7 +14,6 @@ jobs:
         database: ["DUMMY", "postgres"]
       fail-fast: false
     env:
-      ES_VERSION: ${{ matrix.es_version }}
       DATABASE: ${{ matrix.database }}
 
     steps:
