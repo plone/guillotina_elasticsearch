@@ -1,0 +1,46 @@
+name: guillotina_elasticsearch
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.7, 3.8]
+        es_version: ["7.5.1", "6.4.3"]
+        database: ["DUMMY", "postgres"]
+    env:
+      ES_VERSION: ${{ matrix.es_version }}
+      DATABASE: ${{ matrix.database }}
+
+    steps:
+      # Checkout the repository first
+      - uses: actions/checkout@v2
+
+      # Setup the python version
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v1
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      # Linters and typing
+      - name: Pre-checks
+        run: |
+          # Install
+          pip install flake8 isort black
+
+          # Run commands
+          flake8 guillotina_elasticsearch --config=setup.cfg
+          isort -c -rc guillotina_elasticsearch
+          black --check --verbose guillotina_elasticsearch
+
+      # Run tests
+      - name: Run tests
+        run: |
+          # Install package with test dependecies
+          pip install -e .[test]
+
+          # Run tests
+          pytest --capture=no --tb=native -v guillotina_elasticsearch --cov=guillotina_elasticsearch --cov-report term-missing --cov-append guillotina_elasticsearch

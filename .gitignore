@@ -8,3 +8,5 @@ lib
 pip-selfcheck.json
 .idea
 .cache
+venv/*
+.python-version
