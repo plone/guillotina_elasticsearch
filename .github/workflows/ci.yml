@@ -10,7 +10,6 @@ jobs:
       matrix:
         python-version: [3.7, 3.8]
         database: ["DUMMY", "postgres"]
-      fail-fast: false
     env:
       DATABASE: ${{ matrix.database }}
 
