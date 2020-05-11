@@ -4,52 +4,48 @@ from setuptools import setup
 
 
 test_requires = [
-    'pytest>=3.6',
-    'docker',
-    'backoff',
-    'psycopg2-binary',
-    'pytest-asyncio',
-    'coverage',
-    'pytest-cov',
-    'pytest-aiohttp',
-    'pytest-rerunfailures',
-    'pytest-docker-fixtures>=1.3.0'
+    "pytest>=3.6",
+    "docker",
+    "backoff",
+    "psycopg2-binary",
+    "pytest-asyncio",
+    "coverage",
+    "pytest-cov",
+    "pytest-aiohttp",
+    "pytest-rerunfailures",
+    "pytest-docker-fixtures>=1.3.0" "async_asgi_testclient==1.4.4",
 ]
 
 
 setup(
-    name='guillotina_elasticsearch',
-    description='elasticsearch catalog support for guillotina',
-    keywords='search async guillotina elasticsearch',
-    author='Ramon Navarro Bosch & Nathan Van Gheem',
-    author_email='ramon@plone.org',
-    version=open('VERSION').read().strip(),
-    long_description=(open('README.rst').read() + '\n' +
-                      open('CHANGELOG.rst').read()),
+    name="guillotina_elasticsearch",
+    description="elasticsearch catalog support for guillotina",
+    keywords="search async guillotina elasticsearch",
+    author="Ramon Navarro Bosch & Nathan Van Gheem",
+    author_email="ramon@plone.org",
+    version=open("VERSION").read().strip(),
+    long_description=(open("README.rst").read() + "\n" + open("CHANGELOG.rst").read()),
     classifiers=[
-        'Programming Language :: Python :: 3.6',
-        'Topic :: Software Development :: Libraries :: Python Modules',
+        "Programming Language :: Python :: 3.6",
+        "Topic :: Software Development :: Libraries :: Python Modules",
     ],
-    url='https://pypi.python.org/pypi/guillotina_elasticsearch',
-    license='GPL version 3',
-    setup_requires=[
-        'pytest-runner',
-    ],
+    url="https://pypi.python.org/pypi/guillotina_elasticsearch",
+    license="GPL version 3",
+    setup_requires=["pytest-runner"],
     zip_safe=True,
     include_package_data=True,
     package_data={"": ["*.txt", "*.rst"], "guillotina_elasticsearch": ["py.typed"]},
-    packages=find_packages(exclude=['ez_setup']),
+    packages=find_packages(exclude=["ez_setup"]),
     install_requires=[
-        'guillotina>=4.6.0',
-        'mypy_extensions',
-        'aioelasticsearch<0.6.0',
-        'ujson',
-        'lru-dict',
-        'backoff',
-        'asyncpg'
+        "guillotina @ git+https://github.com/plone/guillotina@migration-5-to-6-fixes#egg=guillotina",
+        # "guillotina>=6.0.0.dev0",
+        "mypy_extensions",
+        "aioelasticsearch<0.6.0",
+        "ujson",
+        "lru-dict",
+        "backoff",
+        "asyncpg" "async_asgi_testclient",
     ],
     tests_require=test_requires,
-    extras_require={
-        'test': test_requires
-    }
+    extras_require={"test": test_requires},
 )
