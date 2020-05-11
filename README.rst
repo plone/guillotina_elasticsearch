@@ -9,6 +9,14 @@ GUILLOTINA_ELASTICSEARCH
 Elasticsearch integration for guillotina.
 
 
+Installation
+------------
+
+`pip install guillotina_elasticsearch` defaults to Elasticsearch 7.x
+support. Pin `aioelasticsearch<0.6.0` to enable support for
+Elasticsearch 6.x.
+
+
 Configuration
 -------------
 

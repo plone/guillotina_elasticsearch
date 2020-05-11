@@ -41,7 +41,8 @@ jobs:
           # Install package with test dependecies
           pip install -e .[test]
           if [ $ES_VERSION == 6 ]
-          then pip install -e .[g6]
+          # Install client version for es 6.x
+          then pip install -U aioelasticsearch<0.6.0
           fi
 
           # Run tests

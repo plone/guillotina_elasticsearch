@@ -36,10 +36,10 @@ setup(
     install_requires=[
         "guillotina>=6.0.0a16",
         "mypy_extensions",
-        "aioelasticsearch<0.7.0",
+        "aioelasticsearch>=0.5.0<0.7.0",
         "lru-dict",
         "backoff",
     ],
     tests_require=test_requires,
-    extras_require={"es6": ["aioelasticsearch<0.6.0"], "test": test_requires},
+    extras_require={"test": test_requires},
 )
