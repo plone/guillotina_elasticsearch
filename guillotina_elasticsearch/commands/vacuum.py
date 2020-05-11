@@ -151,7 +151,9 @@ class Vacuum:
                 new_oids = []
                 while (pos * PAGE_SIZE) < len(oids):
                     async with conn.transaction():
-                        cur = await conn.cursor(sql, oids[pos : pos + PAGE_SIZE])
+                        cur = await conn.cursor(
+                            sql, oids[pos : pos + PAGE_SIZE]
+                        )  # noqa
                         pos += PAGE_SIZE
                         page = await cur.fetch(PAGE_SIZE)
                         while page:
