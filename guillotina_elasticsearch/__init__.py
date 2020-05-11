@@ -12,6 +12,7 @@ def default_refresh():
 
 app_settings = {
     "elasticsearch": {
+        "es_version": "7.5.1",
         "bulk_size": 50,
         "refresh": "guillotina_elasticsearch.default_refresh",
         "index_name_prefix": "guillotina-",
