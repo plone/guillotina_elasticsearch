@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         python-version: [3.7, 3.8]
-        es_version: ["7.5.1", "6.4.3"]
+        es_version: ["7.5.1"] # , "6.4.3"]
         database: ["DUMMY", "postgres"]
     env:
       ES_VERSION: ${{ matrix.es_version }}
