@@ -17,6 +17,7 @@ from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
 from guillotina.utils.misc import get_current_container
+from guillotina_elasticsearch import ES_CLIENT_VERSION
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina_elasticsearch.exceptions import QueryErrorException
@@ -127,13 +128,16 @@ class ElasticSearchUtility(DefaultSearchUtility):
             info = await connection.info()
         except Exception:
             logger.warning(
-                "Could not check current es version. " "Only 7.x is supported"
+                "Could not check current es version. " "Only 6.x and 7.x are supported"
             )
             return
 
         es_version = info["version"]["number"]
-        # We currently support 7.x versions
-        if not es_version.startswith("7"):
+
+        # We currently support 6.x and 7.x versions
+        if ES_CLIENT_VERSION.minor == 6 and not es_version.startswith("6"):
+            raise Exception(f"ES cluster version not supported: {es_version}")
+        elif ES_CLIENT_VERSION.minor == 7 and not es_version.startswith("7"):
             raise Exception(f"ES cluster version not supported: {es_version}")
 
     async def initialize_catalog(self, container):
@@ -159,11 +163,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
             settings = await index_manager.get_index_settings()
         if mappings is None:
             mappings = await index_manager.get_mappings()
-        settings = {
-            "settings": settings,
-            "mappings": mappings,
-        }
-        settings["mappings"] = mappings
+        if ES_CLIENT_VERSION.minor > 6:
+            settings = {"settings": settings, "mappings": {DOC_TYPE: mappings}}
+        else:
+            settings = {"settings": settings, "mappings": mappings}
+            settings["mappings"] = mappings
         conn = self.get_connection()
         await conn.indices.create(real_index_name, settings)
 
@@ -275,7 +279,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 error_message = failure["reason"]
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
-        final = {"items_total": result["hits"]["total"]["value"], "items": items}
+        if ES_CLIENT_VERSION.minor > 6:
+            items_total = result["hits"]["total"]["value"]
+        else:
+            items_total = result["hits"]["total"]
+        final = {"items_total": items_total, "items": items}
+
         if "aggregations" in result:
             final["aggregations"] = result["aggregations"]
         if "suggest" in result:
@@ -287,9 +296,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         tdif = time.time() - t1
         logger.debug(f"Time ELASTIC {tdif}")
-        await notify(
-            SearchDoneEvent(query, result["hits"]["total"]["value"], request, tdif)
-        )
+        await notify(SearchDoneEvent(query, items_total, request, tdif))
         return final
 
     async def get_by_uuid(self, container, uuid):

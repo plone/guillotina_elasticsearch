@@ -41,5 +41,5 @@ setup(
         "backoff",
     ],
     tests_require=test_requires,
-    extras_require={"test": test_requires},
+    extras_require={"es6": ["aioelasticsearch<0.6.0"], "test": test_requires},
 )

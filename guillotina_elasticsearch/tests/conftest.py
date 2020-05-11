@@ -4,7 +4,7 @@ from pytest_docker_fixtures import images
 images.configure(
     "elasticsearch",
     "docker.elastic.co/elasticsearch/elasticsearch",
-    "7.5.1",
+    "6.4.3",
     env={
         "xpack.security.enabled": None,  # unset
         "discovery.type": "single-node",
