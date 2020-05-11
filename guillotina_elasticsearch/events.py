@@ -4,13 +4,13 @@ from zope.interface import Interface
 
 
 class ISearchDoneEvent(Interface):
-    query = Attribute('The query')
+    query = Attribute("The query")
 
-    total = Attribute('The total amount of results for this query')
+    total = Attribute("The total amount of results for this query")
 
-    request = Attribute('Request responsible')
+    request = Attribute("Request responsible")
 
-    time = Attribute('Time to process')
+    time = Attribute("Time to process")
 
 
 @implementer(ISearchDoneEvent)
@@ -25,16 +25,15 @@ class SearchDoneEvent(object):
 
 
 class IIndexProgress(Interface):
-    request = Attribute('Request responsible')
+    request = Attribute("Request responsible")
     context = Attribute("Context where the Index process has started")
-    processed = Attribute('Docs finished indexing')
-    total = Attribute('Amount of docs to index')
+    processed = Attribute("Docs finished indexing")
+    total = Attribute("Amount of docs to index")
     completed = Attribute("Flag if IndexAction is completed")
 
 
 @implementer(IIndexProgress)
 class IndexProgress(object):
-
     def __init__(self, context, processed, total, completed=None, request=None):
         self.request = request
         self.context = context

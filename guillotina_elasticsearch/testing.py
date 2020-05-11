@@ -1,10 +1,10 @@
 from aioelasticsearch import Elasticsearch
-from guillotina import app_settings, task_vars
+from guillotina import app_settings
 from guillotina import configure
+from guillotina import task_vars
 from guillotina.content import Folder
 from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IResource
-from guillotina.utils import get_current_request
 from guillotina_elasticsearch.directives import index
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IContentIndex
@@ -21,30 +21,21 @@ class IIndexItemContent(IResource):
     pass
 
 
-@configure.contenttype(
-    type_name="UniqueIndexContent",
-    schema=IUniqueIndexContent)
+@configure.contenttype(type_name="UniqueIndexContent", schema=IUniqueIndexContent)
 class UniqueIndexContent(Folder):
-    index(
-        schemas=[IResource],
-        settings={
-
-        }
-    )
+    index(schemas=[IResource], settings={})
 
 
-@configure.contenttype(
-    type_name="IndexItemContent",
-    schema=IIndexItemContent)
+@configure.contenttype(type_name="IndexItemContent", schema=IIndexItemContent)
 class IndexItemContent(Folder):
     pass
 
 
 @configure.utility(provides=IConnectionFactoryUtility)
 class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
-    '''
+    """
     test to demonstrate using different settings from configuration
-    '''
+    """
 
     def __init__(self):
         super().__init__()
@@ -57,17 +48,17 @@ class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
         except RequestNotFound:
             return super().get(loop)
 
-        settings = app_settings.get('elasticsearch', {}).get(
-            'connection_settings'
-        )
-        if (container is None or container.id != 'new_container' or
-                'new_container_settings' not in app_settings['elasticsearch']):
+        settings = app_settings.get("elasticsearch", {}).get("connection_settings")
+        if (
+            container is None
+            or container.id != "new_container"
+            or "new_container_settings" not in app_settings["elasticsearch"]
+        ):
             return super().get(loop)
         else:
             if self._special_conn is None:
                 settings = settings.copy()
-                settings.update(
-                    app_settings['elasticsearch']['new_container_settings'])
+                settings.update(app_settings["elasticsearch"]["new_container_settings"])
                 self._special_conn = Elasticsearch(loop=loop, **settings)
             return self._special_conn
 

@@ -40,11 +40,10 @@ import resource
 import time
 
 
-logger = logging.getLogger('guillotina_elasticsearch')
+logger = logging.getLogger("guillotina_elasticsearch")
 
 
 class Indexer:
-
     def __init__(self):
         self.data_adapter = DefaultCatalogDataAdapter(None)
         self.mappings = {}
@@ -52,17 +51,18 @@ class Indexer:
             self.mappings[type_name] = {}
             for schema in iter_schemata_for_type(type_name):
                 for field_name, index_data in merged_tagged_value_dict(
-                        schema, directives.index.key).items():
-                    index_name = index_data.get('index_name', field_name)
+                    schema, directives.index.key
+                ).items():
+                    index_name = index_data.get("index_name", field_name)
                     self.mappings[type_name][index_name] = {
-                        'schema': schema,
-                        'properties': index_data
+                        "schema": schema,
+                        "properties": index_data,
                     }
 
     async def get_value(self, ob, index_name):
         try:
-            schema = self.mappings[ob.type_name][index_name]['schema']
-            index_data = self.mappings[ob.type_name][index_name]['properties']
+            schema = self.mappings[ob.type_name][index_name]["schema"]
+            index_data = self.mappings[ob.type_name][index_name]["properties"]
         except KeyError:
             return None
         behavior = schema(ob)
@@ -70,8 +70,8 @@ class Indexer:
             # providedBy not working here?
             await behavior.load(create=False)
         try:
-            if 'accessor' in index_data:
-                return await apply_coroutine(index_data['accessor'], behavior)
+            if "accessor" in index_data:
+                return await apply_coroutine(index_data["accessor"], behavior)
             else:
                 return self.data_adapter.get_data(behavior, schema, index_name)
         except NoIndexField:
@@ -79,19 +79,21 @@ class Indexer:
 
 
 def _clean_mapping(mapping):
-    if 'properties' in mapping:
-        for key in ('confirm',):
-            if key in mapping['properties']:
-                del mapping['properties'][key]
-        if ('type' in mapping['properties'] and
-                'fields' in mapping['properties']['type'] and
-                isinstance(mapping['properties']['type']['fields'], dict)):
-            del mapping['properties']['type']
+    if "properties" in mapping:
+        for key in ("confirm",):
+            if key in mapping["properties"]:
+                del mapping["properties"][key]
+        if (
+            "type" in mapping["properties"]
+            and "fields" in mapping["properties"]["type"]
+            and isinstance(mapping["properties"]["type"]["fields"], dict)
+        ):
+            del mapping["properties"]["type"]
     return mapping
 
 
 class Migrator:
-    '''
+    """
     Reindex/Migration...
     Reindex is going to behave much the same as migration would so we're using
     this for both cases most of the time...
@@ -128,13 +130,26 @@ class Migrator:
     10. Refresh db container ob
     11. Point alias at next index
     12. Delete old index
-    '''
+    """
 
-    def __init__(self, utility, context, response=noop_response, force=False,
-                 log_details=False, memory_tracking=False, request=None,
-                 bulk_size=40, full=False, reindex_security=False,
-                 mapping_only=False, index_manager=None, children_only=False,
-                 lookup_index=False, cache=True):
+    def __init__(
+        self,
+        utility,
+        context,
+        response=noop_response,
+        force=False,
+        log_details=False,
+        memory_tracking=False,
+        request=None,
+        bulk_size=40,
+        full=False,
+        reindex_security=False,
+        mapping_only=False,
+        index_manager=None,
+        children_only=False,
+        lookup_index=False,
+        cache=True,
+    ):
         self.utility = utility
         self.context = context
         self.response = response
@@ -147,8 +162,7 @@ class Migrator:
         self.children_only = children_only
         self.lookup_index = lookup_index
         if mapping_only and full:
-            raise Exception(
-                'Can not do a full reindex and a mapping only migration')
+            raise Exception("Can not do a full reindex and a mapping only migration")
         self.mapping_only = mapping_only
 
         self.txn = get_current_transaction()
@@ -179,7 +193,7 @@ class Migrator:
         self.mapping_diff = {}
         self.start_time = self.index_start_time = time.time()
         self.reindex_futures = []
-        self.status = 'started'
+        self.status = "started"
         self.active_task_id = None
 
         self.copied_docs = 0
@@ -197,9 +211,9 @@ class Migrator:
         if await self.conn.indices.exists(next_index_name):
             if self.force:
                 # delete and recreate
-                self.response.write('Clearing index')
+                self.response.write("Clearing index")
                 resp = await self.conn.indices.delete(next_index_name)
-                assert resp['acknowledged']
+                assert resp["acknowledged"]
         await self.utility.create_index(next_index_name, self.index_manager)
         return next_index_name
 
@@ -207,110 +221,99 @@ class Migrator:
         conn_es = await self.conn.transport.get_connection()
         real_index_name = await self.index_manager.get_index_name()
         async with conn_es.session.post(
-                join(str(conn_es.base_url), '_reindex'),
-                params={
-                    'wait_for_completion': 'false'
-                },
-                headers={
-                    'Content-Type': 'application/json'
-                },
-                data=json.dumps({
-                    "source": {
-                        "index": real_index_name,
-                        "size": 100
-                    },
-                    "dest": {
-                        "index": self.work_index_name
-                    }
-                })) as resp:
+            join(str(conn_es.base_url), "_reindex"),
+            params={"wait_for_completion": "false"},
+            headers={"Content-Type": "application/json"},
+            data=json.dumps(
+                {
+                    "source": {"index": real_index_name, "size": 100},
+                    "dest": {"index": self.work_index_name},
+                }
+            ),
+        ) as resp:
             data = await resp.json()
-            self.active_task_id = task_id = data['task']
+            self.active_task_id = task_id = data["task"]
             while True:
                 await asyncio.sleep(10)
                 async with conn_es.session.get(
-                        join(str(conn_es.base_url), '_tasks', task_id),
-                        headers={
-                            'Content-Type': 'application/json'
-                        }) as resp:
+                    join(str(conn_es.base_url), "_tasks", task_id),
+                    headers={"Content-Type": "application/json"},
+                ) as resp:
                     if resp.status in (400, 404):
                         break
                     data = await resp.json()
-                    if data['completed']:
+                    if data["completed"]:
                         break
                     status = data["task"]["status"]
                     self.response.write(
                         f'{status["created"]}/{status["total"]} - '
-                        f'Copying data to new index. task id: {task_id}')
+                        f"Copying data to new index. task id: {task_id}"
+                    )
                     self.copied_docs = status["created"]
 
             self.active_task_id = None
-            response = data['response']
-            failures = response['failures']
+            response = data["response"]
+            failures = response["failures"]
             if len(failures) > 0:
-                failures = json.dumps(failures, sort_keys=True, indent=4,
-                                      separators=(',', ': '))
-                self.response.write(
-                    f'Reindex encountered failures: {failures}')
+                failures = json.dumps(
+                    failures, sort_keys=True, indent=4, separators=(",", ": ")
+                )
+                self.response.write(f"Reindex encountered failures: {failures}")
             else:
                 self.response.write(
-                    f'Finished copying to new index: {self.copied_docs}')
+                    f"Finished copying to new index: {self.copied_docs}"
+                )
 
     async def get_all_uids(self):
-        self.response.write('Retrieving existing doc ids')
+        self.response.write("Retrieving existing doc ids")
         page_size = 3000
         ids = []
         index_name = await self.index_manager.get_index_name()
         result = await self.conn.search(
             index=index_name,
-            scroll='2m',
+            scroll="2m",
             size=page_size,
-            stored_fields='',
+            stored_fields="",
             _source=False,
-            body={
-                "sort": ["_doc"]
-            })
-        ids.extend([r['_id'] for r in result['hits']['hits']])
-        scroll_id = result['_scroll_id']
+            body={"sort": ["_doc"]},
+        )
+        ids.extend([r["_id"] for r in result["hits"]["hits"]])
+        scroll_id = result["_scroll_id"]
         while scroll_id:
-            result = await self.conn.scroll(
-                scroll_id=scroll_id,
-                scroll='2m'
-            )
-            if len(result['hits']['hits']) == 0:
+            result = await self.conn.scroll(scroll_id=scroll_id, scroll="2m")
+            if len(result["hits"]["hits"]) == 0:
                 break
-            ids.extend([r['_id'] for r in result['hits']['hits']])
-            self.response.write(f'Retrieved {len(ids)} doc ids')
-            scroll_id = result['_scroll_id']
-        self.response.write(
-            f'Retrieved {len(ids)}. Copied {self.copied_docs} docs')
+            ids.extend([r["_id"] for r in result["hits"]["hits"]])
+            self.response.write(f"Retrieved {len(ids)} doc ids")
+            scroll_id = result["_scroll_id"]
+        self.response.write(f"Retrieved {len(ids)}. Copied {self.copied_docs} docs")
         return ids
 
     async def calculate_mapping_diff(self):
-        '''
+        """
         all we care about is new fields...
         Missing ones are ignored and we don't care about it.
-        '''
-        next_mappings = await self.conn.indices.get_mapping(
-            self.work_index_name)
-        next_mappings = next_mappings[self.work_index_name]['mappings']
-        next_mappings = next_mappings[DOC_TYPE]['properties']
+        """
+        next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
+        next_mappings = next_mappings[self.work_index_name]["mappings"]
+        next_mappings = next_mappings[DOC_TYPE]["properties"]
 
         existing_index_name = await self.index_manager.get_real_index_name()
         try:
-            existing_mappings = await self.conn.indices.get_mapping(
-                existing_index_name)
+            existing_mappings = await self.conn.indices.get_mapping(existing_index_name)
         except elasticsearch.exceptions.NotFoundError:
             # allows us to upgrade when no index is present yet
             return next_mappings
 
-        existing_mappings = existing_mappings[existing_index_name]['mappings']
-        existing_mappings = existing_mappings[DOC_TYPE]['properties']
+        existing_mappings = existing_mappings[existing_index_name]["mappings"]
+        existing_mappings = existing_mappings[DOC_TYPE]["properties"]
 
         new_definitions = {}
         for field_name, definition in next_mappings.items():
             definition = _clean_mapping(definition)
-            if (field_name not in existing_mappings or
-                    definition != _clean_mapping(existing_mappings[field_name])):  # noqa
+            if field_name not in existing_mappings or definition != _clean_mapping(
+                existing_mappings[field_name]
+            ):  # noqa
                 new_definitions[field_name] = definition
         return new_definitions
 
@@ -328,7 +331,7 @@ class Migrator:
         del ob
 
     async def process_object(self, ob):
-        '''
+        """
         - check if doc does not exist
             - record it
             - do complete index
@@ -337,7 +340,7 @@ class Migrator:
                 - update fields in diff on doc
             - else, do nothing
             - remove for list of existing doc ids
-        '''
+        """
         full = False
         if ob.uuid not in self.existing:
             self.missing.append(ob.uuid)
@@ -361,24 +364,24 @@ class Migrator:
             del ob
 
     async def index_object(self, ob, full=False):
-        batch_type = 'update'
+        batch_type = "update"
         if self.reindex_security:
             try:
                 data = await apply_coroutine(ISecurityInfo(ob))
             except TypeError:
-                self.response.write(f'Could not index {ob}')
+                self.response.write(f"Could not index {ob}")
                 return
         elif full or self.full:
             try:
                 data = await ICatalogDataAdapter(ob)()
             except TypeError:
-                self.response.write(f'Could not index {ob}')
+                self.response.write(f"Could not index {ob}")
                 return
-            batch_type = 'index'
+            batch_type = "index"
         else:
             data = {
                 # always need these...
-                'type_name': ob.type_name
+                "type_name": ob.type_name
             }
             for index_name in self.mapping_diff.keys():
                 val = await self.indexer.get_value(ob, index_name)
@@ -386,23 +389,21 @@ class Migrator:
                     data[index_name] = val
 
         if ob.__serial__:
-            data['tid'] = ob.__serial__
+            data["tid"] = ob.__serial__
         self.indexed += 1
-        self.batch[ob.uuid] = {
-            'action': batch_type,
-            'data': data
-        }
+        self.batch[ob.uuid] = {"action": batch_type, "data": data}
 
         if self.lookup_index:
             im = find_index_manager(ob)
             if im:
-                self.batch[ob.uuid]['__index__'] = await im.get_index_name()
+                self.batch[ob.uuid]["__index__"] = await im.get_index_name()
 
         if self.log_details:
             self.response.write(
-                f'({self.processed} {int(self.per_sec())}) '
-                f'Object: {get_content_path(ob)}, '
-                f'Type: {batch_type}, Buffer: {len(self.batch)}')
+                f"({self.processed} {int(self.per_sec())}) "
+                f"Object: {get_content_path(ob)}, "
+                f"Type: {batch_type}, Buffer: {len(self.batch)}"
+            )
 
         await self.attempt_flush()
 
@@ -414,19 +415,25 @@ class Migrator:
             gc.collect()
             if self.memory_tracking:
                 total_memory = round(
-                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)  # noqa
+                    resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1
+                )  # noqa
                 self.response.write(
-                    b'Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d' % (  # noqa
-                        total_memory, num, len(gc.get_objects())))
-            self.response.write(b'Indexing new batch, totals: (%d %d/sec)\n' % (  # noqa
-                self.indexed, int(self.per_sec()),
-            ))
+                    b"Memory usage: % 2.2f MB, cleaned: %d, total in-memory obs: %d"
+                    % (total_memory, num, len(gc.get_objects()))  # noqa
+                )
+            self.response.write(
+                b"Indexing new batch, totals: (%d %d/sec)\n"
+                % (self.indexed, int(self.per_sec()))  # noqa
+            )
         if len(self.batch) >= self.bulk_size:
-            await notify(IndexProgress(
-                self.context, self.processed,
-                (len(self.existing) + len(self.missing)),
-                request=self.request
-            ))
+            await notify(
+                IndexProgress(
+                    self.context,
+                    self.processed,
+                    (len(self.existing) + len(self.missing)),
+                    request=self.request,
+                )
+            )
             await self.flush()
 
     async def join_futures(self):
@@ -438,55 +445,50 @@ class Migrator:
     @backoff.on_exception(
         backoff.constant,
         (asyncio.TimeoutError, elasticsearch.exceptions.ConnectionTimeout),
-        interval=1, max_tries=5)
+        interval=1,
+        max_tries=5,
+    )
     async def _index_batch(self, batch):
         bulk_data = []
         for _id, payload in batch.items():
-            index = payload.pop('__index__', self.work_index_name)
-            action_data = {
-                '_index': index,
-                '_id': _id
-            }
-            data = payload['data']
-            if payload['action'] == 'update':
-                data = {'doc': data}
-                action_data['retry_on_conflict'] = 3
-            bulk_data.append({
-                payload['action']: action_data
-            })
-            if payload['action'] != 'delete':
+            index = payload.pop("__index__", self.work_index_name)
+            action_data = {"_index": index, "_id": _id}
+            data = payload["data"]
+            if payload["action"] == "update":
+                data = {"doc": data}
+                action_data["retry_on_conflict"] = 3
+            bulk_data.append({payload["action"]: action_data})
+            if payload["action"] != "delete":
                 bulk_data.append(data)
         results = await self.conn.bulk(
-            index=self.work_index_name, doc_type=DOC_TYPE,
-            body=bulk_data)
-        if results['errors']:
+            index=self.work_index_name, doc_type=DOC_TYPE, body=bulk_data
+        )
+        if results["errors"]:
             errors = []
-            for result in results['items']:
+            for result in results["items"]:
                 for key, value in result.items():
                     if not isinstance(value, dict):
                         continue
-                    if 'status' in value and value['status'] not in (200, 201):
-                        _id = value.get('_id')
+                    if "status" in value and value["status"] not in (200, 201):
+                        _id = value.get("_id")
 
                         # retry conflict errors and thread pool exceeded errors
-                        if value['status'] in (409, 429):
+                        if value["status"] in (409, 429):
                             self.batch[_id] = batch[_id]
-                        elif value['status'] == 404:
+                        elif value["status"] == 404:
                             self.batch[_id] = batch[_id]
-                            self.batch[_id]['action'] = 'index'
+                            self.batch[_id]["action"] = "index"
                         else:
                             errors.append(f'{_id}: {value["status"]}')
             if len(errors) > 0:
-                logger.warning(f'Error bulk putting: {errors}')
+                logger.warning(f"Error bulk putting: {errors}")
 
     async def flush(self):
         if len(self.batch) == 0:
             # nothing to flush
             return
 
-        future = asyncio.ensure_future(self._index_batch(
-            self.batch
-        ))
+        future = asyncio.ensure_future(self._index_batch(self.batch))
         self.batch = {}
         self.reindex_futures.append(future)
 
@@ -494,9 +496,9 @@ class Migrator:
             await self.join_futures()
 
     async def check_existing(self):
-        '''
+        """
         Go through self.existing and see why it wasn't processed
-        '''
+        """
         for uuid in self.existing:
             try:
                 ob = await self.context.__txn__.get(uuid)
@@ -504,10 +506,7 @@ class Migrator:
                 ob = None
             if ob is None:
                 try:
-                    self.batch[uuid] = {
-                        'action': 'delete',
-                        'data': {}
-                    }
+                    self.batch[uuid] = {"action": "delete", "data": {}}
                     await self.attempt_flush()
                     # no longer present on db, this was orphaned
                     self.orphaned.append(uuid)
@@ -517,38 +516,32 @@ class Migrator:
             else:
                 # XXX this should not happen so log it. Maybe we'll try
                 # doing something about it another time...
-                self.errors.append({
-                    'type': 'unprocessed',
-                    'uuid': uuid
-                })
+                self.errors.append({"type": "unprocessed", "uuid": uuid})
 
     async def setup_next_index(self):
-        self.response.write(b'Creating new index')
-        async with get_migration_lock(
-                await self.index_manager.get_index_name()):
+        self.response.write(b"Creating new index")
+        async with get_migration_lock(await self.index_manager.get_index_name()):
             self.work_index_name = await self.create_next_index()
             return self.work_index_name
 
     async def cancel_migration(self):
         # canceling the migration, clearing index
-        self.response.write('Canceling migration')
+        self.response.write("Canceling migration")
         async with transaction(adopt_parent_txn=True):
             await self.index_manager.cancel_migration()
-            self.response.write('Next index disabled')
+            self.response.write("Next index disabled")
         if self.active_task_id is not None:
-            self.response.write('Canceling copy of index task')
+            self.response.write("Canceling copy of index task")
             conn_es = await self.conn.transport.get_connection()
             async with conn_es.session.post(
-                    join(str(conn_es.base_url),
-                         '_tasks', self.active_task_id, '_cancel'),
-                    headers={
-                        'Content-Type': 'application/json'
-                    }):
+                join(str(conn_es.base_url), "_tasks", self.active_task_id, "_cancel"),
+                headers={"Content-Type": "application/json"},
+            ):
                 await asyncio.sleep(5)
         if self.work_index_name:
-            self.response.write('Deleting new index')
+            self.response.write("Deleting new index")
             await self.conn.indices.delete(self.work_index_name)
-        self.response.write('Migration canceled')
+        self.response.write("Migration canceled")
 
     async def run_migration(self):
         alias_index_name = await self.index_manager.get_index_name()
@@ -557,20 +550,23 @@ class Migrator:
         await self.setup_next_index()
 
         self.mapping_diff = await self.calculate_mapping_diff()
-        diff = json.dumps(self.mapping_diff, sort_keys=True, indent=4,
-                          separators=(',', ': '))
-        self.response.write(f'Caculated mapping diff: {diff}')
+        diff = json.dumps(
+            self.mapping_diff, sort_keys=True, indent=4, separators=(",", ": ")
+        )
+        self.response.write(f"Caculated mapping diff: {diff}")
 
         if not self.full:
             # if full, we're reindexing everything does not matter what
             # anyways, so skip
-            self.response.write(f'Copying initial index {existing_index} '
-                                f'into {self.work_index_name}')
+            self.response.write(
+                f"Copying initial index {existing_index} "
+                f"into {self.work_index_name}"
+            )
             try:
                 await self.copy_to_next_index()
-                self.response.write('Copying initial index data finished')
+                self.response.write("Copying initial index data finished")
             except elasticsearch.exceptions.NotFoundError:
-                self.response.write('No initial index to copy to')
+                self.response.write("No initial index to copy to")
         if not self.mapping_only:
             try:
                 self.existing = await self.get_all_uids()
@@ -588,58 +584,74 @@ class Migrator:
             await self.flush()
             await self.join_futures()
 
-        async with get_migration_lock(
-                await self.index_manager.get_index_name()):
-            self.response.write('Activating new index')
+        async with get_migration_lock(await self.index_manager.get_index_name()):
+            self.response.write("Activating new index")
             async with transaction(adopt_parent_txn=True):
                 await self.index_manager.finish_migration()
-            self.status = 'done'
+            self.status = "done"
 
-            self.response.write(f'''Update alias({alias_index_name}):
+            self.response.write(
+                f"""Update alias({alias_index_name}):
 {existing_index} -> {self.work_index_name}
-''')
+"""
+            )
 
             try:
-                await self.conn.indices.update_aliases({
-                    "actions": [
-                        {"remove": {
-                            "alias": alias_index_name,
-                            "index": existing_index
-                        }},
-                        {"add": {
-                            "alias": alias_index_name,
-                            "index": self.work_index_name
-                        }}
-                    ]
-                })
+                await self.conn.indices.update_aliases(
+                    {
+                        "actions": [
+                            {
+                                "remove": {
+                                    "alias": alias_index_name,
+                                    "index": existing_index,
+                                }
+                            },
+                            {
+                                "add": {
+                                    "alias": alias_index_name,
+                                    "index": self.work_index_name,
+                                }
+                            },
+                        ]
+                    }
+                )
             except elasticsearch.exceptions.NotFoundError:
-                await self.conn.indices.update_aliases({
-                    "actions": [
-                        {"add": {
-                            "alias": alias_index_name,
-                            "index": self.work_index_name
-                        }}
-                    ]
-                })
+                await self.conn.indices.update_aliases(
+                    {
+                        "actions": [
+                            {
+                                "add": {
+                                    "alias": alias_index_name,
+                                    "index": self.work_index_name,
+                                }
+                            }
+                        ]
+                    }
+                )
 
         try:
             await self.conn.indices.delete(existing_index)
-            self.response.write('Old index deleted')
+            self.response.write("Old index deleted")
         except elasticsearch.exceptions.NotFoundError:
             pass
 
         if len(self.sub_indexes) > 0:
-            self.response.write(
-                f'Migrating sub indexes: {len(self.sub_indexes)}')
+            self.response.write(f"Migrating sub indexes: {len(self.sub_indexes)}")
             for ob in self.sub_indexes:
                 im = get_adapter(ob, IIndexManager)
                 migrator = Migrator(
-                    self.utility, ob, response=self.response, force=self.force,
+                    self.utility,
+                    ob,
+                    response=self.response,
+                    force=self.force,
                     log_details=self.log_details,
                     memory_tracking=self.memory_tracking,
-                    bulk_size=self.bulk_size, full=self.full,
+                    bulk_size=self.bulk_size,
+                    full=self.full,
                     reindex_security=self.reindex_security,
                     mapping_only=self.mapping_only,
-                    index_manager=im, children_only=True)
-                self.response.write(f'Migrating index for: {ob}')
+                    index_manager=im,
+                    children_only=True,
+                )
+                self.response.write(f"Migrating index for: {ob}")
                 await migrator.run_migration()

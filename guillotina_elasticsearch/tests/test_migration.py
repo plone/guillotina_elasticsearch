@@ -40,13 +40,14 @@ async def _test_migrate_while_content_getting_added(es_requester):
 
         migrator = Migrator(search, container, force=True)
         add_content_task1 = asyncio.ensure_future(
-            add_content(requester, base_id='foo1-'))
+            add_content(requester, base_id="foo1-")
+        )
         add_content_task2 = asyncio.ensure_future(
-            add_content(requester, base_id='foo2-'))
+            add_content(requester, base_id="foo2-")
+        )
         reindex_task = asyncio.ensure_future(migrator.run_migration())
 
-        await asyncio.wait(
-            [add_content_task1, reindex_task, add_content_task2])
+        await asyncio.wait([add_content_task1, reindex_task, add_content_task2])
         await search.refresh(container)
         await asyncio.sleep(3)
 
@@ -84,12 +85,9 @@ async def test_removes_orphans(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
-        await search.index(container, {
-            'foobar': {
-                'title': 'foobar',
-                'type_name': 'Item'
-            }
-        })
+        await search.index(
+            container, {"foobar": {"title": "foobar", "type_name": "Item"}}
+        )
         # foobar here is an orphaned object because it doesn't reference
         # an object
 
@@ -97,8 +95,9 @@ async def test_removes_orphans(es_requester):
         index_name = await im.get_index_name()  # alias
 
         doc = await search.get_connection().get(
-            index=index_name, doc_type=DOC_TYPE, id='foobar')
-        assert doc['found']
+            index=index_name, doc_type=DOC_TYPE, id="foobar"
+        )
+        assert doc["found"]
 
         migrator = Migrator(search, container, force=True)
         await migrator.run_migration()
@@ -106,10 +105,11 @@ async def test_removes_orphans(es_requester):
         async def _test():
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
-                    index=index_name, doc_type=DOC_TYPE, id='foobar')
+                    index=index_name, doc_type=DOC_TYPE, id="foobar"
+                )
 
             assert len(migrator.orphaned) == 1
-            assert migrator.orphaned[0] == 'foobar'
+            assert migrator.orphaned[0] == "foobar"
 
         await run_with_retries(_test, requester)
 
@@ -144,18 +144,16 @@ async def test_fixes_missing(es_requester):
             def write(self, item):
                 responses.append(item)
 
-        migrator = Migrator(search, container, force=True,
-                            response=Writer())
+        migrator = Migrator(search, container, force=True, response=Writer())
         await migrator.run_migration()
 
-        assert migrator.status == 'done'
+        assert migrator.status == "done"
 
         await asyncio.sleep(1)
         await search.refresh(container)
         await asyncio.sleep(1)
         # new index should fix missing one, old index still has it missing
-        num_docs = await search.get_doc_count(
-            container, migrator.work_index_name)
+        num_docs = await search.get_doc_count(container, migrator.work_index_name)
         assert num_docs == original_count
         assert old_index_name != await im.get_real_index_name()
 
@@ -171,10 +169,10 @@ async def test_updates_index_data(es_requester):
         migrator.work_index_name = new_index_name
 
         ob = create_content()
-        ob.title = 'foobar'
+        ob.title = "foobar"
         await migrator.index_object(ob, full=True)
         assert len(migrator.batch) == 1
-        assert [v for v in migrator.batch.values()][0]['action'] == 'index'
+        assert [v for v in migrator.batch.values()][0]["action"] == "index"
 
         await migrator.flush()
         assert len(migrator.batch) == 0
@@ -185,16 +183,16 @@ async def test_updates_index_data(es_requester):
         assert await search.get_doc_count(container, new_index_name) == 1
 
         # test updating doc
-        migrator.mapping_diff = {
-            'title': {}
-        }
-        ob.title = 'foobar-new'
+        migrator.mapping_diff = {"title": {}}
+        ob.title = "foobar-new"
         await migrator.index_object(ob, full=False)
         assert len(migrator.batch) == 1
-        assert [v for v in migrator.batch.values()][0]['action'] == 'update'
+        assert [v for v in migrator.batch.values()][0]["action"] == "update"
 
-        assert len([v for v in migrator.batch.values()][0]['data']) == 2
-        assert [v for v in migrator.batch.values()][0]['data']['title'] == 'foobar-new'  # noqa
+        assert len([v for v in migrator.batch.values()][0]["data"]) == 2
+        assert [v for v in migrator.batch.values()][0]["data"][
+            "title"
+        ] == "foobar-new"  # noqa
 
         await migrator.flush()
         assert len(migrator.batch) == 0
@@ -203,8 +201,9 @@ async def test_updates_index_data(es_requester):
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
         doc = await search.get_connection().get(
-            index=new_index_name, doc_type=DOC_TYPE, id=ob.__uuid__)
-        assert doc['_source']['title'] == 'foobar-new'
+            index=new_index_name, doc_type=DOC_TYPE, id=ob.__uuid__
+        )
+        assert doc["_source"]["title"] == "foobar-new"
 
 
 async def test_calculate_mapping_diff(es_requester):
@@ -220,12 +219,11 @@ async def test_calculate_mapping_diff(es_requester):
         mappings = await index_manager.get_mappings()
 
         # tweak mappings so we can get the diff...
-        if 'creators' in mappings['properties']:
-            mappings['properties']['creators']['type'] = 'text'
-        mappings['properties']['foobar'] = {'type': 'keyword', 'index': True}
+        if "creators" in mappings["properties"]:
+            mappings["properties"]["creators"]["type"] = "text"
+        mappings["properties"]["foobar"] = {"type": "keyword", "index": True}
 
-        await search.create_index(
-            new_index_name, index_manager, mappings=mappings)
+        await search.create_index(new_index_name, index_manager, mappings=mappings)
 
         diff = await migrator.calculate_mapping_diff()
         assert len(diff) == 2
@@ -241,8 +239,7 @@ async def test_updates_index_name(es_requester):
         migrator = Migrator(search, container, force=True)
         await migrator.run_migration()
         assert not await search.get_connection().indices.exists(existing_index)
-        assert await search.get_connection().indices.exists(
-            migrator.work_index_name)
+        assert await search.get_connection().indices.exists(migrator.work_index_name)
         assert await im.get_real_index_name() == migrator.work_index_name
 
 
@@ -274,7 +271,7 @@ async def test_create_next_index(es_requester):
         search = get_utility(ICatalogUtility)
         migrator = Migrator(search, container, force=True)
         name = await migrator.create_next_index()
-        assert name == 'guillotina-db-guillotina_2'
+        assert name == "guillotina-db-guillotina_2"
 
 
 async def test_unindex_during_next_index(es_requester):
@@ -305,28 +302,24 @@ class FakeEventHandler:
         self.event.append(event)
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope="function")
 def event_handler():
     return FakeEventHandler()
 
 
-async def test_migrator_emit_events_during_indexing(
-        es_requester, event_handler):
+async def test_migrator_emit_events_during_indexing(es_requester, event_handler):
     async with es_requester as requester:
         container, req, txn, tm = await setup_txn_on_container(requester)  # noqa
         search = get_utility(ICatalogUtility)
 
         _marker = {}
-        gr.base.adapters.subscribe(
-            [IIndexProgress], None, event_handler.subscribe)
-        migrator = Reindexer(
-            search, _marker, force=True, reindex_security=True
-        )
+        gr.base.adapters.subscribe([IIndexProgress], None, event_handler.subscribe)
+        migrator = Reindexer(search, _marker, force=True, reindex_security=True)
         migrator.bulk_size = 0
         migrator.batch = {}
         migrator.existing = {}
         migrator.processed = 1
-        migrator.missing = {'xx': 1}
+        migrator.missing = {"xx": 1}
         await migrator.attempt_flush()
         assert event_handler.called is True
         assert isinstance(event_handler.event[0], IndexProgress)
@@ -336,25 +329,18 @@ async def test_migrator_emit_events_during_indexing(
 async def test_migrator_emmits_events_on_end(es_requester, event_handler):
     async with es_requester as requester:
         resp, status = await requester(
-            'POST',
-            '/db/guillotina/',
-            data=json.dumps({
-                '@type': 'Folder',
-                'title': 'Folder',
-                'id': 'foobar'
-            })
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Folder", "title": "Folder", "id": "foobar"}),
         )
 
         container, req, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
 
-        gr.base.adapters.subscribe(
-            [IIndexProgress], None, event_handler.subscribe)
-        migrator = Reindexer(
-            search, container, force=True, reindex_security=True
-        )
+        gr.base.adapters.subscribe([IIndexProgress], None, event_handler.subscribe)
+        migrator = Reindexer(search, container, force=True, reindex_security=True)
 
-        ob = await container.async_get('foobar')
+        ob = await container.async_get("foobar")
         await migrator.reindex(ob)
         assert event_handler.called is True
         assert len(event_handler.event) == 2
@@ -374,33 +360,37 @@ async def test_search_works_on_new_docs_during_migration(es_requester):
         index_name = await im.get_index_name()
         next_index_name = await migrator.setup_next_index()
 
-        resp, _ = await requester('POST', '/db/guillotina', data=json.dumps({
-            '@type': 'Item'
-        }))
+        resp, _ = await requester(
+            "POST", "/db/guillotina", data=json.dumps({"@type": "Item"})
+        )
 
         async def _test():
             result1 = await search.get_connection().get(
-                index=next_index_name, doc_type='_all', id=resp['@uid'])
+                index=next_index_name, doc_type="_all", id=resp["@uid"]
+            )
             assert result1 is not None
             result2 = await search.get_connection().get(
-                index=index_name, doc_type='_all', id=resp['@uid'])
+                index=index_name, doc_type="_all", id=resp["@uid"]
+            )
             assert result2 is not None
 
         await run_with_retries(_test, requester)
 
 
-async def test_search_works_on_updated_docs_during_migration_when_missing(es_requester):  # noqa
-    '''
+async def test_search_works_on_updated_docs_during_migration_when_missing(
+    es_requester,
+):  # noqa
+    """
     - started migration
     - doc update
     - doc missing in next index during update
-    '''
+    """
     async with es_requester as requester:
-        resp, _ = await requester('POST', '/db/guillotina', data=json.dumps({
-            '@type': 'Item',
-            'title': 'Foobar1',
-            'id': 'foobar'
-        }))
+        resp, _ = await requester(
+            "POST",
+            "/db/guillotina",
+            data=json.dumps({"@type": "Item", "title": "Foobar1", "id": "foobar"}),
+        )
 
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
@@ -409,28 +399,32 @@ async def test_search_works_on_updated_docs_during_migration_when_missing(es_req
         index_name = await im.get_index_name()
         next_index_name = await migrator.setup_next_index()
 
-        await requester('PATCH', '/db/guillotina/foobar', data=json.dumps({
-            'title': 'Foobar2'
-        }))
+        await requester(
+            "PATCH", "/db/guillotina/foobar", data=json.dumps({"title": "Foobar2"})
+        )
 
         async def _test():
             result1 = await search.get_connection().get(
-                index=index_name, doc_type='_all', id=resp['@uid'])
+                index=index_name, doc_type="_all", id=resp["@uid"]
+            )
             assert result1 is not None
-            assert result1['_source']['title'] == 'Foobar2'
+            assert result1["_source"]["title"] == "Foobar2"
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
-                    index=next_index_name, doc_type='_all', id=resp['@uid'])
+                    index=next_index_name, doc_type="_all", id=resp["@uid"]
+                )
 
         await run_with_retries(_test, requester)
 
 
-async def test_search_works_on_updated_docs_during_migration_when_present(es_requester):  # noqa
-    '''
+async def test_search_works_on_updated_docs_during_migration_when_present(
+    es_requester,
+):  # noqa
+    """
     - started migration
     - doc update
     - doc also updated in next index
-    '''
+    """
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)
         search = get_utility(ICatalogUtility)
@@ -439,25 +433,27 @@ async def test_search_works_on_updated_docs_during_migration_when_present(es_req
         index_name = await im.get_index_name()
         next_index_name = await migrator.setup_next_index()
 
-        resp, _ = await requester('POST', '/db/guillotina', data=json.dumps({
-            '@type': 'Item',
-            'title': 'Foobar1',
-            'id': 'foobar'
-        }))
+        resp, _ = await requester(
+            "POST",
+            "/db/guillotina",
+            data=json.dumps({"@type": "Item", "title": "Foobar1", "id": "foobar"}),
+        )
         await asyncio.sleep(1)
-        await requester('PATCH', '/db/guillotina/foobar', data=json.dumps({
-            'title': 'Foobar2'
-        }))
+        await requester(
+            "PATCH", "/db/guillotina/foobar", data=json.dumps({"title": "Foobar2"})
+        )
 
         async def _test():
             result1 = await search.get_connection().get(
-                index=next_index_name, doc_type='_all', id=resp['@uid'])
+                index=next_index_name, doc_type="_all", id=resp["@uid"]
+            )
             assert result1 is not None
-            assert result1['_source']['title'] == 'Foobar2'
+            assert result1["_source"]["title"] == "Foobar2"
             result2 = await search.get_connection().get(
-                index=index_name, doc_type='_all', id=resp['@uid'])
+                index=index_name, doc_type="_all", id=resp["@uid"]
+            )
             assert result2 is not None
-            assert result2['_source']['title'] == 'Foobar2'
+            assert result2["_source"]["title"] == "Foobar2"
 
         await run_with_retries(_test, requester)
 
@@ -472,20 +468,22 @@ async def test_delete_in_both_during_migration(es_requester):
         index_name = await im.get_index_name()
         next_index_name = await migrator.setup_next_index()
 
-        resp, _ = await requester('POST', '/db/guillotina', data=json.dumps({
-            '@type': 'Folder',
-            'title': 'Foobar1',
-            'id': 'foobar'
-        }))
-        await requester('DELETE', '/db/guillotina/foobar')
+        resp, _ = await requester(
+            "POST",
+            "/db/guillotina",
+            data=json.dumps({"@type": "Folder", "title": "Foobar1", "id": "foobar"}),
+        )
+        await requester("DELETE", "/db/guillotina/foobar")
 
         async def _test():
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
-                    index=next_index_name, doc_type='_all', id=resp['@uid'])
+                    index=next_index_name, doc_type="_all", id=resp["@uid"]
+                )
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
-                    index=index_name, doc_type='_all', id=resp['@uid'])
+                    index=index_name, doc_type="_all", id=resp["@uid"]
+                )
 
         await run_with_retries(_test, requester)
 
@@ -494,19 +492,14 @@ async def test_migrate_content_index_works(es_requester):
     async with es_requester as requester:
         add_count = await add_content(requester)
         cresp, _ = await requester(
-            'POST',
-            '/db/guillotina/',
-            data=json.dumps({
-                '@type': 'UniqueIndexContent',
-                'id': 'foobar'
-            })
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "UniqueIndexContent", "id": "foobar"}),
         )
         await requester(
-            'POST',
-            '/db/guillotina/foobar',
-            data=json.dumps({
-                '@type': 'IndexItemContent'
-            })
+            "POST",
+            "/db/guillotina/foobar",
+            data=json.dumps({"@type": "IndexItemContent"}),
         )
 
         container, request, txn, tm = await setup_txn_on_container(requester)
@@ -516,31 +509,47 @@ async def test_migrate_content_index_works(es_requester):
         await asyncio.sleep(3)
 
         assert (add_count + 1) == await search.get_doc_count(
-            container, 'guillotina-db-guillotina_1')
-        assert await search.get_doc_count(
-            container, '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
-                get_short_uid(cresp['@uid'])
-            )) == 1
+            container, "guillotina-db-guillotina_1"
+        )
+        assert (
+            await search.get_doc_count(
+                container,
+                "1_guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
+                    get_short_uid(cresp["@uid"])
+                ),
+            )
+            == 1
+        )
 
         migrator = Migrator(search, container, force=True)
         await migrator.run_migration()
 
         assert await search.get_connection().indices.exists(
-            'guillotina-db-guillotina_2')
+            "guillotina-db-guillotina_2"
+        )
         assert not await search.get_connection().indices.exists(
-            'guillotina-db-guillotina_1')
+            "guillotina-db-guillotina_1"
+        )
         assert await search.get_connection().indices.exists(
-            '2_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
-                get_short_uid(cresp['@uid'])
-            ))
+            "2_guillotina-db-guillotina__uniqueindexcontent-{}".format(
+                get_short_uid(cresp["@uid"])
+            )
+        )
         assert not await search.get_connection().indices.exists(
-            '1_guillotina-db-guillotina__uniqueindexcontent-{}'.format(
-                get_short_uid(cresp['@uid'])
-            ))
+            "1_guillotina-db-guillotina__uniqueindexcontent-{}".format(
+                get_short_uid(cresp["@uid"])
+            )
+        )
 
         assert (add_count + 1) == await search.get_doc_count(
-            container, 'guillotina-db-guillotina_2')
-        assert await search.get_doc_count(
-            container, '2_guillotina-db-guillotina__uniqueindexcontent-{}'.format(  # noqa
-                get_short_uid(cresp['@uid'])
-            )) == 1
+            container, "guillotina-db-guillotina_2"
+        )
+        assert (
+            await search.get_doc_count(
+                container,
+                "2_guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
+                    get_short_uid(cresp["@uid"])
+                ),
+            )
+            == 1
+        )
