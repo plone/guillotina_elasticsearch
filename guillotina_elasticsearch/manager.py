@@ -181,6 +181,7 @@ class ContentIndexManager(ContainerIndexManager):
         if refresh and self.object_settings is not None:
             txn = get_transaction()
             await txn.refresh(self.object_settings)
+
         if self.object_settings is None:
             annotations_container = IAnnotations(self.context)
             self.object_settings = await annotations_container.async_get("default")
@@ -188,6 +189,7 @@ class ContentIndexManager(ContainerIndexManager):
                 # need to create annotation...
                 self.object_settings = AnnotationData()
                 await annotations_container.async_set("default", self.object_settings)
+
         return self.object_settings
 
     def _generate_new_index_name(self):

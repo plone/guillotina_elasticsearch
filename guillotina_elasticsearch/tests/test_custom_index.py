@@ -184,9 +184,9 @@ async def test_delete_resource(es_requester):
         await run_with_retries(_test, requester)
 
 
-@pytest.mark.flaky(reruns=5)
 async def test_delete_base_removes_index_from_elastic(es_requester):
     async with es_requester as requester:
+        # This creates a separate index
         cresp, _ = await requester(
             "POST",
             "/db/guillotina/",
@@ -198,6 +198,7 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
                 }
             ),
         )
+        # This indexes a document into the separate index
         resp, _ = await requester(
             "POST",
             "/db/guillotina/foobar",
@@ -210,13 +211,15 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
             ),
         )
         catalog = get_utility(ICatalogUtility)
-        await requester("DELETE", "/db/guillotina/foobar")
+        _, status = await requester("DELETE", "/db/guillotina/foobar")
+        assert status == 200
+
         content_index_name = "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
             get_short_uid(cresp["@uid"])
         )
 
         async def _test():
-            # should find in content index but not main index
+            # should not find in content index nor in main index
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
                 await catalog.get_connection().get(
                     index=content_index_name, doc_type="_all", id=resp["@uid"]

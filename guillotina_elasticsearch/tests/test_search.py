@@ -31,7 +31,8 @@ async def test_indexing_and_search(es_requester):
             resp, status = await requester(
                 "POST", "/db/guillotina/@search", data=json.dumps({})
             )
-            assert resp["items_count"] == 1
+            assert status == 200
+            assert resp["items_total"] == 1
             assert resp["member"][0]["path"] == "/item1"
 
         await run_with_retries(_test, requester)
@@ -43,7 +44,8 @@ async def test_indexing_and_search(es_requester):
             resp, status = await requester(
                 "POST", "/db/guillotina/@search", data=json.dumps({})
             )
-            assert resp["items_count"] == 0
+            assert status == 200
+            assert resp["items_total"] == 0
 
         await run_with_retries(_test, requester)
 
@@ -75,7 +77,8 @@ async def test_removes_all_children(es_requester):
             resp, status = await requester(
                 "POST", "/db/guillotina/@search", data=json.dumps({})
             )
-            assert resp["items_count"] == 3
+            assert status == 200
+            assert resp["items_total"] == 3
             assert resp["member"][0]["@name"]
 
         await run_with_retries(_test, requester)
@@ -87,6 +90,7 @@ async def test_removes_all_children(es_requester):
             resp, status = await requester(
                 "POST", "/db/guillotina/@search", data=json.dumps({})
             )
-            assert resp["items_count"] == 0
+            assert status == 200
+            assert resp["items_total"] == 0
 
         await run_with_retries(_test, requester)
