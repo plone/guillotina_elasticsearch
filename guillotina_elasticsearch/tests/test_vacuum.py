@@ -61,6 +61,7 @@ async def test_adds_missing_elasticsearch_entry(es_requester):
 
 
 @pytest.mark.skipif(DATABASE == "DUMMY", reason="Not for dummy db")
+@pytest.mark.flaky(reruns=5)
 async def test_updates_out_of_data_es_entries(es_requester):
     async with es_requester as requester:
         await add_content(requester)

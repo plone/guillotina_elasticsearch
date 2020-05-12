@@ -10,9 +10,10 @@ jobs:
       matrix:
         python-version: [3.7, 3.8]
         database: ["DUMMY", "postgres"]
+        es_version: ["6", "7"]
     env:
       DATABASE: ${{ matrix.database }}
-
+      ES_VERSION: ${{ matrix.es_version }}
     steps:
       # Checkout the repository first
       - uses: actions/checkout@v2
@@ -39,6 +40,10 @@ jobs:
         run: |
           # Install package with test dependecies
           pip install -e .[test]
+          if [ $ES_VERSION == 6 ]
+          # Install client version for es 6.x
+          then pip install 'aioelasticsearch<0.6.0'
+          fi
 
           # Run tests
           pytest --capture=no --tb=native -v guillotina_elasticsearch --cov=guillotina_elasticsearch --cov-report term-missing --cov-append guillotina_elasticsearch

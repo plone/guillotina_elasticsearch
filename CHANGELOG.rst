@@ -1,6 +1,8 @@
 6.0.0a2 (unreleased)
 --------------------
 
+- Support es6 and es7 [lferran]
+
 - Add github actions and remove travis [lferran]
 
 - Add setting 'refresh'

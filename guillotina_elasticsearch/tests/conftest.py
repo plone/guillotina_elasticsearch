@@ -1,10 +1,15 @@
+from guillotina_elasticsearch import ELASTIC6
 from pytest_docker_fixtures import images
 
+
+image_version = "7.5.1"
+if ELASTIC6:
+    image_version = "6.4.3"
 
 images.configure(
     "elasticsearch",
     "docker.elastic.co/elasticsearch/elasticsearch",
-    "7.5.1",
+    image_version,
     env={
         "xpack.security.enabled": None,  # unset
         "discovery.type": "single-node",
