@@ -1,4 +1,4 @@
-6.0.0a2 (unreleased)
+6.0.0a2 (2020-05-12)
 --------------------
 
 - Support es6 and es7 [lferran]
