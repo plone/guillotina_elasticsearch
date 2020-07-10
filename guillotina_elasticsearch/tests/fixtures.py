@@ -1,3 +1,4 @@
+from guillotina import app_settings
 from guillotina import testing
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
@@ -65,8 +66,6 @@ class ESRequester(ContainerRequesterAsyncContextManager):
         await util.close(search.loop)
         search.loop = self.loop
 
-        from guillotina import app_settings
-
         if os.environ.get("TESTING", "") == "jenkins":
             if "elasticsearch" in app_settings:
                 app_settings["elasticsearch"]["connection_settings"][
@@ -84,5 +83,5 @@ class ESRequester(ContainerRequesterAsyncContextManager):
 async def es_requester(elasticsearch, guillotina, event_loop):
     # clean up all existing indexes
     es_host = "{}:{}".format(elasticsearch[0], elasticsearch[1])
-    await cleanup_es(es_host)
+    await cleanup_es(es_host, app_settings["elasticsearch"]["index_name_prefix"])
     return ESRequester(guillotina, event_loop)
