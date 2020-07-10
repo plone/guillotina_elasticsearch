@@ -1,5 +1,5 @@
-6.0.0a3 (unreleased)
---------------------
+6.0.0 (2020-07-10)
+------------------
 
 - Changed es_requester fixture to only cleanup indices that match 'index_name_prefix'
 
