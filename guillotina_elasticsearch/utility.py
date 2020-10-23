@@ -230,7 +230,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def query(
             self, container, query,
-            doc_type=None, size=10, request=None, scroll=None, index=None):
+            doc_type=None, 
+            size=10, 
+            request=None, 
+            scroll=None, 
+            index=None,
+            search_type=None,
+            preference=None):
         """
         transform into query...
         right now, it's just passing through into elasticsearch
@@ -246,6 +252,11 @@ class ElasticSearchUtility(DefaultSearchUtility):
         q = await self._build_security_query(
             container, query, doc_type, size, scroll)
         q['ignore_unavailable'] = True
+
+        if search_type:
+            q["search_type"] = search_type
+        if preference:
+            q["preference"] = preference
 
         conn = self.get_connection()
 
