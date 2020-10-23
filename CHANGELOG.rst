@@ -1,4 +1,4 @@
-3.3.26 (unreleased)
+3.3.26 (2020-10-23)
 -------------------
 
 - Add query options search_type and preference
