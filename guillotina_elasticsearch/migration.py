@@ -29,7 +29,6 @@ from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import get_migration_lock
 from guillotina_elasticsearch.utils import noop_response
-from os.path import join
 
 import asyncio
 import backoff

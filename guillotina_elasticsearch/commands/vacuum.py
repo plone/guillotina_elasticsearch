@@ -16,7 +16,6 @@ from guillotina_elasticsearch.migration import Migrator
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import get_installed_sub_indexes
 from lru import LRU  # pylint: disable=E0611
-from os.path import join
 
 import asyncio
 import elasticsearch
