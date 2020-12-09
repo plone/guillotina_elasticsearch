@@ -33,7 +33,6 @@ from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
 from os.path import join
 
-import aiohttp
 import asyncio
 import backoff
 import elasticsearch.exceptions
@@ -507,15 +506,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 body=bulk_data,
                 refresh=self._refresh(),
             )
-        except aiohttp.client_exceptions.ClientResponseError as e:
-            count += 1
-            if count > MAX_RETRIES_ON_REINDEX:
-                response.write(b"Could not index %s\n" % str(e).encode("utf-8"))
-                logger.error("Could not index " + " ".join(idents) + " " + str(e))
-            else:
-                await asyncio.sleep(0.5)
-                result = await self.bulk_insert(index_name, bulk_data, idents, count)
-        except aiohttp.client_exceptions.ClientOSError as e:
+        except elasticsearch.exceptions.TransportError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
                 response.write(b"Could not index %s\n" % str(e).encode("utf-8"))
