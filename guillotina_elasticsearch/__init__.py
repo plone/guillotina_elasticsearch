@@ -8,7 +8,7 @@ from guillotina.utils import get_dotted_name
 import os
 
 
-ELASTIC6 = os.environ.get("ES_VERSION") == "6"
+ELASTIC6 = os.environ.get("ES_VERSION", "").strip() == "6"
 
 
 def default_refresh():

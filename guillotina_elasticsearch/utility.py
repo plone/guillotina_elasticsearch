@@ -31,7 +31,6 @@ from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
-from os.path import join
 
 import asyncio
 import backoff
@@ -456,25 +455,17 @@ class ElasticSearchUtility(DefaultSearchUtility):
     )
     async def _update_by_query(self, query, index_name):
         conn = self.get_connection()
-        conn_es = conn.transport.get_connection()
-        url = join(
-            conn_es.base_url.human_repr(),
+        result = await conn.update_by_query(
             index_name,
-            "_update_by_query?conflicts=proceed",
+            {"ignore_unavailable": "true"},
+            params={"conflicts": "processed"},
         )
-        async with conn_es.session.post(
-            url,
-            data=json.dumps(query),
-            params={"ignore_unavailable": "true"},
-            headers={"Content-Type": "application/json"},
-        ) as resp:
-            result = await resp.json()
-            if "updated" in result:
-                logger.debug(f'Updated {result["updated"]} children')
-                logger.debug(f"Updated {json.dumps(query)} ")
-            else:
-                self.log_result(result, "Updating children")
-            return result
+        if "updated" in result:
+            logger.debug(f'Updated {result["updated"]} children')
+            logger.debug(f"Updated {json.dumps(query)} ")
+        else:
+            self.log_result(result, "Updating children")
+        return result
 
     async def get_folder_contents(self, container, parent_uuid, doc_type=None):
         query = {
