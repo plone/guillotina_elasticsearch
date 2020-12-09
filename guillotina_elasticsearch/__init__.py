@@ -4,13 +4,11 @@ from guillotina.catalog.utils import get_index_fields
 from guillotina.component import get_utilities_for
 from guillotina.content import IResourceFactory
 from guillotina.utils import get_dotted_name
-from packaging import version
 
-import aioelasticsearch
+import os
 
 
-ES_CLIENT_VERSION = version.parse(aioelasticsearch.__version__)
-ELASTIC6 = ES_CLIENT_VERSION.minor == 5
+ELASTIC6 = os.environ.get("ES_VERSION") == "6"
 
 
 def default_refresh():

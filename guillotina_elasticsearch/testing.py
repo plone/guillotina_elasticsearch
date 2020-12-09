@@ -1,4 +1,4 @@
-from aioelasticsearch import Elasticsearch
+from elasticsearch import AsyncElasticsearch
 from guillotina import app_settings
 from guillotina import configure
 from guillotina import task_vars
@@ -59,7 +59,7 @@ class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
             if self._special_conn is None:
                 settings = settings.copy()
                 settings.update(app_settings["elasticsearch"]["new_container_settings"])
-                self._special_conn = Elasticsearch(loop=loop, **settings)
+                self._special_conn = AsyncElasticsearch(loop=loop, **settings)
             return self._special_conn
 
     async def close(self, loop=None):

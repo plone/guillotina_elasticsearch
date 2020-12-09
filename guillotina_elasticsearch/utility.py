@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from aioelasticsearch import Elasticsearch
+from elasticsearch import AsyncElasticsearch
 from guillotina import app_settings
 from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
@@ -58,7 +58,7 @@ class DefaultConnnectionFactoryUtility:
 
     def get(self, loop=None):
         if self._conn is None:
-            self._conn = Elasticsearch(
+            self._conn = AsyncElasticsearch(
                 loop=loop,
                 **app_settings.get("elasticsearch", {}).get("connection_settings"),
             )
@@ -105,7 +105,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         # b/w compat
         return self.get_connection()
 
-    def get_connection(self):
+    def get_connection(self) -> AsyncElasticsearch:
         if self._conn_util is None:
             self._conn_util = get_utility(IConnectionFactoryUtility)
         return self._conn_util.get(loop=self.loop)
@@ -425,21 +425,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
     )
     async def _delete_by_query(self, path_query, index_name):
         conn = self.get_connection()
-        conn_es = await conn.transport.get_connection()
-        async with conn_es.session.post(
-            join(conn_es.base_url.human_repr(), index_name, "_delete_by_query"),
-            data=json.dumps(path_query),
+        result = await conn.delete_by_query(
+            index_name,
+            path_query,
             params={"ignore_unavailable": "true", "conflicts": "proceed"},
-            headers={"Content-Type": "application/json"},
-        ) as resp:
-            result = await resp.json()
-            if result["version_conflicts"] > 0:
-                raise ElasticsearchConflictException(result["version_conflicts"], resp)
-            if "deleted" in result:
-                logger.debug(f'Deleted {result["deleted"]} children')
-                logger.debug(f"Deleted {json.dumps(path_query)}")
-            else:
-                self.log_result(result, "Deletion of children")
+        )
+        if result["version_conflicts"] > 0:
+            raise ElasticsearchConflictException(result["version_conflicts"], result)
+        if "deleted" in result:
+            logger.debug(f'Deleted {result["deleted"]} children')
+            logger.debug(f"Deleted {json.dumps(path_query)}")
+        else:
+            self.log_result(result, "Deletion of children")
 
     async def update_by_query(self, query, context=None, indexes=None):
         if indexes is None:
@@ -460,7 +457,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
     )
     async def _update_by_query(self, query, index_name):
         conn = self.get_connection()
-        conn_es = await conn.transport.get_connection()
+        conn_es = conn.transport.get_connection()
         url = join(
             conn_es.base_url.human_repr(),
             index_name,

@@ -40,10 +40,6 @@ jobs:
         run: |
           # Install package with test dependecies
           pip install -e .[test]
-          if [ $ES_VERSION == 6 ]
-          # Install client version for es 6.x
-          then pip install 'aioelasticsearch<0.6.0'
-          fi
 
           # Run tests
           pytest --capture=no --tb=native -v guillotina_elasticsearch --cov=guillotina_elasticsearch --cov-report term-missing --cov-append guillotina_elasticsearch

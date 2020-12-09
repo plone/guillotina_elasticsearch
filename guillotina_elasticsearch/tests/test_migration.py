@@ -17,8 +17,8 @@ from guillotina_elasticsearch.tests.utils import add_content
 from guillotina_elasticsearch.tests.utils import run_with_retries
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
-import aioelasticsearch
 import asyncio
+import elasticsearch
 import json
 import pytest
 import random
@@ -105,7 +105,7 @@ async def test_removes_orphans(es_requester):
         await migrator.run_migration()
 
         async def _test():
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
                     index=index_name, doc_type=DOC_TYPE, id="foobar"
                 )
@@ -409,7 +409,7 @@ async def test_search_works_on_updated_docs_during_migration_when_missing(
             )
             assert result1 is not None
             assert result1["_source"]["title"] == "Foobar2"
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
                     index=next_index_name, doc_type="_all", id=resp["@uid"]
                 )
@@ -475,11 +475,11 @@ async def test_delete_in_both_during_migration(es_requester):
         await requester("DELETE", "/db/guillotina/foobar")
 
         async def _test():
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
                     index=next_index_name, doc_type="_all", id=resp["@uid"]
                 )
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
                     index=index_name, doc_type="_all", id=resp["@uid"]
                 )

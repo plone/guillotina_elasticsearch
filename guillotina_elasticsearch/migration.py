@@ -1,3 +1,4 @@
+from elasticsearch import AsyncElasticsearch
 from guillotina import directives
 from guillotina.catalog.catalog import DefaultCatalogDataAdapter
 from guillotina.component import get_adapter
@@ -30,7 +31,6 @@ from guillotina_elasticsearch.utils import get_migration_lock
 from guillotina_elasticsearch.utils import noop_response
 from os.path import join
 
-import aioelasticsearch
 import asyncio
 import backoff
 import elasticsearch.exceptions
@@ -173,7 +173,7 @@ class Migrator:
 
         self.request = request
         self.container = get_current_container()
-        self.conn = utility.get_connection()
+        self.conn: AsyncElasticsearch = utility.get_connection()
 
         if index_manager is None:
             self.index_manager = get_adapter(self.container, IIndexManager)
@@ -219,56 +219,44 @@ class Migrator:
         return next_index_name
 
     async def copy_to_next_index(self):
-        conn_es = await self.conn.transport.get_connection()
         real_index_name = await self.index_manager.get_index_name()
-        async with conn_es.session.post(
-            join(str(conn_es.base_url), "_reindex"),
+        data = await self.conn.reindex(
+            {
+                "source": {"index": real_index_name, "size": 100},
+                "dest": {"index": self.work_index_name},
+            },
             params={"wait_for_completion": "false"},
-            headers={"Content-Type": "application/json"},
-            data=json.dumps(
-                {
-                    "source": {"index": real_index_name, "size": 100},
-                    "dest": {"index": self.work_index_name},
-                }
-            ),
-        ) as resp:
-            data = await resp.json()
-            self.active_task_id = task_id = data["task"]
-            task_completed = False
-            while not task_completed:
-                await asyncio.sleep(10)
-                async with conn_es.session.get(
-                    join(str(conn_es.base_url), "_tasks", task_id),
-                    headers={"Content-Type": "application/json"},
-                ) as resp:
-                    if resp.status in (400, 404):
-                        break
-                    data = await resp.json()
-                    task_completed = data["completed"]
-                    if task_completed:
-                        break
-                    status = data["task"]["status"]
-                    self.response.write(
-                        f'{status["created"]}/{status["total"]} - '
-                        f"Copying data to new index. task id: {task_id}"
-                    )
-                    self.copied_docs = status["created"]
-
-            self.active_task_id = None
+        )
+        self.active_task_id = task_id = data["task"]
+        task_completed = False
+        while not task_completed:
+            await asyncio.sleep(10)
+            data = await self.conn.tasks.get(task_id)
+            task_completed = data["completed"]
             if task_completed:
-                response = data["response"]
-                failures = response["failures"]
-                if len(failures) > 0:
-                    failures = json.dumps(
-                        failures, sort_keys=True, indent=4, separators=(",", ": ")
-                    )
-                    self.response.write(f"Reindex encountered failures: {failures}")
-                else:
-                    self.response.write(
-                        f"Finished copying to new index: {self.copied_docs}"
-                    )
+                break
+            status = data["task"]["status"]
+            self.response.write(
+                f'{status["created"]}/{status["total"]} - '
+                f"Copying data to new index. task id: {task_id}"
+            )
+            self.copied_docs = status["created"]
+
+        self.active_task_id = None
+        if task_completed:
+            response = data["response"]
+            failures = response["failures"]
+            if len(failures) > 0:
+                failures = json.dumps(
+                    failures, sort_keys=True, indent=4, separators=(",", ": ")
+                )
+                self.response.write(f"Reindex encountered failures: {failures}")
             else:
-                self.response.write(f"Unknown state for task {task_id}")
+                self.response.write(
+                    f"Finished copying to new index: {self.copied_docs}"
+                )
+        else:
+            self.response.write(f"Unknown state for task {task_id}")
 
     async def get_all_uids(self):
         self.response.write("Retrieving existing doc ids")
@@ -524,7 +512,7 @@ class Migrator:
                     await self.attempt_flush()
                     # no longer present on db, this was orphaned
                     self.orphaned.append(uuid)
-                except aioelasticsearch.exceptions.NotFoundError:
+                except elasticsearch.exceptions.NotFoundError:
                     # it was deleted in the meantime so we're actually okay
                     self.orphaned.append(uuid)
             else:
@@ -546,12 +534,8 @@ class Migrator:
             self.response.write("Next index disabled")
         if self.active_task_id is not None:
             self.response.write("Canceling copy of index task")
-            conn_es = await self.conn.transport.get_connection()
-            async with conn_es.session.post(
-                join(str(conn_es.base_url), "_tasks", self.active_task_id, "_cancel"),
-                headers={"Content-Type": "application/json"},
-            ):
-                await asyncio.sleep(5)
+            await self.conn.tasks.cancel(self.active_task_id)
+            await asyncio.sleep(5)
         if self.work_index_name:
             self.response.write("Deleting new index")
             await self.conn.indices.delete(self.work_index_name)
