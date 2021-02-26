@@ -158,16 +158,21 @@ class Parser(BaseParser):
     def __call__(self, params: typing.Dict) -> ParsedQueryInfo:
         query_info = super().__call__(params)
 
+        metadata = query_info.get("metadata", [])
+        if metadata:
+            search_data = SEARCH_DATA_FIELDS + metadata
+        else:
+            search_data = SEARCH_DATA_FIELDS
         query = {
-            "stored_fields": SEARCH_DATA_FIELDS,
+            "stored_fields": search_data,
             "query": {"bool": process_query_level(query_info["params"])},
             "sort": [],
         }
-
         if query_info["sort_on"]:
             query["sort"].append(
                 {query_info["sort_on"]: (query_info["sort_dir"] or "asc").lower()}
             )
         query["sort"].append({"_id": "desc"})
-
-        return typing.cast(ParsedQueryInfo, dict(query_info, query=query))
+        query["from"] = query_info.get("_from", 0)
+        query["size"] = query_info.get("size", 0)
+        return typing.cast(ParsedQueryInfo, query)

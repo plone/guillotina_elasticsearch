@@ -30,3 +30,13 @@ async def _test_es_field_parser(dummy_guillotina):
     assert "depth" in qq[1]["range"]
     assert "lte" in qq[1]["range"]["depth"]
     assert qq[1]["range"]["depth"]["lte"] == 10
+
+
+async def test_parser(dummy_guillotina):
+    content = test_utils.create_content()
+    parser = Parser(None, content)
+    params = {'depth__gte': '2', 'type_name': 'Item'}
+    query = parser(params)
+    qq = query["query"]["bool"]["must"]
+    assert "_from" not in query
+    assert "Item" in qq[1]["terms"]["type_name"]

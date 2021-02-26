@@ -1,7 +1,7 @@
 6.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Replacing _from to from in Parser's __call__ [nilbacardit26]
 
 
 6.0.0 (2020-07-10)
