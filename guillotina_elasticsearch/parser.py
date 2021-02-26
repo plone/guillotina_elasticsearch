@@ -88,30 +88,39 @@ def process_field(field, value):
     index = get_index_definition(field)
     if index is None:
         return
-
-    if len(value) > 1:
-        term_keyword = "terms"
-        if not isinstance(value, list):
-            value = [value]
-    else:
-        term_keyword = "term"
-        if isinstance(value, list):
-            value = value[0]
-
     _type = index["type"]
-    if _type == "int":
-        try:
-            value = int(value)
-        except ValueError:
-            pass
-    elif _type == "date":
-        value = parse(value).timestamp()
-
-    elif _type == "boolean":
-        if value in ("true", "True", "yes"):
-            value = True
+    if not isinstance(value, list):
+        value = [value]
+        term_keyword = "term"
+    else:
+        if len(value) > 1:
+            term_keyword = "terms"
         else:
-            value = False
+            term_keyword = "term"
+    result_list = []
+    for value_list in value:
+        value_cast = None
+        if _type == "int":
+            try:
+                value_cast = int(value_list)
+            except ValueError:
+                pass
+        elif _type == "date":
+            value_cast = parse(value_list).timestamp()
+
+        elif _type == "boolean":
+            if value in ("true", "True", "yes"):
+                value_cast = True
+            else:
+                value_cast = False
+        if value_cast:
+            result_list.append(value_cast)
+        else:
+            result_list.append(value_list)
+    if len(result_list) == 1:
+        value = result_list[0]
+    else:
+        value = result_list
 
     if modifier is None:
         # Keyword we expect an exact match
