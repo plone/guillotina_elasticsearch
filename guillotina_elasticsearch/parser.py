@@ -109,10 +109,10 @@ def process_field(field, value):
             value_cast = parse(value_list).timestamp()
 
         elif _type == "boolean":
-            if value in ("true", "True", "yes"):
-                value_cast = True
+            if value_list in ("true", "True", "yes", True):
+                value_cast = "true"
             else:
-                value_cast = False
+                value_cast = "false"
         if value_cast:
             result_list.append(value_cast)
         else:

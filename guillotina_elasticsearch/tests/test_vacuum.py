@@ -148,8 +148,10 @@ async def test_vacuum_with_sub_indexes(es_requester):
         )  # noqa
 
         search = get_utility(ICatalogUtility)
-        content_index_name = "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
-            get_short_uid(cresp["@uid"])
+        content_index_name = (
+            "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
+                get_short_uid(cresp["@uid"])
+            )
         )
         container, request, txn, tm = await setup_txn_on_container(requester)
         task_vars.request.set(request)
