@@ -39,6 +39,7 @@ setup(
         "aioelasticsearch>=0.5.0<0.7.0",
         "lru-dict",
         "backoff",
+        "prometheus-client>=0.9.0"
     ],
     tests_require=test_requires,
     extras_require={"test": test_requires},
