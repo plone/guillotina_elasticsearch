@@ -7,8 +7,8 @@ test_requires = [
     "async_asgi_testclient",
     "pytest<6.0",
     "pytest-asyncio==0.10.0",
-    "coverage",
-    "pytest-cov",
+    "coverage==5.0.3",
+    "pytest-cov==2.8.1",
     "pytest-rerunfailures==8.0",
     "pytest-docker-fixtures[pg]>=1.3.0",
     "prometheus-client>=0.9.0"
