@@ -6,7 +6,7 @@ from setuptools import setup
 test_requires = [
     "async_asgi_testclient",
     "pytest<6.0",
-    "pytest-asyncio=0.10.0",
+    "pytest-asyncio==0.10.0",
     "coverage",
     "pytest-cov",
     "pytest-docker-fixtures[pg]>=1.3.0",
