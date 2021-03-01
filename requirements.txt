@@ -24,7 +24,6 @@ entrypoints==0.3
 fancycompleter==0.9.1
 flake8==3.7.9
 guillotina==6.0.2
--e git+git@github.com:plone/guillotina_elasticsearch.git@b547aadacb4c84ce3663989b46ae88eb7ceaedd2#egg=guillotina_elasticsearch
 h11==0.9.0
 httptools==0.1.1
 idna==2.9
