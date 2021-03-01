@@ -1,7 +1,7 @@
 6.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Changed "ES not support" message
 
 
 6.0.0 (2020-07-10)

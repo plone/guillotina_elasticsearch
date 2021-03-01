@@ -136,9 +136,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         # We currently support 6.x and 7.x versions
         if ELASTIC6 and not es_version.startswith("6"):
-            raise Exception(f"ES cluster version not supported: {es_version}")
+            raise Exception(f"Expected ES version 6.x. Found: {es_version}")
         elif not es_version.startswith("7"):
-            raise Exception(f"ES cluster version not supported: {es_version}")
+            raise Exception(f"Expected ES version 7.x. Found: {es_version}")
 
     async def initialize_catalog(self, container):
         if not self.enabled:
@@ -168,7 +168,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
             settings = {"settings": settings, "mappings": {DOC_TYPE: mappings}}
         else:
             settings = {"settings": settings, "mappings": mappings}
-            settings["mappings"] = mappings
 
         conn = self.get_connection()
         await conn.indices.create(real_index_name, settings)
