@@ -9,7 +9,9 @@ test_requires = [
     "pytest-asyncio==0.10.0",
     "coverage",
     "pytest-cov",
+    "pytest-rerunfailures==8.0",
     "pytest-docker-fixtures[pg]>=1.3.0",
+    "prometheus-client>=0.9.0"
 ]
 
 
@@ -36,10 +38,9 @@ setup(
     install_requires=[
         "guillotina>=6.0.0a16",
         "mypy_extensions",
-        "aioelasticsearch>=0.5.0<0.7.0",
+        "aioelasticsearch>=0.5.0,<0.7.0",
         "lru-dict",
         "backoff",
-        "prometheus-client>=0.9.0"
     ],
     tests_require=test_requires,
     extras_require={"test": test_requires},
