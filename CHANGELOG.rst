@@ -1,7 +1,13 @@
-6.0.1 (unreleased)
+6.0.2 (unreleased)
 ------------------
 
 - Changed "ES not support" message
+
+
+6.0.1 (2021-03-02)
+------------------
+
+- Replacing _from to from in Parser's __call__ [nilbacardit26]
 
 
 6.0.0 (2020-07-10)
