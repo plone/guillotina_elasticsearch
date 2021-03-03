@@ -1,7 +1,10 @@
 6.1.0 (unreleased)
 ------------------
 
-- Use pyproject.toml instead of setup.y
+- Fix tests not passing
+  [masipcat]
+
+- Use pyproject.toml instead of setup.py
   [masipcat]
 
 
