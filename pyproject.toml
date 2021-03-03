@@ -2,8 +2,12 @@
 name = "guillotina_elasticsearch"
 version = "6.1.0"
 description = "elasticsearch catalog support for guillotina"
-authors = ["Your Name <you@example.com>"]
+authors = ["Ramon Navarro Bosch & Nathan Van Gheem <ramon@plone.org>"]
 license = "BSD-2-Clause"
+readme = "README.rst"
+classifiers = [
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
 
 [tool.poetry.dependencies]
 python = "^3.7"
