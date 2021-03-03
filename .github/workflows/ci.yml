@@ -39,11 +39,11 @@ jobs:
       - name: Run tests
         run: |
           # Install package with test dependecies
+          poetry install guillotina_elasticshare
           pip install -e .[test]
-          # pip install -r requirements.txt
           if [ $ES_VERSION == 6 ]
           # Install client version for es 6.x
-          then pip install 'aioelasticsearch<0.6.0'
+          then pip install -U 'aioelasticsearch<0.6.0'
           fi
 
           # Run tests

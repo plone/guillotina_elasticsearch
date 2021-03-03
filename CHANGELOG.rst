@@ -1,7 +1,8 @@
-6.0.2 (unreleased)
+6.1.0 (unreleased)
 ------------------
 
-- Changed "ES not support" message
+- Use pyproject.toml instead of setup.y
+  [masipcat]
 
 
 6.0.1 (2021-03-02)
