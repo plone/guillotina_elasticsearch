@@ -10,7 +10,9 @@ test_requires = [
     "coverage",
     "pytest-cov",
     "pytest-docker-fixtures[pg]>=1.3.0",
-    "prometheus-client>=0.9.0"
+    "prometheus-client>=0.9.0",
+    "aiohttp<3.7",
+    "yarl<1.5",
 ]
 
 

@@ -1,7 +1,8 @@
 6.0.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix tests not passing
+  [masipcat]
 
 
 6.0.1 (2021-03-02)
