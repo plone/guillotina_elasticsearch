@@ -1,7 +1,11 @@
-6.0.2 (unreleased)
+6.1.0 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix tests not passing
+  [masipcat]
+
+- Use pyproject.toml instead of setup.py
+  [masipcat]
 
 
 6.0.1 (2021-03-02)
