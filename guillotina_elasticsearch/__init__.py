@@ -5,10 +5,10 @@ from guillotina.component import get_utilities_for
 from guillotina.content import IResourceFactory
 from guillotina.utils import get_dotted_name
 
-import os
+# import os
 
 
-ELASTIC6 = os.environ.get("ES_VERSION", "").strip() == "6"
+ELASTIC6 = False  # os.environ.get("ES_VERSION", "").strip() == "6"
 
 
 def default_refresh():
