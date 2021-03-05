@@ -80,7 +80,7 @@ async def test_updates_out_of_data_es_entries(es_requester):
         async def _test():
             assert await search.get_doc_count(container) == 110
 
-        await run_with_retries(_test, requester)
+        await run_with_retries(_test, requester, retry_wait=1)
 
         await asyncio.sleep(1)
 
@@ -148,8 +148,10 @@ async def test_vacuum_with_sub_indexes(es_requester):
         )  # noqa
 
         search = get_utility(ICatalogUtility)
-        content_index_name = "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
-            get_short_uid(cresp["@uid"])
+        content_index_name = (
+            "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
+                get_short_uid(cresp["@uid"])
+            )
         )
         container, request, txn, tm = await setup_txn_on_container(requester)
         task_vars.request.set(request)

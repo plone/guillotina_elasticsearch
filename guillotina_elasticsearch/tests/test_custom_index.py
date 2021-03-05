@@ -67,8 +67,10 @@ async def test_indexes_data_in_correct_indexes(es_requester):
             ),
         )
         assert status == 201
-        content_index_name = "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
-            get_short_uid(cresp["@uid"])
+        content_index_name = (
+            "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
+                get_short_uid(cresp["@uid"])
+            )
         )
         search = get_utility(ICatalogUtility)
 
@@ -110,8 +112,10 @@ async def test_elastic_index_field(es_requester):
                 }
             ),
         )
-        content_index_name = "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
-            get_short_uid(cresp["@uid"])
+        content_index_name = (
+            "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
+                get_short_uid(cresp["@uid"])
+            )
         )
         search = get_utility(ICatalogUtility)
 
@@ -154,8 +158,10 @@ async def test_delete_resource(es_requester):
             ),
         )
         assert status == 201
-        content_index_name = "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
-            get_short_uid(cresp["@uid"])
+        content_index_name = (
+            "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
+                get_short_uid(cresp["@uid"])
+            )
         )
         search = get_utility(ICatalogUtility)
 
@@ -212,8 +218,10 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
         )
         catalog = get_utility(ICatalogUtility)
         await requester("DELETE", "/db/guillotina/foobar")
-        content_index_name = "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
-            get_short_uid(cresp["@uid"])
+        content_index_name = (
+            "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
+                get_short_uid(cresp["@uid"])
+            )
         )
 
         async def _test():
