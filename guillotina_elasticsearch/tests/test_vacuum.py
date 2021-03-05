@@ -80,7 +80,7 @@ async def test_updates_out_of_data_es_entries(es_requester):
         async def _test():
             assert await search.get_doc_count(container) == 110
 
-        await run_with_retries(_test, requester)
+        await run_with_retries(_test, requester, retry_wait=1)
 
         await asyncio.sleep(1)
 
