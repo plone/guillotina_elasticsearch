@@ -17,6 +17,7 @@ from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
 from guillotina.utils.misc import get_current_container
+from guillotina.exceptions import ContainerNotFound
 from guillotina_elasticsearch import ELASTIC6
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
@@ -31,6 +32,7 @@ from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
+from guillotina.utils import find_container
 from os.path import join
 
 import aiohttp
@@ -247,7 +249,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def search_raw(
         self,
-        container,
+        context,
         query,
         doc_type=None,
         size=10,
@@ -258,6 +260,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         """
         Search raw query
         """
+        container = find_container(context)
+        if container is None:
+            raise ContainerNotFound()
         if index is None:
             index = await self.get_container_index_name(container)
         t1 = time.time()
@@ -267,7 +272,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             except RequestNotFound:
                 pass
 
-        q = await self._build_security_query(container, query, size, scroll)
+        q = await self._build_security_query(context, query, size, scroll)
         q["ignore_unavailable"] = True
 
         logger.debug("Generated query %s", json.dumps(query))

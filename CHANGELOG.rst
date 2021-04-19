@@ -1,6 +1,9 @@
 6.0.2 (unreleased)
 ------------------
 
+- Allow to search on context object
+  [bloodbare]
+
 - Fix tests not passing
   [masipcat]
 
