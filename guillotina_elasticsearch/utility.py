@@ -218,7 +218,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
         )
 
         permission_query = await build_security_query(context)
-        result = {"body": merge_dicts(query, permission_query), "size": query.get("size", size)}
+        result = {
+            "body": merge_dicts(query, permission_query),
+            "size": query.get("size", size),
+        }
 
         if scroll:
             result["scroll"] = scroll
