@@ -6,9 +6,11 @@ from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
+from guillotina.exceptions import ContainerNotFound
 from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
+from guillotina.utils import find_container
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
@@ -17,7 +19,6 @@ from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
 from guillotina.utils.misc import get_current_container
-from guillotina.exceptions import ContainerNotFound
 from guillotina_elasticsearch import ELASTIC6
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
@@ -32,7 +33,6 @@ from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
-from guillotina.utils import find_container
 from os.path import join
 
 import aiohttp
@@ -210,15 +210,15 @@ class ElasticSearchUtility(DefaultSearchUtility):
         reindexer = Reindexer(self, obj, response=response, reindex_security=security)
         await reindexer.reindex(obj)
 
-    async def _build_security_query(self, container, query, size=10, scroll=None):
+    async def _build_security_query(self, context, query, size=10, scroll=None):
         if query is None:
             query = {}
         build_security_query = resolve_dotted_name(
             app_settings["elasticsearch"]["security_query_builder"]
         )
 
-        permission_query = await build_security_query(container)
-        result = {"body": merge_dicts(query, permission_query), "size": size}
+        permission_query = await build_security_query(context)
+        result = {"body": merge_dicts(query, permission_query), "size": query.get("size", size)}
 
         if scroll:
             result["scroll"] = scroll
