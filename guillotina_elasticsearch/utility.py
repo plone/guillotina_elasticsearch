@@ -6,9 +6,11 @@ from guillotina.catalog.catalog import DefaultSearchUtility
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.event import notify
+from guillotina.exceptions import ContainerNotFound
 from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IFolder
 from guillotina.transactions import get_transaction
+from guillotina.utils import find_container
 from guillotina.utils import get_content_depth
 from guillotina.utils import get_content_path
 from guillotina.utils import get_current_request
@@ -208,15 +210,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
         reindexer = Reindexer(self, obj, response=response, reindex_security=security)
         await reindexer.reindex(obj)
 
-    async def _build_security_query(self, container, query, size=10, scroll=None):
+    async def _build_security_query(self, context, query, size=10, scroll=None):
         if query is None:
             query = {}
         build_security_query = resolve_dotted_name(
             app_settings["elasticsearch"]["security_query_builder"]
         )
 
-        permission_query = await build_security_query(container)
-        result = {"body": merge_dicts(query, permission_query), "size": size}
+        permission_query = await build_security_query(context)
+        result = {
+            "body": merge_dicts(query, permission_query),
+            "size": query.get("size", size),
+        }
 
         if scroll:
             result["scroll"] = scroll
@@ -247,7 +252,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
     async def search_raw(
         self,
-        container,
+        context,
         query,
         doc_type=None,
         size=10,
@@ -258,6 +263,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         """
         Search raw query
         """
+        container = find_container(context)
+        if container is None:
+            raise ContainerNotFound()
         if index is None:
             index = await self.get_container_index_name(container)
         t1 = time.time()
@@ -267,7 +275,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             except RequestNotFound:
                 pass
 
-        q = await self._build_security_query(container, query, size, scroll)
+        q = await self._build_security_query(context, query, size, scroll)
         q["ignore_unavailable"] = True
 
         logger.debug("Generated query %s", json.dumps(query))
