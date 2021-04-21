@@ -1,4 +1,4 @@
-6.0.2 (unreleased)
+6.0.2 (2021-04-21)
 ------------------
 
 - Allow to search on context object
