@@ -79,7 +79,6 @@ Mapping Diff: {self.migrator.mapping_diff}
                 else:
                     await self.migrator.cancel_migration()
 
-
     async def run(self, arguments, settings, app):
         request = get_mocked_request()
         login()
