@@ -71,13 +71,11 @@ Objects orphaned: {len(self.migrator.orphaned)}
 Mapping Diff: {self.migrator.mapping_diff}
 """
                 )
-            except KeyboardInterrupt:  # pragma: no cover
-                pass
+            except asyncio.CancelledError:  # pragma: no cover
+                await self.migrator.cancel_migration()
             finally:
                 if self.migrator.status == "done":
                     await tm.commit()
-                else:
-                    await self.migrator.cancel_migration()
 
     async def run(self, arguments, settings, app):
         request = get_mocked_request()
