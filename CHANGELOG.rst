@@ -1,3 +1,10 @@
+7.0.0a0 (unreleased)
+------------------
+
+- Replace aioelasticsearch with elasticsearchpy
+  [masipcat]
+
+
 6.0.2 (unreleased)
 ------------------
 

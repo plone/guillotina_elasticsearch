@@ -10,9 +10,7 @@ test_requires = [
     "coverage",
     "pytest-cov",
     "pytest-docker-fixtures[pg]>=1.3.0",
-    "prometheus-client>=0.9.0",
-    "aiohttp<3.7",
-    "yarl<1.5",
+    "prometheus-client>=0.9.0",  # TODO: remove
 ]
 
 
@@ -39,7 +37,6 @@ setup(
     install_requires=[
         "guillotina>=6.0.0a16",
         "elasticsearch[async]>=7.8.0,<8.0.0",
-        "prometheus_client",  # TODO: remove
         "mypy_extensions",
         "lru-dict",
         "backoff",

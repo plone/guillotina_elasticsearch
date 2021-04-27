@@ -227,18 +227,12 @@ class Vacuum:
 
                 # delete by query for orphaned keys...
                 data = await self.conn.delete_by_query(
-                    index_name, {"query": {"terms": {"_id": orphaned}}}
+                    index_name, body={"query": {"terms": {"_id": orphaned}}}
                 )
-                try:
-                    if data["deleted"] != len(orphaned):
-                        logger.warning(
-                            f'Was only able to clean up {len(data["deleted"])} '  # noqa
-                            f"instead of {len(orphaned)}"
-                        )
-                except Exception:
+                if data["deleted"] != len(orphaned):
                     logger.warning(
-                        "Could not parse delete by query response. "
-                        "Vacuuming might not be working"
+                        f'Was only able to clean up {len(data["deleted"])} '  # noqa
+                        f"instead of {len(orphaned)}"
                     )
 
     def get_indexes_for_oids(self, oids):

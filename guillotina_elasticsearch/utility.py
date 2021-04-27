@@ -425,8 +425,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         conn = self.get_connection()
         result = await conn.delete_by_query(
             index_name,
-            path_query,
-            params={"ignore_unavailable": "true", "conflicts": "proceed"},
+            body=path_query,
+            ignore_unavailable="true",
+            conflicts="proceed",
         )
         if result["version_conflicts"] > 0:
             raise ElasticsearchConflictException(result["version_conflicts"], result)
@@ -457,8 +458,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         conn = self.get_connection()
         result = await conn.update_by_query(
             index_name,
-            {"ignore_unavailable": "true"},
-            params={"conflicts": "processed"},
+            ignore_unavailable="true",
+            conflicts="proceed",
         )
         if "updated" in result:
             logger.debug(f'Updated {result["updated"]} children')
@@ -466,17 +467,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         else:
             self.log_result(result, "Updating children")
         return result
-
-    async def get_folder_contents(self, container, parent_uuid, doc_type=None):
-        query = {
-            "query": {
-                "filtered": {
-                    "filter": {"term": {"parent_uuid": parent_uuid}},
-                    "query": {"match_all": {}},
-                }
-            }
-        }
-        return await self.query(container, query, doc_type)
 
     @backoff.on_exception(
         backoff.constant,
