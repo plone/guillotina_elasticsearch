@@ -72,15 +72,16 @@ async def test_updates_out_of_data_es_entries(es_requester):
 
         search = get_utility(ICatalogUtility)
         index_name = await search.get_container_index_name(container)
-        await search.update_by_query(
-            {"script": {"lang": "painless", "inline": "ctx._source.tid = 0"}},
-            indexes=[index_name],
-        )
 
         async def _test():
             assert await search.get_doc_count(container) == 110
 
         await run_with_retries(_test, requester, retry_wait=1)
+
+        await search.update_by_query(
+            {"script": {"lang": "painless", "source": "ctx._source.tid = 0"}},
+            indexes=[index_name],
+        )
 
         await asyncio.sleep(1)
 

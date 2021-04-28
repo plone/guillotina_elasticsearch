@@ -466,6 +466,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         conn = self.get_connection()
         result = await conn.update_by_query(
             index_name,
+            body=query,
             ignore_unavailable="true",
             conflicts="proceed",
         )
