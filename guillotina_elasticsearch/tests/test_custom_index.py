@@ -226,10 +226,9 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
 
         async def _test():
             # should find in content index but not main index
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
-                await catalog.get_connection().get(
-                    index=content_index_name, doc_type="_all", id=resp["@uid"]
-                )
+            await catalog.get_connection().get(
+                index=content_index_name, doc_type="_all", id=resp["@uid"]
+            )
             with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
                 await catalog.get_connection().get(
                     index="guillotina-guillotina", doc_type="_all", id=cresp["@uid"]
