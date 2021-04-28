@@ -1,7 +1,8 @@
 6.0.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Disable dynamic mapping (as it was in v3.x)
+  [masipcat]
 
 
 6.0.2 (2021-04-21)
