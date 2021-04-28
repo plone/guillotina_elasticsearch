@@ -19,7 +19,6 @@ from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
 from guillotina.utils.misc import get_current_container
-from guillotina_elasticsearch import ELASTIC6
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina_elasticsearch.exceptions import QueryErrorException
@@ -134,10 +133,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         es_version = info["version"]["number"]
 
-        # We currently support 6.x and 7.x versions
-        if ELASTIC6 and not es_version.startswith("6"):
-            raise Exception(f"ES cluster version not supported: {es_version}")
-        elif not es_version.startswith("7"):
+        if not es_version.startswith("7"):
             raise Exception(f"ES cluster version not supported: {es_version}")
 
     async def initialize_catalog(self, container):
@@ -164,11 +160,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if mappings is None:
             mappings = await index_manager.get_mappings()
 
-        if ELASTIC6:
-            settings = {"settings": settings, "mappings": {DOC_TYPE: mappings}}
-        else:
-            settings = {"settings": settings, "mappings": mappings}
-            settings["mappings"] = mappings
+        settings = {"settings": settings, "mappings": mappings}
 
         conn = self.get_connection()
         await conn.indices.create(real_index_name, settings)
@@ -287,12 +279,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 error_message = failure["reason"]
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
-
-        if ELASTIC6:
-            items_total = result["hits"]["total"]
-        else:
-            items_total = result["hits"]["total"]["value"]
-
+        items_total = result["hits"]["total"]["value"]
         final = {"items_total": items_total, "items": items}
 
         if "aggregations" in result:
@@ -523,7 +510,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_name=None,
         request=None,
     ):
-        """ If there is request we get the container from there """
+        """If there is request we get the container from there"""
         if not self.enabled or len(datas) == 0:
             return
 
@@ -573,7 +560,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return tid
 
     async def update(self, container, datas, response=noop_response, flush_all=False):
-        """ If there is request we get the container from there """
+        """If there is request we get the container from there"""
         if not self.enabled:
             return
         tid = self._get_current_tid()

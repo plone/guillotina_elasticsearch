@@ -4,6 +4,9 @@
 - Replace aioelasticsearch with elasticsearchpy
   [masipcat]
 
+- Dropped support for Elasticsearch 6.x
+  [masipcat]
+
 
 6.0.2 (2021-04-21)
 ------------------
