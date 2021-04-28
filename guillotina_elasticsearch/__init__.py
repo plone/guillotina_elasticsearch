@@ -14,6 +14,7 @@ app_settings = {
     "elasticsearch": {
         "bulk_size": 50,
         "refresh": "guillotina_elasticsearch.default_refresh",
+        "dynamic_mapping": False,
         "index_name_prefix": "guillotina-",
         "connection_settings": {"hosts": [], "timeout": 2},
         "index": {},

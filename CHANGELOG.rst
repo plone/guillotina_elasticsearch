@@ -7,6 +7,9 @@
 - Dropped support for Elasticsearch 6.x
   [masipcat]
 
+- Disable dynamic mapping by default (as it was in v3.x)
+  [masipcat]
+
 
 6.0.2 (2021-04-21)
 ------------------
