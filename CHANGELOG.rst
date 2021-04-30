@@ -1,4 +1,4 @@
-6.0.3 (unreleased)
+6.0.3 (2021-04-30)
 ------------------
 
 - Disable dynamic mapping (as it was in v3.x)
