@@ -65,10 +65,9 @@ Objects orphaned: {len(self.reindexer.orphaned)}
             finally:
                 await tm.commit()
 
-    def run(self, arguments, settings, app):
+    async def run(self, arguments, settings, app):
         request = get_mocked_request()
         login()
         task_vars.request.set(request)
         change_transaction_strategy("none")
-        loop = self.get_loop()
-        loop.run_until_complete(self.reindex_all(arguments))
+        await self.reindex_all(arguments)

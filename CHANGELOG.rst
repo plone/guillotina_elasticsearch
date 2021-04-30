@@ -7,7 +7,14 @@
 - Dropped support for Elasticsearch 6.x
   [masipcat]
 
-- Disable dynamic mapping by default (as it was in v3.x)
+
+6.0.3 (2021-04-30)
+------------------
+
+- Disable dynamic mapping (as it was in v3.x)
+  [masipcat]
+
+- Fix tm is None when migration is cancelled
   [masipcat]
 
 

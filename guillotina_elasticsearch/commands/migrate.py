@@ -71,19 +71,14 @@ Objects orphaned: {len(self.migrator.orphaned)}
 Mapping Diff: {self.migrator.mapping_diff}
 """
                 )
+            except asyncio.CancelledError:  # pragma: no cover
+                await self.migrator.cancel_migration()
             finally:
-                await tm.commit()
+                if self.migrator.status == "done":
+                    await tm.commit()
 
-    def run(self, arguments, settings, app):
+    async def run(self, arguments, settings, app):
         request = get_mocked_request()
         login()
         task_vars.request.set(request)
-        loop = self.get_loop()
-        try:
-            loop.run_until_complete(self.migrate_all(arguments))
-        except KeyboardInterrupt:  # pragma: no cover
-            pass
-        finally:
-            if self.migrator.status != "done":
-                loop = self.get_loop()
-                loop.run_until_complete(self.migrator.cancel_migration())
+        await self.migrate_all(arguments)
