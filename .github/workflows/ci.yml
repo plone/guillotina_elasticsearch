@@ -28,7 +28,7 @@ jobs:
       - name: Pre-checks
         run: |
           # Install
-          pip install flake8 isort 'black=20.8b1'
+          pip install flake8 isort 'black==20.8b1'
 
           # Run commands
           flake8 guillotina_elasticsearch --config=setup.cfg
