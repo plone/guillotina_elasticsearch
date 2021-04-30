@@ -553,7 +553,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_name=None,
         request=None,
     ):
-        """ If there is request we get the container from there """
+        """If there is request we get the container from there"""
         if not self.enabled or len(datas) == 0:
             return
 
@@ -603,7 +603,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return tid
 
     async def update(self, container, datas, response=noop_response, flush_all=False):
-        """ If there is request we get the container from there """
+        """If there is request we get the container from there"""
         if not self.enabled:
             return
         tid = self._get_current_tid()

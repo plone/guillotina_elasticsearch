@@ -1,7 +1,8 @@
 6.0.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fix tm is None when migration is cancelled
+  [masipcat]
 
 
 6.0.2 (2021-04-21)
