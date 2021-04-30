@@ -4,6 +4,9 @@
 - Disable dynamic mapping (as it was in v3.x)
   [masipcat]
 
+- Fix tm is None when migration is cancelled
+  [masipcat]
+
 
 6.0.2 (2021-04-21)
 ------------------
