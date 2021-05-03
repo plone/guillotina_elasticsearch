@@ -1,5 +1,5 @@
-7.0.0a0 (unreleased)
-------------------
+7.0.0a0 (2021-05-03)
+--------------------
 
 - Replace aioelasticsearch with elasticsearchpy
   [masipcat]
