@@ -1,7 +1,7 @@
-from aiohttp.web_exceptions import HTTPException
+from guillotina.response import HTTPError
 
 
-class QueryErrorException(HTTPException):
+class QueryErrorException(HTTPError):
     status_code = 488
 
 

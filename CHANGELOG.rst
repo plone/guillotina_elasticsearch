@@ -1,7 +1,11 @@
-6.0.4 (unreleased)
+7.0.0a0 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Replace aioelasticsearch with elasticsearchpy
+  [masipcat]
+
+- Dropped support for Elasticsearch 6.x
+  [masipcat]
 
 
 6.0.3 (2021-04-30)

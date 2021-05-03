@@ -6,7 +6,7 @@ from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import get_installed_sub_indexes
 
-import aioelasticsearch
+import elasticsearch
 import json
 import pytest
 
@@ -80,7 +80,7 @@ async def test_indexes_data_in_correct_indexes(es_requester):
                 index=content_index_name, doc_type="_all", id=resp["@uid"]
             )
             assert result is not None
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
                     index="guillotina-guillotina", doc_type="_all", id=resp["@uid"]
                 )
@@ -171,7 +171,7 @@ async def test_delete_resource(es_requester):
                 index=content_index_name, doc_type="_all", id=resp["@uid"]
             )
             assert result is not None
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
                     index="guillotina-guillotina", doc_type="_all", id=resp["@uid"]
                 )
@@ -183,7 +183,7 @@ async def test_delete_resource(es_requester):
 
         async def _test():
             # should find in content index but not main index
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError):
                 await search.get_connection().get(
                     index=content_index_name, doc_type="_all", id=resp["@uid"]
                 )
@@ -226,11 +226,11 @@ async def test_delete_base_removes_index_from_elastic(es_requester):
 
         async def _test():
             # should find in content index but not main index
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError):
                 await catalog.get_connection().get(
                     index=content_index_name, doc_type="_all", id=resp["@uid"]
                 )
-            with pytest.raises(aioelasticsearch.exceptions.NotFoundError):
+            with pytest.raises(elasticsearch.exceptions.NotFoundError):
                 await catalog.get_connection().get(
                     index="guillotina-guillotina", doc_type="_all", id=cresp["@uid"]
                 )

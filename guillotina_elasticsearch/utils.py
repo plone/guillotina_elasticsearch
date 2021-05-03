@@ -1,4 +1,4 @@
-from aioelasticsearch import exceptions
+from elasticsearch import exceptions
 from guillotina.component import get_adapter
 from guillotina.component import get_utilities_for
 from guillotina.component import get_utility

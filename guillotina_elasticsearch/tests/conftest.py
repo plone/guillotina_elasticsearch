@@ -1,10 +1,7 @@
-from guillotina_elasticsearch import ELASTIC6
 from pytest_docker_fixtures import images
 
 
 image_version = "7.5.1"
-if ELASTIC6:
-    image_version = "6.4.3"
 
 images.configure(
     "elasticsearch",

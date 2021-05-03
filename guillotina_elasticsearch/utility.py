@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from aioelasticsearch import Elasticsearch
+from elasticsearch import AsyncElasticsearch
 from guillotina import app_settings
 from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
@@ -19,7 +19,6 @@ from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
 from guillotina.utils.misc import get_current_container
-from guillotina_elasticsearch import ELASTIC6
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina_elasticsearch.exceptions import QueryErrorException
@@ -33,9 +32,7 @@ from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
-from os.path import join
 
-import aiohttp
 import asyncio
 import backoff
 import elasticsearch.exceptions
@@ -60,7 +57,7 @@ class DefaultConnnectionFactoryUtility:
 
     def get(self, loop=None):
         if self._conn is None:
-            self._conn = Elasticsearch(
+            self._conn = AsyncElasticsearch(
                 loop=loop,
                 **app_settings.get("elasticsearch", {}).get("connection_settings"),
             )
@@ -107,7 +104,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         # b/w compat
         return self.get_connection()
 
-    def get_connection(self):
+    def get_connection(self) -> AsyncElasticsearch:
         if self._conn_util is None:
             self._conn_util = get_utility(IConnectionFactoryUtility)
         return self._conn_util.get(loop=self.loop)
@@ -136,10 +133,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         es_version = info["version"]["number"]
 
-        # We currently support 6.x and 7.x versions
-        if ELASTIC6 and not es_version.startswith("6"):
-            raise Exception(f"ES cluster version not supported: {es_version}")
-        elif not es_version.startswith("7"):
+        if not es_version.startswith("7"):
             raise Exception(f"ES cluster version not supported: {es_version}")
 
     async def initialize_catalog(self, container):
@@ -166,11 +160,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if mappings is None:
             mappings = await index_manager.get_mappings()
 
-        if ELASTIC6:
-            settings = {"settings": settings, "mappings": {DOC_TYPE: mappings}}
-        else:
-            settings = {"settings": settings, "mappings": mappings}
-            settings["mappings"] = mappings
+        settings = {"settings": settings, "mappings": mappings}
 
         conn = self.get_connection()
         await conn.indices.create(real_index_name, settings)
@@ -289,12 +279,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 error_message = failure["reason"]
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
-
-        if ELASTIC6:
-            items_total = result["hits"]["total"]
-        else:
-            items_total = result["hits"]["total"]["value"]
-
+        items_total = result["hits"]["total"]["value"]
         final = {"items_total": items_total, "items": items}
 
         if "aggregations" in result:
@@ -433,21 +418,19 @@ class ElasticSearchUtility(DefaultSearchUtility):
     )
     async def _delete_by_query(self, path_query, index_name):
         conn = self.get_connection()
-        conn_es = await conn.transport.get_connection()
-        async with conn_es.session.post(
-            join(conn_es.base_url.human_repr(), index_name, "_delete_by_query"),
-            data=json.dumps(path_query),
-            params={"ignore_unavailable": "true", "conflicts": "proceed"},
-            headers={"Content-Type": "application/json"},
-        ) as resp:
-            result = await resp.json()
-            if result["version_conflicts"] > 0:
-                raise ElasticsearchConflictException(result["version_conflicts"], resp)
-            if "deleted" in result:
-                logger.debug(f'Deleted {result["deleted"]} children')
-                logger.debug(f"Deleted {json.dumps(path_query)}")
-            else:
-                self.log_result(result, "Deletion of children")
+        result = await conn.delete_by_query(
+            index_name,
+            body=path_query,
+            ignore_unavailable="true",
+            conflicts="proceed",
+        )
+        if result["version_conflicts"] > 0:
+            raise ElasticsearchConflictException(result["version_conflicts"], result)
+        if "deleted" in result:
+            logger.debug(f'Deleted {result["deleted"]} children')
+            logger.debug(f"Deleted {json.dumps(path_query)}")
+        else:
+            self.log_result(result, "Deletion of children")
 
     async def update_by_query(self, query, context=None, indexes=None):
         if indexes is None:
@@ -468,36 +451,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
     )
     async def _update_by_query(self, query, index_name):
         conn = self.get_connection()
-        conn_es = await conn.transport.get_connection()
-        url = join(
-            conn_es.base_url.human_repr(),
+        result = await conn.update_by_query(
             index_name,
-            "_update_by_query?conflicts=proceed",
+            body=query,
+            ignore_unavailable="true",
+            conflicts="proceed",
         )
-        async with conn_es.session.post(
-            url,
-            data=json.dumps(query),
-            params={"ignore_unavailable": "true"},
-            headers={"Content-Type": "application/json"},
-        ) as resp:
-            result = await resp.json()
-            if "updated" in result:
-                logger.debug(f'Updated {result["updated"]} children')
-                logger.debug(f"Updated {json.dumps(query)} ")
-            else:
-                self.log_result(result, "Updating children")
-            return result
-
-    async def get_folder_contents(self, container, parent_uuid, doc_type=None):
-        query = {
-            "query": {
-                "filtered": {
-                    "filter": {"term": {"parent_uuid": parent_uuid}},
-                    "query": {"match_all": {}},
-                }
-            }
-        }
-        return await self.query(container, query, doc_type)
+        if "updated" in result:
+            logger.debug(f'Updated {result["updated"]} children')
+            logger.debug(f"Updated {json.dumps(query)} ")
+        else:
+            self.log_result(result, "Updating children")
+        return result
 
     @backoff.on_exception(
         backoff.constant,
@@ -518,15 +483,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 body=bulk_data,
                 refresh=self._refresh(),
             )
-        except aiohttp.client_exceptions.ClientResponseError as e:
-            count += 1
-            if count > MAX_RETRIES_ON_REINDEX:
-                response.write(b"Could not index %s\n" % str(e).encode("utf-8"))
-                logger.error("Could not index " + " ".join(idents) + " " + str(e))
-            else:
-                await asyncio.sleep(0.5)
-                result = await self.bulk_insert(index_name, bulk_data, idents, count)
-        except aiohttp.client_exceptions.ClientOSError as e:
+        except elasticsearch.exceptions.TransportError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
                 response.write(b"Could not index %s\n" % str(e).encode("utf-8"))

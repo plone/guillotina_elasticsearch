@@ -1,3 +1,4 @@
+from elasticsearch import AsyncElasticsearch
 from guillotina import task_vars
 from guillotina.commands import Command
 from guillotina.commands.utils import change_transaction_strategy
@@ -15,12 +16,9 @@ from guillotina_elasticsearch.migration import Migrator
 from guillotina_elasticsearch.utils import get_content_sub_indexes
 from guillotina_elasticsearch.utils import get_installed_sub_indexes
 from lru import LRU  # pylint: disable=E0611
-from os.path import join
 
-import aioelasticsearch
 import asyncio
 import elasticsearch
-import json
 import logging
 
 
@@ -84,7 +82,7 @@ class Vacuum:
         self.last_zoid = None
         # for state tracking so we get boundries right
         self.last_result_set = []
-        self.conn = self.utility.get_connection()
+        self.conn: AsyncElasticsearch = self.utility.get_connection()
 
     def get_sql(self, source):
         storage = self.txn._manager._storage
@@ -112,7 +110,7 @@ class Vacuum:
             while scroll_id:
                 try:
                     result = await self.conn.scroll(scroll_id=scroll_id, scroll="5m")
-                except aioelasticsearch.exceptions.TransportError:
+                except elasticsearch.exceptions.TransportError:
                     # no results
                     break
                 if len(result["hits"]["hits"]) == 0:
@@ -226,25 +224,16 @@ class Vacuum:
                 # remove them..
                 self.orphaned |= set(orphaned)
                 logger.warning(f"deleting orphaned {len(orphaned)}")
-                conn_es = await self.conn.transport.get_connection()
+
                 # delete by query for orphaned keys...
-                async with conn_es.session.post(
-                    join(conn_es.base_url.human_repr(), index_name, "_delete_by_query"),
-                    headers={"Content-Type": "application/json"},
-                    data=json.dumps({"query": {"terms": {"_id": orphaned}}}),
-                ) as resp:  # noqa
-                    try:
-                        data = await resp.json()
-                        if data["deleted"] != len(orphaned):
-                            logger.warning(
-                                f'Was only able to clean up {len(data["deleted"])} '  # noqa
-                                f"instead of {len(orphaned)}"
-                            )
-                    except Exception:
-                        logger.warning(
-                            "Could not parse delete by query response. "
-                            "Vacuuming might not be working"
-                        )
+                data = await self.conn.delete_by_query(
+                    index_name, body={"query": {"terms": {"_id": orphaned}}}
+                )
+                if data["deleted"] != len(orphaned):
+                    logger.warning(
+                        f'Was only able to clean up {len(data["deleted"])} '  # noqa
+                        f"instead of {len(orphaned)}"
+                    )
 
     def get_indexes_for_oids(self, oids):
         """

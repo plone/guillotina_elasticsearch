@@ -1,4 +1,4 @@
-from aioelasticsearch import Elasticsearch
+from elasticsearch import AsyncElasticsearch
 from guillotina import app_settings
 from guillotina import task_vars
 from guillotina.component import get_utility
@@ -6,7 +6,6 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.tests import utils
 from guillotina.tests.utils import get_container
 
-import aioelasticsearch.exceptions
 import asyncio
 import elasticsearch.exceptions
 import json
@@ -66,8 +65,8 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
         except (
             AssertionError,
             KeyError,
-            aioelasticsearch.exceptions.NotFoundError,
-            aioelasticsearch.exceptions.TransportError,
+            elasticsearch.exceptions.NotFoundError,
+            elasticsearch.exceptions.TransportError,
             Failed,
         ) as ex:
             exception = ex
@@ -83,7 +82,7 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
 
 
 async def cleanup_es(es_host, prefix=""):
-    conn = Elasticsearch(**app_settings["elasticsearch"]["connection_settings"])
+    conn = AsyncElasticsearch(**app_settings["elasticsearch"]["connection_settings"])
     for alias in (await conn.cat.aliases()).splitlines():
         name, index = alias.split()[:2]
         if name[0] == "." or index[0] == ".":
