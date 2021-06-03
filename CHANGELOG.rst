@@ -1,7 +1,8 @@
 7.0.0a1 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Unrestricted parameter added to search_raw, in order to search as root
+  [nilbacardit26]
 
 
 7.0.0a0 (2021-05-03)
