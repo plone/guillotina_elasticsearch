@@ -96,9 +96,7 @@ async def test_removes_orphans(es_requester):
         im = get_adapter(container, IIndexManager)
         index_name = await im.get_index_name()  # alias
 
-        doc = await search.get_connection().get(
-            index=index_name, doc_type=DOC_TYPE, id="foobar"
-        )
+        doc = await search.get_connection().get(index=index_name, id="foobar")
         assert doc["found"]
 
         migrator = Migrator(search, container, force=True)
@@ -106,9 +104,7 @@ async def test_removes_orphans(es_requester):
 
         async def _test():
             with pytest.raises(elasticsearch.exceptions.NotFoundError):
-                await search.get_connection().get(
-                    index=index_name, doc_type=DOC_TYPE, id="foobar"
-                )
+                await search.get_connection().get(index=index_name, id="foobar")
 
             assert len(migrator.orphaned) == 1
             assert migrator.orphaned[0] == "foobar"
@@ -200,9 +196,7 @@ async def test_updates_index_data(es_requester):
         await asyncio.sleep(1)
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
-        doc = await search.get_connection().get(
-            index=new_index_name, doc_type=DOC_TYPE, id=ob.__uuid__
-        )
+        doc = await search.get_connection().get(index=new_index_name, id=ob.__uuid__)
         assert doc["_source"]["title"] == "foobar-new"
 
 

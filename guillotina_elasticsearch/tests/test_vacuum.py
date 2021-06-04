@@ -260,7 +260,6 @@ async def test_reindexes_moved_content(es_requester):
         await search.get_connection().update(
             index=index_name,
             id=resp1["@uid"],
-            doc_type=DOC_TYPE,
             body={
                 "doc": {
                     "path": "/moved-foobar",
@@ -271,13 +270,11 @@ async def test_reindexes_moved_content(es_requester):
         await search.get_connection().update(
             index=index_name,
             id=resp2["@uid"],
-            doc_type=DOC_TYPE,
             body={"doc": {"path": "/moved-foobar/foobar"}},
         )
         await search.get_connection().update(
             index=index_name,
             id=resp3["@uid"],
-            doc_type=DOC_TYPE,
             body={"doc": {"path": "/moved-foobar/foobar/foobar"}},
         )
 
