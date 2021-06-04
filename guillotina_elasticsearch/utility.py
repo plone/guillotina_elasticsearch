@@ -200,14 +200,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
         reindexer = Reindexer(self, obj, response=response, reindex_security=security)
         await reindexer.reindex(obj)
 
-    async def _build_security_query(self, context, query, size=10, scroll=None):
+    async def _build_security_query(
+        self, context, query, size=10, scroll=None, unrestricted=False
+    ):
         if query is None:
             query = {}
         build_security_query = resolve_dotted_name(
             app_settings["elasticsearch"]["security_query_builder"]
         )
-
-        permission_query = await build_security_query(context)
+        if unrestricted:
+            permission_query = {}
+        else:
+            permission_query = await build_security_query(context)
         result = {
             "body": merge_dicts(query, permission_query),
             "size": query.get("size", size),
@@ -249,6 +253,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         request=None,
         scroll=None,
         index=None,
+        unrestricted=False,
     ):
         """
         Search raw query
@@ -265,7 +270,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             except RequestNotFound:
                 pass
 
-        q = await self._build_security_query(context, query, size, scroll)
+        q = await self._build_security_query(context, query, size, scroll, unrestricted)
         q["ignore_unavailable"] = True
 
         logger.debug("Generated query %s", json.dumps(query))

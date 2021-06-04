@@ -14,6 +14,9 @@ def base_settings_configurator(settings):
     if "applications" not in settings:
         settings["applications"] = []
 
+    if "guillotina.contrib.dbusers" not in settings["applications"]:
+        settings["applications"].append("guillotina.contrib.dbusers")
+
     if "guillotina_elasticsearch" not in settings["applications"]:
         settings["applications"].append("guillotina_elasticsearch")
 
