@@ -1,4 +1,4 @@
-7.0.0a1 (unreleased)
+7.0.0a1 (2021-06-04)
 --------------------
 
 - Unrestricted parameter added to search_raw, in order to search as root
