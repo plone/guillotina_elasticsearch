@@ -243,7 +243,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         self,
         context,
         query,
-        doc_type=None,
+        type_name=None,
         size=10,
         request=None,
         scroll=None,
@@ -299,8 +299,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         query = {"filter": {"term": {"uuid": uuid}}}
         return await self.search_raw(container, query, container)
 
-    async def get_by_uuids(self, container, uuids, doc_type=None):
-        uuid_query = self._get_type_query(doc_type)
+    async def get_by_uuids(self, container, uuids, type_name=None):
+        uuid_query = self._get_type_query(type_name)
         if uuids is not None:
             uuid_query["query"]["bool"]["must"].append({"terms": {"uuid": uuids}})
         return await self.search_raw(container, uuid_query)
@@ -314,15 +314,15 @@ class ElasticSearchUtility(DefaultSearchUtility):
         obj = await navigate_to(container, path)
         return obj
 
-    def _get_type_query(self, doc_type):
+    def _get_type_query(self, type_name):
         query = {"query": {"bool": {"must": []}}}
 
-        if doc_type is not None:
-            query["query"]["bool"]["must"].append({"term": {"type_name": doc_type}})
+        if type_name is not None:
+            query["query"]["bool"]["must"].append({"term": {"type_name": type_name}})
         return query
 
-    async def get_by_type(self, container, doc_type, query=None, size=10):
-        type_query = self._get_type_query(doc_type)
+    async def get_by_type(self, container, type_name, query=None, size=10):
+        type_query = self._get_type_query(type_name)
         if query is not None:
             type_query = merge_dicts(query, type_query)
         return await self.query(container, type_query, size=size)
@@ -333,7 +333,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         path,
         depth=-1,
         query=None,
-        doc_type=None,
+        type_name=None,
         size=10,
         scroll=None,
         index=None,
@@ -343,7 +343,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if not isinstance(path, str):
             path = get_content_path(path)
 
-        path_query = self._get_type_query(doc_type)
+        path_query = self._get_type_query(type_name)
 
         if path is not None and path != "/":
             path_query["query"]["bool"]["must"].append({"match": {"path": path}})

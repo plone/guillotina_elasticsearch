@@ -206,6 +206,9 @@ class Migrator:
         async with transaction(adopt_parent_txn=True) as txn:
             await txn.refresh(await self.index_manager.get_registry())
             next_index_name = await self.index_manager.start_migration()
+        import pdb
+
+        pdb.set_trace()
         if await self.conn.indices.exists(next_index_name):
             if self.force:
                 # delete and recreate
