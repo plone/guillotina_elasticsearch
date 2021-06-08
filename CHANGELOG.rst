@@ -1,7 +1,9 @@
 7.0.0a2 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Added __or in parser. With this we can query keywords with the or
+  operator like: `type_name=Item&__or=id=foo_item%26id=foo_item2`
+  [nilbacardit26]
 
 
 7.0.0a1 (2021-06-04)
