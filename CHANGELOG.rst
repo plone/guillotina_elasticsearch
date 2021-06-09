@@ -1,4 +1,4 @@
-7.0.0a2 (unreleased)
+7.0.0a2 (2021-06-09)
 --------------------
 
 - Added __or in parser. With this we can query keywords with the or
