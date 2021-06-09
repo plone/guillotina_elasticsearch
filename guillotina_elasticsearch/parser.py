@@ -10,6 +10,7 @@ from guillotina_elasticsearch.interfaces import ParsedQueryInfo
 
 import logging
 import typing
+import urllib.parse
 
 
 logger = logging.getLogger("guillotina_cms")
@@ -36,15 +37,26 @@ def convert(value):
 
 
 def process_compound_field(field, value, operator):
-    if not isinstance(value, dict):
+
+    if isinstance(value, dict):
+        parsed_value = value.items()
+    elif isinstance(value, str):
+        parsed_value = urllib.parse.parse_qsl(urllib.parse.unquote(value))
+    else:
         return
-    query = {}
-    for kk, vv in value.items():
+    query = {"must": [], "should": [], "minimum_should_match": 1, "must_not": []}
+    for kk, vv in parsed_value:
         if operator == "or":
-            query[kk + "__should"] = vv
+            match_type, sub_part = process_field(kk + "__should", vv)
         else:
-            query[kk] = vv
-    return "must", {"bool": process_query_level(query)}
+            match_type, sub_part = process_field(kk, vv)
+        query[match_type].append(sub_part)
+
+    if len(query["should"]) == 0:
+        del query["should"]
+        del query["minimum_should_match"]
+
+    return "must", {"bool": query}
 
 
 def process_field(field, value):
