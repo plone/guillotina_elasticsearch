@@ -39,7 +39,7 @@ setup(
         "elasticsearch[async]>=7.8.0,<8.0.0",
         "mypy_extensions",
         "lru-dict",
-        "backoff",
+        "backoff"
     ],
     tests_require=test_requires,
     extras_require={"test": test_requires},

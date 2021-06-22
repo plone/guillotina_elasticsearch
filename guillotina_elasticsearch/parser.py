@@ -118,7 +118,7 @@ def process_field(field, value):
             except ValueError:
                 pass
         elif _type == "date":
-            value_cast = parse(value_list).timestamp()
+            value_cast = parse(value_list).isoformat()
 
         elif _type == "boolean":
             if value_list in ("true", "True", "yes", True):

@@ -1,3 +1,6 @@
+from datetime import datetime
+from datetime import timedelta
+from datetime import timezone
 from guillotina.auth import authenticate_user
 from guillotina.auth import set_authenticated_user
 from guillotina.auth.utils import find_user
@@ -174,3 +177,51 @@ async def test_search_unrestricted(es_requester):
         results = await utility.search_raw(container, query, unrestricted=True)
         assert results["items_total"] == 1
         assert results["items"][0]["@name"] == "foo_item"
+
+
+async def test_search_date(es_requester):
+    async with es_requester as requester:
+        container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
+        utility = get_utility(ICatalogUtility)
+        parser = Parser(None, container)
+        now = datetime.now(timezone.utc)
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Example", "title": "Item1", "id": "item1"}),
+            headers={"X-Wait": "10"},
+        )
+        await asyncio.sleep(2)
+        # Test that we can filter by date, with granularity of seconds
+        assert status == 201
+        query = {
+            "type_name": "Example",
+            "modification_date__gte": (now + timedelta(seconds=-2)).isoformat(),
+        }
+        query = parser(query)
+        results = await utility.search_raw(container, query)
+        assert results["items_total"] == 1
+
+        query = {
+            "type_name": "Example",
+            "modification_date__gte": (now + timedelta(seconds=2)).isoformat(),
+        }
+        results = await utility.search_raw(container, parser(query))
+        assert results["items_total"] == 0
+
+        # Test with days
+
+        assert status == 201
+        query = {
+            "type_name": "Example",
+            "modification_date__gte": (now + timedelta(days=-1)).isoformat(),
+        }
+        results = await utility.search_raw(container, parser(query))
+        assert results["items_total"] == 1
+
+        query = {
+            "type_name": "Example",
+            "modification_date__gte": (now + timedelta(days=1)).isoformat(),
+        }
+        results = await utility.search_raw(container, parser(query))
+        assert results["items_total"] == 0
