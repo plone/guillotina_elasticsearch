@@ -1,7 +1,9 @@
 7.0.0a3 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Fixing the date parser, using arrow to parse the date. Using the default format
+  strict_date_optional_time instead of using the epoch_millis that leads
+  to the error: failed to parse date field [1.624173663E9].
 
 
 7.0.0a2 (2021-06-09)
