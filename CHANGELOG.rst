@@ -1,4 +1,4 @@
-7.0.0a3 (unreleased)
+7.0.0a3 (2021-06-22)
 --------------------
 
 - Fixing the date parser, using arrow to parse the date. Using the default format
