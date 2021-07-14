@@ -1,7 +1,10 @@
 7.0.0a4 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Adding path as a wildcard in the parser. Searches will be done
+  within the same context using the endpoint @search. FYI: If no depth is
+  specified, the query resolves greater or equal than the content depth of the context plus one
+  [nilbacardit26]
 
 
 7.0.0a3 (2021-06-22)

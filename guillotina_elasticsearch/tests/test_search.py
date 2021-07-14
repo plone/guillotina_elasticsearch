@@ -225,3 +225,51 @@ async def test_search_date(es_requester):
         }
         results = await utility.search_raw(container, parser(query))
         assert results["items_total"] == 0
+
+
+async def test_context_search(es_requester):
+    # https://github.com/plone/guillotina_elasticsearch/issues/93
+    async with es_requester as requester:
+        container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Folder", "title": "Folder1", "id": "folder1"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        parent_uuid = resp["@uid"]
+
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Folder", "title": "Folder1", "id": "folder2"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/folder1",
+            data=json.dumps({"@type": "Item", "title": "Item1", "id": "foo_item"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/folder2",
+            data=json.dumps({"@type": "Item", "title": "Item1", "id": "foo_item"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(2)
+
+        # Should only have found one result
+        resp, status = await requester("GET", "/db/guillotina/folder1/@search")
+        assert resp["items_total"] == 1
+        assert resp["items"][0]["parent_uuid"] == parent_uuid
+        assert resp["items"][0]["id"] == "foo_item"
+
+        resp, status = await requester("GET", "/db/guillotina/@search?type_name=Item")
+        assert resp["items_total"] == 2

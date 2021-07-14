@@ -42,9 +42,8 @@ async def test_es_field_date_parser(dummy_guillotina):
             "_sort_asc": "modification_date",
         }
     )
-
     qq = parsed["query"]["bool"]["must"]
-    assert len(qq[-1]["bool"]["should"]) == 4
+    assert len(qq[-2]["bool"]["should"]) == 4
 
     assert "range" in qq[0]
     assert "modification_date" in qq[0]["range"]
@@ -67,6 +66,12 @@ async def test_parser_term_and_terms(dummy_guillotina):
     qq = query["query"]["bool"]["must"]
     assert "Item" in qq[1]["terms"]["type_name"]
     assert "Folder" in qq[1]["terms"]["type_name"]
+    # Check that b_start and b_size work as expected
+    # https://github.com/plone/guillotina_elasticsearch/issues/93
+    params = {"b_start": 5, "b_size": 10}
+    query = parser(params)
+    assert query["from"] == 5
+    assert query["size"] == 10
 
 
 async def test_parser_or_operator(es_requester):
