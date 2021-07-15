@@ -1,4 +1,4 @@
-7.0.0a4 (unreleased)
+7.0.0a4 (2021-07-15)
 --------------------
 
 - Adding path as a wildcard in the parser. Searches will be done
