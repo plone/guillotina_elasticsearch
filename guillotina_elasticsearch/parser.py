@@ -96,6 +96,9 @@ def process_field(field, value):
     elif field.endswith("__wildcard"):
         modifier = "wildcard"
         field = field[: -len("__wildcard")]
+    elif field.endswith("__starts"):
+        modifier = "starts"
+        field = field[: -len("__starts")]
 
     index = get_index_definition(field)
     if index is None:
@@ -151,6 +154,8 @@ def process_field(field, value):
         return match_type, {"range": {field: {modifier: value}}}
     elif modifier == "wildcard":
         return match_type, {"wildcard": {field: value}}
+    elif modifier == "starts":
+        return match_type, {"wildcard": {field: f"{value}*"}}
     else:
         logger.warn(
             "wrong search type: %s modifier: %s field: %s value: %s"
