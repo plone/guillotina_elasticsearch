@@ -191,7 +191,6 @@ class Migrator:
         self.errors = []
         self.mapping_diff = {}
         self.start_time = self.index_start_time = time.time()
-        self.reindex_futures = []
         self.status = "started"
         self.active_task_id = None
 
@@ -480,12 +479,8 @@ class Migrator:
             # nothing to flush
             return
 
-        future = asyncio.ensure_future(self._index_batch(self.batch))
+        await self._index_batch(self.batch)
         self.batch = {}
-        self.reindex_futures.append(future)
-
-        if len(self.reindex_futures) > 7:
-            await self.join_futures()
 
     async def check_existing(self):
         """
@@ -570,7 +565,6 @@ class Migrator:
             await self.check_existing()
 
             await self.flush()
-            await self.join_futures()
 
         async with get_migration_lock(await self.index_manager.get_index_name()):
             self.response.write("Activating new index")
