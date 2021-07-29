@@ -36,10 +36,18 @@ def convert(value):
     return value.split(" ")
 
 
-def process_compound_field(field, value, operator):
+def _or_field_generator(field, obj: list):
+    # This is intended to be used as a query resolver for __or
+    # field. Eg: {type_name__or: ["User", "Item"]}
+    for element in obj:
+        yield field[: -len("__or")], element
 
+
+def process_compound_field(field, value, operator):
     if isinstance(value, dict):
         parsed_value = value.items()
+    elif isinstance(value, list):
+        parsed_value = _or_field_generator(field, value)
     elif isinstance(value, str):
         parsed_value = urllib.parse.parse_qsl(urllib.parse.unquote(value))
     else:

@@ -1,7 +1,9 @@
 7.0.0a5 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Modifying the parse to be able to parse the __or field as a list of elements. Eg:
+  catalog_utility.search({"type_name__or": ["Folder", "Item"]})
+  [nilbacardit26]
 
 
 7.0.0a4 (2021-07-15)
@@ -16,9 +18,9 @@
 7.0.0a3 (2021-06-22)
 --------------------
 
-- Fixing the date parser, using arrow to parse the date. Using the default format
-  strict_date_optional_time instead of using the epoch_millis that leads
-  to the error: failed to parse date field [1.624173663E9].
+- Fixing the date parser. Using the default format
+  strict_date_optional_time instead of using the epoch_millis that
+  leads to the error: failed to parse date field [1.624173663E9].
 
 
 7.0.0a2 (2021-06-09)
