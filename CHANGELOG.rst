@@ -1,4 +1,4 @@
-7.0.0a5 (unreleased)
+7.0.0a5 (2021-07-30)
 --------------------
 
 - Modifying the parse to be able to parse the __or field as a list of elements. Eg:
