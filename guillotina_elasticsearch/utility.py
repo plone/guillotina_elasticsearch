@@ -311,13 +311,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         obj = await navigate_to(container, path)
         return obj
 
-    def _get_type_query(self, doc_type):
-        query = {"query": {"bool": {"must": []}}}
-
-        if doc_type is not None:
-            query["query"]["bool"]["must"].append({"term": {"type_name": doc_type}})
-        return query
-
     async def get_path_query(self, resource, response=noop_response):
         if isinstance(resource, str):
             path = resource
