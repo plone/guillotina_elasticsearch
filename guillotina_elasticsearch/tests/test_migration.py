@@ -9,7 +9,6 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import create_content
 from guillotina_elasticsearch.events import IIndexProgress
 from guillotina_elasticsearch.events import IndexProgress
-from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator
 from guillotina_elasticsearch.reindex import Reindexer

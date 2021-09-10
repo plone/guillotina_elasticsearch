@@ -2,7 +2,6 @@ from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import create_content
-from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
 
