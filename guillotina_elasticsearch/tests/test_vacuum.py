@@ -1,6 +1,5 @@
 from guillotina import task_vars
 from guillotina.component import get_utility
-from guillotina.db.uid import get_short_uid
 from guillotina.interfaces import ICatalogUtility
 from guillotina_elasticsearch.commands.vacuum import Vacuum
 from guillotina_elasticsearch.tests.utils import add_content
