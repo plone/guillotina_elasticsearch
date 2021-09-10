@@ -1,6 +1,8 @@
 7.0.0a6 (unreleased)
 --------------------
 
+- Remove deprecated parameter 'doc_type'
+  [masipcat]
 - ElasticSearchUtility: removed obsolete methods get_by_uuid(), get_by_uuids(),
   get_by_type() and get_by_type()
   [masipcat]
