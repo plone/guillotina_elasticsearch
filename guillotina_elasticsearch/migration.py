@@ -22,7 +22,6 @@ from guillotina.utils import get_current_container
 from guillotina.utils import get_current_transaction
 from guillotina.utils import get_security_policy
 from guillotina_elasticsearch.events import IndexProgress
-from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.utils import find_index_manager
@@ -452,9 +451,7 @@ class Migrator:
             bulk_data.append({payload["action"]: action_data})
             if payload["action"] != "delete":
                 bulk_data.append(data)
-        results = await self.conn.bulk(
-            index=self.work_index_name, doc_type=DOC_TYPE, body=bulk_data
-        )
+        results = await self.conn.bulk(index=self.work_index_name, body=bulk_data)
         if results["errors"]:
             errors = []
             for result in results["items"]:

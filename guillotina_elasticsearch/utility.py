@@ -22,7 +22,6 @@ from guillotina.utils.misc import get_current_container
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina_elasticsearch.exceptions import QueryErrorException
-from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat
 from guillotina_elasticsearch.interfaces import IIndexActive
@@ -432,7 +431,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
             response.write(b"Indexing %d" % (len(idents),))
             result = await conn.bulk(
                 index=index_name,
-                doc_type=DOC_TYPE,
                 body=bulk_data,
                 refresh=self._refresh(),
             )
@@ -604,7 +602,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
             await conn.bulk(
                 index=indexes[0],
                 body=bulk_data,
-                doc_type=DOC_TYPE,
                 refresh=self._refresh(),
             )
 
