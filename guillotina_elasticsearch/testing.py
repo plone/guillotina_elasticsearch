@@ -2,9 +2,7 @@ from elasticsearch import AsyncElasticsearch
 from guillotina import app_settings
 from guillotina import configure
 from guillotina import task_vars
-from guillotina.content import Folder
 from guillotina.exceptions import RequestNotFound
-from guillotina.interfaces import IResource
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.utility import DefaultConnnectionFactoryUtility
 
