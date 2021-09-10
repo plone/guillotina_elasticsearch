@@ -423,12 +423,17 @@ class ElasticSearchUtility(DefaultSearchUtility):
         """
         index_manager = get_adapter(container, IIndexManager)
 
-        reak_index_name = await index_manager.get_real_index_name()
+        real_index_name = await index_manager.get_real_index_name()
         # also need to call on next index while it's running...
-        async with get_migration_lock(reak_index_name):
+        async with get_migration_lock(real_index_name):
             next_index_name = await index_manager.get_migration_index_name()
 
-        alias = await index_manager.get_alias_name()
+        # I changed the 'real_index' for the 'alias' to avoid race conditions with the indexer.
+        # When the migration finishes it closes the 'real_index' and updates the alias
+        # pointing to 'next_index'. If, at the same time, the indexer tries to update existing
+        # documents to the closed/deleted 'real_index', ES creates the index automatically
+        # but the doc update fails with a 404 error because the index is empty.
+        alias = await index_manager.get_index_name()
         if next_index_name:
             return [alias, next_index_name]
         return [alias]

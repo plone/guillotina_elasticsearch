@@ -11,15 +11,6 @@ from guillotina_elasticsearch.utility import DefaultConnnectionFactoryUtility
 import asyncio
 
 
-class IIndexItemContent(IResource):
-    pass
-
-
-@configure.contenttype(type_name="IndexItemContent", schema=IIndexItemContent)
-class IndexItemContent(Folder):
-    pass
-
-
 @configure.utility(provides=IConnectionFactoryUtility)
 class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
     """

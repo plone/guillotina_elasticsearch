@@ -1,9 +1,7 @@
 from guillotina import app_settings
 from guillotina import configure
 from guillotina import task_vars
-from guillotina.component import query_utility
 from guillotina.db.transaction import Status
-from guillotina.interfaces import ICatalogUtility
 from guillotina.interfaces import IContainer
 from guillotina.transactions import get_transaction
 from guillotina.transactions import transaction
@@ -71,7 +69,7 @@ class ContainerIndexManager:
     def _get_index_name(self, index_name, version):
         return index_name + "_" + str(version)
 
-    async def get_alias_name(self):
+    async def get_index_name(self):
         registry = await self.get_registry()
 
         try:
@@ -89,9 +87,6 @@ class ContainerIndexManager:
                     registry["el_index_name"] = result
                     registry.register()
         return result
-
-    # backwards compatible
-    get_index_name = get_alias_name
 
     async def get_real_index_name(self):
         index_name = await self.get_index_name()
@@ -148,9 +143,3 @@ class ContainerIndexManager:
 
     async def get_schemas(self):
         pass
-
-
-async def _teardown_failed_request_with_index(im):
-    utility = query_utility(ICatalogUtility)
-    if utility:
-        await utility._delete_index(im)

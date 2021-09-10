@@ -246,7 +246,9 @@ class Vacuum:
                     size=PAGE_SIZE,
                 )
             except elasticsearch.exceptions.NotFoundError:
-                logger.warning(f"Error searching index: {self.index_name}", exc_info=True)
+                logger.warning(
+                    f"Error searching index: {self.index_name}", exc_info=True
+                )
                 continue
 
             es_batch = {}
@@ -281,7 +283,7 @@ class Vacuum:
             )  # noqa
 
         await self.migrator.flush()
-        # await self.migrator.join_futures()
+        await self.migrator.join_futures()
 
 
 class VacuumCommand(Command):
@@ -334,7 +336,6 @@ Missing added: {len(vacuum.missing)}
 Out of date fixed: {len(vacuum.out_of_date)}
 """
                     )
-                    await clean_orphan_indexes(container)
                 except Exception:
                     logger.error("Error vacuuming", exc_info=True)
                 finally:

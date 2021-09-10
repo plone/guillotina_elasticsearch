@@ -186,6 +186,7 @@ class Migrator:
         self.errors = []
         self.mapping_diff = {}
         self.start_time = self.index_start_time = time.time()
+        self.reindex_futures = []
         self.status = "started"
         self.active_task_id = None
 
@@ -202,7 +203,7 @@ class Migrator:
             await txn.refresh(await self.index_manager.get_registry())
             next_index_name = await self.index_manager.start_migration()
             # The index is created in the same transaction the registry is updated
-            # to prevent race conditions
+            # to prevent another process from accessing the 'next_index' and not finding it
             if await self.conn.indices.exists(next_index_name):
                 if self.force:
                     # delete and recreate
@@ -416,11 +417,11 @@ class Migrator:
             )
             await self.flush()
 
-    # async def join_futures(self):
-    #     for future in self.reindex_futures:
-    #         if not future.done():
-    #             await asyncio.wait_for(future, None)
-    #     self.reindex_futures = []
+    async def join_futures(self):
+        for future in self.reindex_futures:
+            if not future.done():
+                await asyncio.wait_for(future, None)
+        self.reindex_futures = []
 
     @backoff.on_exception(
         backoff.constant,
@@ -466,8 +467,12 @@ class Migrator:
             # nothing to flush
             return
 
-        await self._index_batch(self.batch)
+        future = asyncio.ensure_future(self._index_batch(self.batch))
         self.batch = {}
+        self.reindex_futures.append(future)
+
+        if len(self.reindex_futures) > 7:
+            await self.join_futures()
 
     async def check_existing(self):
         """
@@ -552,6 +557,7 @@ class Migrator:
             await self.check_existing()
 
             await self.flush()
+            await self.join_futures()
 
         async with get_migration_lock(await self.index_manager.get_index_name()):
             self.response.write("Activating new index")

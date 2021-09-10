@@ -2,7 +2,6 @@ from guillotina import task_vars
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.component import globalregistry as gr
-from guillotina.db.uid import get_short_uid
 from guillotina.event import notify
 from guillotina.events import ObjectRemovedEvent
 from guillotina.interfaces import ICatalogUtility
@@ -171,7 +170,7 @@ async def test_updates_index_data(es_requester):
 
         await migrator.flush()
         assert len(migrator.batch) == 0
-        # await migrator.join_futures()
+        await migrator.join_futures()
         await asyncio.sleep(1)
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)
@@ -191,7 +190,7 @@ async def test_updates_index_data(es_requester):
 
         await migrator.flush()
         assert len(migrator.batch) == 0
-        # await migrator.join_futures()
+        await migrator.join_futures()
         await asyncio.sleep(1)
         await search.refresh(container, new_index_name)
         await asyncio.sleep(1)

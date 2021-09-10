@@ -33,14 +33,9 @@ class IIndexManager(Interface):
         Returns settings for index
         """
 
-    async def get_alias_name() -> str:
-        """
-        Return the alias name
-        """
-
     async def get_index_name() -> str:
         """
-        [DEPREACTED] Return the alias name
+        Return current active index used for alias
         """
 
     async def get_real_index_name() -> str:
