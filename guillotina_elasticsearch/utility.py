@@ -199,14 +199,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
         reindexer = Reindexer(self, obj, response=response, reindex_security=security)
         await reindexer.reindex(obj)
 
-    async def _build_security_query(self, context, query, size=10, scroll=None):
+    async def _build_security_query(
+        self, context, query, size=10, scroll=None, unrestricted=False
+    ):
         if query is None:
             query = {}
         build_security_query = resolve_dotted_name(
             app_settings["elasticsearch"]["security_query_builder"]
         )
-
-        permission_query = await build_security_query(context)
+        if unrestricted:
+            permission_query = {}
+        else:
+            permission_query = await build_security_query(context)
         result = {
             "body": merge_dicts(query, permission_query),
             "size": query.get("size", size),
@@ -248,6 +252,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         request=None,
         scroll=None,
         index=None,
+        unrestricted=False,
     ):
         """
         Search raw query
@@ -264,7 +269,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             except RequestNotFound:
                 pass
 
-        q = await self._build_security_query(context, query, size, scroll)
+        q = await self._build_security_query(context, query, size, scroll, unrestricted)
         q["ignore_unavailable"] = True
 
         logger.debug("Generated query %s", json.dumps(query))
@@ -295,67 +300,15 @@ class ElasticSearchUtility(DefaultSearchUtility):
         await notify(SearchDoneEvent(query, items_total, request, tdif))
         return final
 
-    async def get_by_uuid(self, container, uuid):
-        query = {"filter": {"term": {"uuid": uuid}}}
-        return await self.search_raw(container, query, container)
-
-    async def get_by_uuids(self, container, uuids, type_name=None):
-        uuid_query = self._get_type_query(type_name)
-        if uuids is not None:
-            uuid_query["query"]["bool"]["must"].append({"terms": {"uuid": uuids}})
-        return await self.search_raw(container, uuid_query)
-
     async def get_object_by_uuid(self, container, uuid):
-        result = await self.get_by_uuid(container, uuid)
+        query = {"filter": {"term": {"uuid": uuid}}}
+        result = await self.search_raw(container, query, container)
         if result["items_total"] == 0 or result["items_total"] > 1:
             raise AttributeError("Not found a unique object")
 
         path = result["items"][0]["path"]
         obj = await navigate_to(container, path)
         return obj
-
-    def _get_type_query(self, type_name):
-        query = {"query": {"bool": {"must": []}}}
-
-        if type_name is not None:
-            query["query"]["bool"]["must"].append({"term": {"type_name": type_name}})
-        return query
-
-    async def get_by_type(self, container, type_name, query=None, size=10):
-        type_query = self._get_type_query(type_name)
-        if query is not None:
-            type_query = merge_dicts(query, type_query)
-        return await self.query(container, type_query, size=size)
-
-    async def get_by_path(
-        self,
-        container,
-        path,
-        depth=-1,
-        query=None,
-        type_name=None,
-        size=10,
-        scroll=None,
-        index=None,
-    ):
-        if query is None:
-            query = {}
-        if not isinstance(path, str):
-            path = get_content_path(path)
-
-        path_query = self._get_type_query(type_name)
-
-        if path is not None and path != "/":
-            path_query["query"]["bool"]["must"].append({"match": {"path": path}})
-
-            if depth > -1:
-                query["query"]["bool"]["must"].append(
-                    {"range": {"depth": {"gte": depth}}}
-                )
-
-        query = merge_dicts(query, path_query)
-
-        return await self.query(container, query, size=size, scroll=scroll, index=index)
 
     async def get_path_query(self, resource, response=noop_response):
         if isinstance(resource, str):

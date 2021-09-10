@@ -10,6 +10,7 @@ from guillotina_elasticsearch.interfaces import ParsedQueryInfo
 
 import logging
 import typing
+import urllib.parse
 
 
 logger = logging.getLogger("guillotina_cms")
@@ -35,16 +36,35 @@ def convert(value):
     return value.split(" ")
 
 
+def _or_field_generator(field, obj: list):
+    # This is intended to be used as a query resolver for __or
+    # field. Eg: {type_name__or: ["User", "Item"]}
+    for element in obj:
+        yield field[: -len("__or")], element
+
+
 def process_compound_field(field, value, operator):
-    if not isinstance(value, dict):
+    if isinstance(value, dict):
+        parsed_value = value.items()
+    elif isinstance(value, list):
+        parsed_value = _or_field_generator(field, value)
+    elif isinstance(value, str):
+        parsed_value = urllib.parse.parse_qsl(urllib.parse.unquote(value))
+    else:
         return
-    query = {}
-    for kk, vv in value.items():
+    query = {"must": [], "should": [], "minimum_should_match": 1, "must_not": []}
+    for kk, vv in parsed_value:
         if operator == "or":
-            query[kk + "__should"] = vv
+            match_type, sub_part = process_field(kk + "__should", vv)
         else:
-            query[kk] = vv
-    return "must", {"bool": process_query_level(query)}
+            match_type, sub_part = process_field(kk, vv)
+        query[match_type].append(sub_part)
+
+    if len(query["should"]) == 0:
+        del query["should"]
+        del query["minimum_should_match"]
+
+    return "must", {"bool": query}
 
 
 def process_field(field, value):
@@ -84,6 +104,9 @@ def process_field(field, value):
     elif field.endswith("__wildcard"):
         modifier = "wildcard"
         field = field[: -len("__wildcard")]
+    elif field.endswith("__starts"):
+        modifier = "starts"
+        field = field[: -len("__starts")]
 
     index = get_index_definition(field)
     if index is None:
@@ -106,7 +129,7 @@ def process_field(field, value):
             except ValueError:
                 pass
         elif _type == "date":
-            value_cast = parse(value_list).timestamp()
+            value_cast = parse(value_list).isoformat()
 
         elif _type == "boolean":
             if value_list in ("true", "True", "yes", True):
@@ -139,6 +162,8 @@ def process_field(field, value):
         return match_type, {"range": {field: {modifier: value}}}
     elif modifier == "wildcard":
         return match_type, {"wildcard": {field: value}}
+    elif modifier == "starts":
+        return match_type, {"wildcard": {field: f"{value}*"}}
     else:
         logger.warn(
             "wrong search type: %s modifier: %s field: %s value: %s"
