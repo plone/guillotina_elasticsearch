@@ -3,7 +3,6 @@ from guillotina.component import get_utility
 from guillotina.db.uid import get_short_uid
 from guillotina.interfaces import ICatalogUtility
 from guillotina_elasticsearch.commands.vacuum import Vacuum
-from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.tests.utils import add_content
 from guillotina_elasticsearch.tests.utils import run_with_retries
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
@@ -260,7 +259,6 @@ async def test_reindexes_moved_content(es_requester):
         await search.get_connection().update(
             index=index_name,
             id=resp1["@uid"],
-            doc_type=DOC_TYPE,
             body={
                 "doc": {
                     "path": "/moved-foobar",
@@ -271,13 +269,11 @@ async def test_reindexes_moved_content(es_requester):
         await search.get_connection().update(
             index=index_name,
             id=resp2["@uid"],
-            doc_type=DOC_TYPE,
             body={"doc": {"path": "/moved-foobar/foobar"}},
         )
         await search.get_connection().update(
             index=index_name,
             id=resp3["@uid"],
-            doc_type=DOC_TYPE,
             body={"doc": {"path": "/moved-foobar/foobar/foobar"}},
         )
 

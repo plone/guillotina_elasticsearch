@@ -6,9 +6,6 @@ from zope.interface import Interface
 import typing
 
 
-DOC_TYPE = "_doc"
-
-
 SUB_INDEX_SEPERATOR = "__"
 
 

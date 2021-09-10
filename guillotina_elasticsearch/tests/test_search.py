@@ -273,3 +273,45 @@ async def test_context_search(es_requester):
 
         resp, status = await requester("GET", "/db/guillotina/@search?type_name=Item")
         assert resp["items_total"] == 2
+
+
+async def test_or_search(es_requester):
+    async with es_requester as requester:
+        container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            headers={"X-Wait": "10"},
+            data=json.dumps({"@type": "Example", "title": "example", "id": "item1"}),
+        )
+        assert status == 201
+
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Folder", "title": "Folder1", "id": "folder"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Item", "title": "Item", "id": "item"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        utility = get_utility(ICatalogUtility)
+        parser = Parser(None, container)
+        query = parser({"type_name__or": ["Item", "Folder"]})
+        await asyncio.sleep(3)
+        results = await utility.search_raw(container, query)
+        assert results["items_total"] == 2
+        for item in results["items"]:
+            assert item["@type"] in ["Item", "Folder"]
+
+        query = parser({"type_name__or": ["Item", "Example"]})
+        results = await utility.search_raw(container, query)
+        assert results["items_total"] == 2
+        for item in results["items"]:
+            assert item["@type"] in ["Item", "Example"]

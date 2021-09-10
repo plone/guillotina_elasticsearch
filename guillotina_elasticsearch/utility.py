@@ -298,12 +298,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         await notify(SearchDoneEvent(query, items_total, request, tdif))
         return final
 
-    async def get_by_uuids(self, container, uuids, doc_type=None):
-        uuid_query = self._get_type_query(doc_type)
-        if uuids is not None:
-            uuid_query["query"]["bool"]["must"].append({"terms": {"uuid": uuids}})
-        return await self.search_raw(container, uuid_query)
-
     async def get_object_by_uuid(self, container, uuid):
         query = {"filter": {"term": {"uuid": uuid}}}
         result = await self.search_raw(container, query, container)
@@ -313,13 +307,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         path = result["items"][0]["path"]
         obj = await navigate_to(container, path)
         return obj
-
-    def _get_type_query(self, doc_type):
-        query = {"query": {"bool": {"must": []}}}
-
-        if doc_type is not None:
-            query["query"]["bool"]["must"].append({"term": {"type_name": doc_type}})
-        return query
 
     async def get_path_query(self, resource, response=noop_response):
         if isinstance(resource, str):
