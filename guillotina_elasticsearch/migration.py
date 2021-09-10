@@ -193,7 +193,6 @@ class Migrator:
         self.copied_docs = 0
 
         self.work_index_name = None
-        self.sub_indexes = []
 
     def per_sec(self):
         return self.processed / (time.time() - self.index_start_time)
@@ -610,24 +609,3 @@ class Migrator:
             self.response.write("Old index deleted")
         except elasticsearch.exceptions.NotFoundError:
             pass
-
-        if len(self.sub_indexes) > 0:
-            self.response.write(f"Migrating sub indexes: {len(self.sub_indexes)}")
-            for ob in self.sub_indexes:
-                im = get_adapter(ob, IIndexManager)
-                migrator = Migrator(
-                    self.utility,
-                    ob,
-                    response=self.response,
-                    force=self.force,
-                    log_details=self.log_details,
-                    memory_tracking=self.memory_tracking,
-                    bulk_size=self.bulk_size,
-                    full=self.full,
-                    reindex_security=self.reindex_security,
-                    mapping_only=self.mapping_only,
-                    index_manager=im,
-                    children_only=True,
-                )
-                self.response.write(f"Migrating index for: {ob}")
-                await migrator.run_migration()

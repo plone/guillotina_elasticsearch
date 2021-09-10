@@ -21,29 +21,6 @@ class Reindexer(Migrator):
         await notify(IndexProgress(self.context, 0, self.processed))
         await self.process_object(obj)
         await self.flush()
-        if len(self.sub_indexes) > 0:
-            # could cause sub indexes to need to be run through as well.
-            for ob in self.sub_indexes:
-                im = get_adapter(ob, IIndexManager)
-                reindexer = Reindexer(
-                    self.utility,
-                    ob,
-                    response=self.response,
-                    force=self.force,
-                    log_details=self.log_details,
-                    memory_tracking=self.memory_tracking,
-                    bulk_size=self.bulk_size,
-                    full=self.full,
-                    reindex_security=self.reindex_security,
-                    mapping_only=self.mapping_only,
-                    index_manager=im,
-                    request=self.request,
-                )
-                reindexer.processed = self.processed
-                reindexer.work_index_name = await im.get_index_name()
-                await reindexer.process_folder(ob)
-                await reindexer.flush()
-                self.processed = reindexer.processed
 
         await notify(
             IndexProgress(

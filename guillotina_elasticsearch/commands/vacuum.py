@@ -57,9 +57,7 @@ class Vacuum:
         self.missing = set()
         self.out_of_date = set()
         self.utility = get_utility(ICatalogUtility)
-        self.migrator = Migrator(
-            self.utility, self.container, full=True, bulk_size=10, lookup_index=True
-        )
+        self.migrator = Migrator(self.utility, self.container, full=True, bulk_size=10)
         self.index_manager = get_adapter(self.container, IIndexManager)
         self.cache = LRU(200)
         self.last_tid = last_tid
@@ -76,9 +74,6 @@ class Vacuum:
     async def iter_batched_es_keys(self):
         # go through one index at a time...
         indexes = [self.index_name]
-        for index in self.sub_indexes:
-            indexes.append(index["index"])
-
         for index_name in indexes:
             try:
                 result = await self.conn.search(
