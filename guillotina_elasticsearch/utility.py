@@ -22,14 +22,11 @@ from guillotina.utils.misc import get_current_container
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina_elasticsearch.exceptions import QueryErrorException
-from guillotina_elasticsearch.interfaces import DOC_TYPE
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat
-from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
-from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import format_hit
-from guillotina_elasticsearch.utils import get_content_sub_indexes
+from guillotina_elasticsearch.utils import get_migration_lock
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
 
@@ -301,10 +298,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         await notify(SearchDoneEvent(query, items_total, request, tdif))
         return final
 
-    async def get_by_uuid(self, container, uuid):
-        query = {"filter": {"term": {"uuid": uuid}}}
-        return await self.search_raw(container, query, container)
-
     async def get_by_uuids(self, container, uuids, doc_type=None):
         uuid_query = self._get_type_query(doc_type)
         if uuids is not None:
@@ -312,7 +305,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return await self.search_raw(container, uuid_query)
 
     async def get_object_by_uuid(self, container, uuid):
-        result = await self.get_by_uuid(container, uuid)
+        query = {"filter": {"term": {"uuid": uuid}}}
+        result = await self.search_raw(container, query, container)
         if result["items_total"] == 0 or result["items_total"] > 1:
             raise AttributeError("Not found a unique object")
 
@@ -326,42 +320,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if doc_type is not None:
             query["query"]["bool"]["must"].append({"term": {"type_name": doc_type}})
         return query
-
-    async def get_by_type(self, container, doc_type, query=None, size=10):
-        type_query = self._get_type_query(doc_type)
-        if query is not None:
-            type_query = merge_dicts(query, type_query)
-        return await self.query(container, type_query, size=size)
-
-    async def get_by_path(
-        self,
-        container,
-        path,
-        depth=-1,
-        query=None,
-        doc_type=None,
-        size=10,
-        scroll=None,
-        index=None,
-    ):
-        if query is None:
-            query = {}
-        if not isinstance(path, str):
-            path = get_content_path(path)
-
-        path_query = self._get_type_query(doc_type)
-
-        if path is not None and path != "/":
-            path_query["query"]["bool"]["must"].append({"match": {"path": path}})
-
-            if depth > -1:
-                query["query"]["bool"]["must"].append(
-                    {"range": {"depth": {"gte": depth}}}
-                )
-
-        query = merge_dicts(query, path_query)
-
-        return await self.query(container, query, size=size, scroll=scroll, index=index)
 
     async def get_path_query(self, resource, response=noop_response):
         if isinstance(resource, str):
@@ -396,25 +354,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         max_tries=5,
     )
     async def call_unindex_all_children(self, container, index_name, content_path):
-        # first, find any indexes connected with this path so we can
-        # delete them.
-        conn = self.get_connection()
-        sub_indexes = await get_content_sub_indexes(container, content_path)
-        for index_data in sub_indexes:
-            try:
-                all_aliases = await conn.indices.get_alias(name=index_data["index"])
-            except elasticsearch.exceptions.NotFoundError:
-                continue
-            for index, data in all_aliases.items():
-                for name in data["aliases"].keys():
-                    # delete alias
-                    try:
-                        await conn.indices.close(index)
-                        await conn.indices.delete_alias(index, name)
-                        await conn.indices.delete(index)
-                    except elasticsearch.exceptions.NotFoundError:
-                        pass
-
         path_query = await self.get_path_query(content_path)
         await self._delete_by_query(path_query, index_name)
 
@@ -441,11 +380,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if indexes is None:
             container = get_current_container()
             indexes = await self.get_current_indexes(container)
-            if context is not None:
-                for index in await get_content_sub_indexes(
-                    container, get_content_path(context)
-                ):
-                    indexes.append(index["index"])
         return await self._update_by_query(query, ",".join(indexes))
 
     @backoff.on_exception(
@@ -475,19 +409,12 @@ class ElasticSearchUtility(DefaultSearchUtility):
         interval=1,
         max_tries=5,
     )
-    async def bulk_insert(
-        self, index_name, bulk_data, idents, count=0, response=noop_response
-    ):
+    async def bulk_insert(self, bulk_data, idents, count=0, response=noop_response):
         conn = self.get_connection()
         result = {}
         try:
             response.write(b"Indexing %d" % (len(idents),))
-            result = await conn.bulk(
-                index=index_name,
-                doc_type=DOC_TYPE,
-                body=bulk_data,
-                refresh=self._refresh(),
-            )
+            result = await conn.bulk(body=bulk_data, refresh=self._refresh())
         except elasticsearch.exceptions.TransportError as e:
             count += 1
             if count > MAX_RETRIES_ON_REINDEX:
@@ -495,7 +422,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 logger.error("Could not index " + " ".join(idents) + " " + str(e))
             else:
                 await asyncio.sleep(0.5)
-                result = await self.bulk_insert(index_name, bulk_data, idents, count)
+                result = await self.bulk_insert(bulk_data, idents, count)
 
         if isinstance(result, dict) and result.get("errors"):
             logger.error("Error indexing: {}".format(result))
@@ -503,8 +430,21 @@ class ElasticSearchUtility(DefaultSearchUtility):
         return result
 
     async def get_current_indexes(self, container):
+        """
+        Returns a list contining the alias (pointing to the current index) and
+        if this method is called during a migration returns the next index name
+        """
         index_manager = get_adapter(container, IIndexManager)
-        return await index_manager.get_indexes()
+
+        reak_index_name = await index_manager.get_real_index_name()
+        # also need to call on next index while it's running...
+        async with get_migration_lock(reak_index_name):
+            next_index_name = await index_manager.get_migration_index_name()
+
+        alias = await index_manager.get_alias_name()
+        if next_index_name:
+            return [alias, next_index_name]
+        return [alias]
 
     async def index(
         self,
@@ -530,23 +470,18 @@ class ElasticSearchUtility(DefaultSearchUtility):
         idents = []
         result = {}
         for ident, data in datas.items():
-            item_indexes = data.pop("__indexes__", indexes)
             if tid and tid > (data.get("tid") or 0):
                 data["tid"] = tid
-            for index in item_indexes:
+            for index in indexes:
                 bulk_data.extend([{"index": {"_index": index, "_id": ident}}, data])
             idents.append(ident)
             if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
-                result = await self.bulk_insert(
-                    indexes[0], bulk_data, idents, response=response
-                )
+                result = await self.bulk_insert(bulk_data, idents, response=response)
                 idents = []
                 bulk_data = []
 
         if len(bulk_data) > 0:
-            result = await self.bulk_insert(
-                indexes[0], bulk_data, idents, response=response
-            )
+            result = await self.bulk_insert(bulk_data, idents, response=response)
 
         self.log_result(result)
 
@@ -577,10 +512,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
             indexes = await self.get_current_indexes(container)
 
             for ident, data in datas.items():
-                item_indexes = data.pop("__indexes__", indexes)
                 if tid and tid > (data.get("tid") or 0):
                     data["tid"] = tid
-                for index in item_indexes:
+                for index in indexes:
                     bulk_data.extend(
                         [
                             {
@@ -596,15 +530,13 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 idents.append(ident)
                 if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
                     result = await self.bulk_insert(
-                        indexes[0], bulk_data, idents, response=response
+                        bulk_data, idents, response=response
                     )
                     idents = []
                     bulk_data = []
 
             if len(bulk_data) > 0:
-                result = await self.bulk_insert(
-                    indexes[0], bulk_data, idents, response=response
-                )
+                result = await self.bulk_insert(bulk_data, idents, response=response)
             self.log_result(result)
             return result
 
@@ -636,29 +568,14 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 indexes = [index_name]
             bulk_data = []
             for obj in objects:
-                item_indexes = indexes
-                im = find_index_manager(obj)
-                if im:
-                    item_indexes = await im.get_indexes()
-                for index in item_indexes:
+                for index in indexes:
                     bulk_data.append({"delete": {"_index": index, "_id": obj.__uuid__}})
                 if IFolder.providedBy(obj):
-                    # only folders need to have children cleaned
-                    if IIndexActive.providedBy(obj):
-                        # delete this index...
-                        im = get_adapter(obj, IIndexManager)
-                        await self._delete_index(im)
-                    else:
-                        await self.unindex_all_children(
-                            container, obj, index_name=",".join(item_indexes)
-                        )
+                    await self.unindex_all_children(
+                        container, obj, index_name=",".join(indexes)
+                    )
             conn = self.get_connection()
-            await conn.bulk(
-                index=indexes[0],
-                body=bulk_data,
-                doc_type=DOC_TYPE,
-                refresh=self._refresh(),
-            )
+            await conn.bulk(body=bulk_data, refresh=self._refresh())
 
     async def get_doc_count(self, container=None, index_name=None):
         if index_name is None:
@@ -674,15 +591,3 @@ class ElasticSearchUtility(DefaultSearchUtility):
             index_manager = get_adapter(container, IIndexManager)
             index_name = await index_manager.get_real_index_name()
         await conn.indices.refresh(index=index_name)
-
-    async def get_data(self, content, indexes=None):
-        im = find_index_manager(content)
-        # attempt to find index manager on parent of object we're
-        # indexing and mark the object with the indexes we want
-        # to store it in
-        if im is not None:
-            data = await super().get_data(content, indexes, await im.get_schemas())
-            data["__indexes__"] = await im.get_indexes()
-        else:
-            data = await super().get_data(content, indexes)
-        return data

@@ -13,8 +13,6 @@ from guillotina.utils import get_containers
 from guillotina.utils import get_object_by_uid
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.migration import Migrator
-from guillotina_elasticsearch.utils import get_content_sub_indexes
-from guillotina_elasticsearch.utils import get_installed_sub_indexes
 from lru import LRU  # pylint: disable=E0611
 
 import asyncio
@@ -48,19 +46,6 @@ ORDER BY tid ASC, zoid ASC
 CREATE_INDEX = """
 CREATE INDEX CONCURRENTLY IF NOT EXISTS
 objects_tid_zoid ON {objects_table} (tid ASC, zoid ASC);"""
-
-
-async def clean_orphan_indexes(container):
-    search = get_utility(ICatalogUtility)
-    installed_indexes = await get_installed_sub_indexes(container)
-    content_indexes = [val["index"] for val in await get_content_sub_indexes(container)]
-    conn = search.get_connection()
-    for alias_name, index in installed_indexes.items():
-        if alias_name not in content_indexes:
-            # delete, no longer content available
-            await conn.indices.close(alias_name)
-            await conn.indices.delete_alias(index, alias_name)
-            await conn.indices.delete(index)
 
 
 class Vacuum:
@@ -198,7 +183,6 @@ class Vacuum:
             pass
 
         self.index_name = await self.index_manager.get_index_name()
-        self.sub_indexes = await get_content_sub_indexes(self.container)
         self.migrator.work_index_name = self.index_name
 
     async def check_orphans(self):
@@ -235,22 +219,6 @@ class Vacuum:
                         f"instead of {len(orphaned)}"
                     )
 
-    def get_indexes_for_oids(self, oids):
-        """
-        is there something clever here to do this faster
-        than iterating over all the data?
-        """
-        indexes = [self.index_name]
-        for index in self.sub_indexes:
-            # check if tid inside sub index...
-            prefix = index["oid"].rsplit("|", 1)[0]
-            if prefix:
-                for oid in oids:
-                    if oid.startswith(prefix):
-                        indexes.append(index["index"])
-                        break
-        return indexes
-
     async def check_missing(self):
         status = (
             f"Checking missing on container {self.container.id}, "
@@ -269,17 +237,16 @@ class Vacuum:
         checked = 0
         async for batch in self.iter_paged_db_keys([self.container.__uuid__]):
             oids = [r["zoid"] for r in batch]
-            indexes = self.get_indexes_for_oids(oids)
             try:
                 results = await self.conn.search(
-                    index=",".join(indexes),
+                    index=self.index_name,
                     body={"query": {"terms": {"uuid": oids}}},
                     _source=False,
                     stored_fields="tid,parent_uuid",
                     size=PAGE_SIZE,
                 )
             except elasticsearch.exceptions.NotFoundError:
-                logger.warning(f"Error searching index: {indexes}", exc_info=True)
+                logger.warning(f"Error searching index: {self.index_name}", exc_info=True)
                 continue
 
             es_batch = {}
@@ -314,7 +281,7 @@ class Vacuum:
             )  # noqa
 
         await self.migrator.flush()
-        await self.migrator.join_futures()
+        # await self.migrator.join_futures()
 
 
 class VacuumCommand(Command):

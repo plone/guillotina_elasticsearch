@@ -1,13 +1,9 @@
 from elasticsearch import exceptions
 from guillotina.component import get_adapter
 from guillotina.component import get_utilities_for
-from guillotina.component import get_utility
 from guillotina.content import get_all_possible_schemas_for_type
 from guillotina.content import IResourceFactory
-from guillotina.interfaces import ICatalogUtility
 from guillotina.schema.interfaces import ICollection
-from guillotina.utils.misc import get_current_container
-from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
 from guillotina_elasticsearch.interfaces import SUB_INDEX_SEPERATOR
 
@@ -46,101 +42,11 @@ def get_migration_lock(name):
     return getattr(loop, key)
 
 
-def find_index_manager(content=None, parent=None):
-    if parent is None:
-        content = getattr(content, "__parent__", None)
-    else:
-        content = parent
-    while content:
-        if IIndexActive.providedBy(content):
-            return get_adapter(content, IIndexManager)
-        content = getattr(content, "__parent__", None)
-
-
-async def get_installed_sub_indexes(container):
-    search = get_utility(ICatalogUtility)
-    im = get_adapter(container, IIndexManager)
-    index_name = await im.get_index_name()
-
-    results = {}
-    try:
-        all_aliases = await search.get_connection().indices.get_alias(
-            name=index_name + "__*"
-        )
-    except exceptions.NotFoundError:
-        return results
-    for index, data in all_aliases.items():
-        for name in data["aliases"].keys():
-            results[name] = index
-
-    return results
-
-
-async def get_content_sub_indexes(container, path=None):
-    search = get_utility(ICatalogUtility)
-    im = get_adapter(container, IIndexManager)
-    index_name = await im.get_index_name()
-    query = {
-        "size": 50,
-        "query": {
-            "constant_score": {
-                "filter": {"bool": {"must": [{"exists": {"field": "elastic_index"}}]}}
-            }
-        },
-    }
-    if path is not None:
-        query["query"]["constant_score"]["filter"]["bool"]["must"].append(
-            {"term": {"path": path}}
-        )
-        query["query"]["constant_score"]["filter"]["bool"]["must"].append(
-            {"range": {"depth": {"gte": path.count("/") + 1}}}
-        )
-    conn = search.get_connection()
-    q_result = await conn.search(
-        index=index_name,
-        _source=False,
-        stored_fields="elastic_index,path",
-        body=query,
-        scroll="1m",
-    )
-    indexes = [
-        {
-            "path": item["fields"]["path"][0],
-            "oid": item["_id"],
-            "index": item["fields"]["elastic_index"][0],
-        }
-        for item in q_result["hits"]["hits"]
-    ]
-
-    if len(q_result["hits"]["hits"]) >= 50:
-        q_result = await conn.scroll(scroll_id=q_result["_scroll_id"], scroll="1m")
-        [
-            indexes.append(
-                {
-                    "path": item["fields"]["path"][0],
-                    "oid": item["_id"],
-                    "index": item["fields"]["elastic_index"][0],
-                }
-            )
-            for item in q_result["hits"]["hits"]
-        ]
-    return indexes
-
-
 async def get_all_indexes_identifier(container=None, index_manager=None):
     if index_manager is None:
         index_manager = get_adapter(container, IIndexManager)
     index_name = await index_manager.get_index_name()
     return "{},{}{}*".format(index_name, index_name, SUB_INDEX_SEPERATOR)
-
-
-async def get_index_for(context, container=None):
-    im = find_index_manager(parent=context)
-    if im is None:
-        if container is None:
-            container = get_current_container()
-        im = get_adapter(container, IIndexManager)
-    return await im.get_index_name()
 
 
 _stored_multi_valued = {}

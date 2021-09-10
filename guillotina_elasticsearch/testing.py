@@ -5,25 +5,14 @@ from guillotina import task_vars
 from guillotina.content import Folder
 from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import IResource
-from guillotina_elasticsearch.directives import index
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
-from guillotina_elasticsearch.interfaces import IContentIndex
 from guillotina_elasticsearch.utility import DefaultConnnectionFactoryUtility
 
 import asyncio
 
 
-class IUniqueIndexContent(IResource, IContentIndex):
-    pass
-
-
 class IIndexItemContent(IResource):
     pass
-
-
-@configure.contenttype(type_name="UniqueIndexContent", schema=IUniqueIndexContent)
-class UniqueIndexContent(Folder):
-    index(schemas=[IResource], settings={})
 
 
 @configure.contenttype(type_name="IndexItemContent", schema=IIndexItemContent)
