@@ -1,7 +1,9 @@
 7.0.0a6 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- ElasticSearchUtility: removed obsolete methods get_by_uuid(), get_by_uuids(),
+  get_by_type() and get_by_type()
+  [masipcat]
 
 
 7.0.0a5 (2021-07-30)

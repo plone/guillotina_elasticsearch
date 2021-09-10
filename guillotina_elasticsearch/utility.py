@@ -301,18 +301,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         await notify(SearchDoneEvent(query, items_total, request, tdif))
         return final
 
-    async def get_by_uuid(self, container, uuid):
-        query = {"filter": {"term": {"uuid": uuid}}}
-        return await self.search_raw(container, query, container)
-
-    async def get_by_uuids(self, container, uuids, doc_type=None):
-        uuid_query = self._get_type_query(doc_type)
-        if uuids is not None:
-            uuid_query["query"]["bool"]["must"].append({"terms": {"uuid": uuids}})
-        return await self.search_raw(container, uuid_query)
-
     async def get_object_by_uuid(self, container, uuid):
-        result = await self.get_by_uuid(container, uuid)
+        query = {"filter": {"term": {"uuid": uuid}}}
+        result = await self.search_raw(container, query, container)
         if result["items_total"] == 0 or result["items_total"] > 1:
             raise AttributeError("Not found a unique object")
 
@@ -326,42 +317,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if doc_type is not None:
             query["query"]["bool"]["must"].append({"term": {"type_name": doc_type}})
         return query
-
-    async def get_by_type(self, container, doc_type, query=None, size=10):
-        type_query = self._get_type_query(doc_type)
-        if query is not None:
-            type_query = merge_dicts(query, type_query)
-        return await self.query(container, type_query, size=size)
-
-    async def get_by_path(
-        self,
-        container,
-        path,
-        depth=-1,
-        query=None,
-        doc_type=None,
-        size=10,
-        scroll=None,
-        index=None,
-    ):
-        if query is None:
-            query = {}
-        if not isinstance(path, str):
-            path = get_content_path(path)
-
-        path_query = self._get_type_query(doc_type)
-
-        if path is not None and path != "/":
-            path_query["query"]["bool"]["must"].append({"match": {"path": path}})
-
-            if depth > -1:
-                query["query"]["bool"]["must"].append(
-                    {"range": {"depth": {"gte": depth}}}
-                )
-
-        query = merge_dicts(query, path_query)
-
-        return await self.query(container, query, size=size, scroll=scroll, index=index)
 
     async def get_path_query(self, resource, response=noop_response):
         if isinstance(resource, str):
