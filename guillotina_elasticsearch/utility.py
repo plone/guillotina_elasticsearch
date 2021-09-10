@@ -247,7 +247,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         self,
         context,
         query,
-        type_name=None,
+        doc_type=None,
         size=10,
         request=None,
         scroll=None,
