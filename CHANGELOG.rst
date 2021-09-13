@@ -1,4 +1,4 @@
-7.0.0a6 (unreleased)
+7.0.0a6 (2021-09-13)
 --------------------
 
 - [BREAKING CHANGE] Remove 'sub indexes' logic
