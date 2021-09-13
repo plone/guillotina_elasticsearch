@@ -1,6 +1,5 @@
 from guillotina import task_vars
 from guillotina.component import get_utility
-from guillotina.db.uid import get_short_uid
 from guillotina.interfaces import ICatalogUtility
 from guillotina_elasticsearch.commands.vacuum import Vacuum
 from guillotina_elasticsearch.tests.utils import add_content
@@ -123,102 +122,6 @@ async def test_removes_orphaned_es_entry(es_requester):
             assert await search.get_doc_count(container) == 0
 
         await run_with_retries(__test, requester)
-
-        await tm.abort(txn=txn)
-
-
-@pytest.mark.skipif(DATABASE == "DUMMY", reason="Not for dummy db")
-async def test_vacuum_with_sub_indexes(es_requester):
-    async with es_requester as requester:
-        await add_content(requester, num_folders=2, num_items=5, path="/db/guillotina/")
-
-        cresp, _ = await requester(
-            "POST",
-            "/db/guillotina/",
-            data=json.dumps(
-                {
-                    "@type": "UniqueIndexContent",
-                    "title": "UniqueIndexContent",
-                    "id": "foobar",
-                }
-            ),
-        )
-        await add_content(
-            requester, num_folders=2, num_items=5, path="/db/guillotina/foobar"
-        )  # noqa
-
-        search = get_utility(ICatalogUtility)
-        content_index_name = (
-            "guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
-                get_short_uid(cresp["@uid"])
-            )
-        )
-        container, request, txn, tm = await setup_txn_on_container(requester)
-        task_vars.request.set(request)
-
-        await asyncio.sleep(1)
-
-        async def _test():
-            assert await search.get_doc_count(container) == 13
-            assert (
-                await search.get_doc_count(index_name=content_index_name) == 12
-            )  # noqa
-
-        await run_with_retries(_test, requester)
-
-        for key in await container.async_keys():
-            if key == "foobar":
-                continue
-            ob = await container.async_get(key)
-            await search.remove(container, [ob], request=request)
-
-        await asyncio.sleep(1)
-
-        foobar = await container.async_get("foobar")
-        for key in await foobar.async_keys():
-            ob = await foobar.async_get(key)
-            await search.remove(container, [ob], request=request)
-
-        await asyncio.sleep(1)
-
-        await search.index(
-            container, {"foobar1": {"title": "foobar", "type_name": "Item"}}
-        )
-        await search.index(
-            container,
-            {
-                "foobar2": {
-                    "title": "foobar",
-                    "type_name": "Item",
-                    "__indexes__": [content_index_name],
-                }
-            },
-        )
-
-        async def __test():
-            assert await search.get_doc_count(container) == 2
-            assert (
-                await search.get_doc_count(index_name=content_index_name) == 1
-            )  # noqa
-
-        await run_with_retries(__test, requester)
-
-        vacuum = Vacuum(txn, tm, container)
-        await vacuum.setup()
-        await vacuum.check_missing()
-        await vacuum.check_orphans()
-
-        assert len(vacuum.orphaned) == 2
-        assert len(vacuum.out_of_date) == 0
-        assert len(vacuum.missing) == 24
-
-        async def ___test():
-            assert await search.get_doc_count(container) == 13
-            assert (
-                await search.get_doc_count(index_name=content_index_name) == 12
-            )  # noqa
-
-        await run_with_retries(___test, requester)
 
         await tm.abort(txn=txn)
 

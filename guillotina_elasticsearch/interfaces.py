@@ -70,20 +70,6 @@ class IIndexManager(Interface):
         """
 
 
-class IContentIndex(Interface):
-    """
-    Content type which provides it's own index to children
-    """
-
-
-class IIndexActive(Interface):
-    """
-    Interface applied to content to mark that it
-    has had the elasticsearch index created and
-    content is getting added
-    """
-
-
 class IConnectionFactoryUtility(Interface):
     """
     Be able to customize es connection ob used for a particular

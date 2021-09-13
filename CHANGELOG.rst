@@ -1,6 +1,10 @@
 7.0.0a6 (unreleased)
 --------------------
 
+- [BREAKING CHANGE] Remove 'sub indexes' logic
+  [masipcat]
+- Minor changes to ElasticSearchUtility
+  [masipcat]
 - Remove deprecated parameter 'doc_type'
   [masipcat]
 - ElasticSearchUtility: removed obsolete methods get_by_uuid(), get_by_uuids(),

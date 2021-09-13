@@ -2,7 +2,6 @@ from guillotina import task_vars
 from guillotina.component import get_adapter
 from guillotina.component import get_utility
 from guillotina.component import globalregistry as gr
-from guillotina.db.uid import get_short_uid
 from guillotina.event import notify
 from guillotina.events import ObjectRemovedEvent
 from guillotina.interfaces import ICatalogUtility
@@ -478,70 +477,3 @@ async def test_delete_in_both_during_migration(es_requester):
                 )
 
         await run_with_retries(_test, requester)
-
-
-async def test_migrate_content_index_works(es_requester):
-    async with es_requester as requester:
-        add_count = await add_content(requester)
-        cresp, _ = await requester(
-            "POST",
-            "/db/guillotina/",
-            data=json.dumps({"@type": "UniqueIndexContent", "id": "foobar"}),
-        )
-        await requester(
-            "POST",
-            "/db/guillotina/foobar",
-            data=json.dumps({"@type": "IndexItemContent"}),
-        )
-
-        container, request, txn, tm = await setup_txn_on_container(requester)
-
-        search = get_utility(ICatalogUtility)
-        await search.refresh(container)
-        await asyncio.sleep(3)
-
-        assert (add_count + 1) == await search.get_doc_count(
-            container, "guillotina-db-guillotina_1"
-        )
-        assert (
-            await search.get_doc_count(
-                container,
-                "1_guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
-                    get_short_uid(cresp["@uid"])
-                ),
-            )
-            == 1
-        )
-
-        migrator = Migrator(search, container, force=True)
-        await migrator.run_migration()
-
-        assert await search.get_connection().indices.exists(
-            "guillotina-db-guillotina_2"
-        )
-        assert not await search.get_connection().indices.exists(
-            "guillotina-db-guillotina_1"
-        )
-        assert await search.get_connection().indices.exists(
-            "2_guillotina-db-guillotina__uniqueindexcontent-{}".format(
-                get_short_uid(cresp["@uid"])
-            )
-        )
-        assert not await search.get_connection().indices.exists(
-            "1_guillotina-db-guillotina__uniqueindexcontent-{}".format(
-                get_short_uid(cresp["@uid"])
-            )
-        )
-
-        assert (add_count + 1) == await search.get_doc_count(
-            container, "guillotina-db-guillotina_2"
-        )
-        assert (
-            await search.get_doc_count(
-                container,
-                "2_guillotina-db-guillotina__uniqueindexcontent-{}".format(  # noqa
-                    get_short_uid(cresp["@uid"])
-                ),
-            )
-            == 1
-        )

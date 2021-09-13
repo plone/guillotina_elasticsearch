@@ -22,9 +22,7 @@ from guillotina.utils import get_current_container
 from guillotina.utils import get_current_transaction
 from guillotina.utils import get_security_policy
 from guillotina_elasticsearch.events import IndexProgress
-from guillotina_elasticsearch.interfaces import IIndexActive
 from guillotina_elasticsearch.interfaces import IIndexManager
-from guillotina_elasticsearch.utils import find_index_manager
 from guillotina_elasticsearch.utils import get_migration_lock
 from guillotina_elasticsearch.utils import noop_response
 
@@ -145,7 +143,6 @@ class Migrator:
         mapping_only=False,
         index_manager=None,
         children_only=False,
-        lookup_index=False,
         cache=True,
     ):
         self.utility = utility
@@ -158,7 +155,6 @@ class Migrator:
         self.bulk_size = bulk_size
         self.reindex_security = reindex_security
         self.children_only = children_only
-        self.lookup_index = lookup_index
         if mapping_only and full:
             raise Exception("Can not do a full reindex and a mapping only migration")
         self.mapping_only = mapping_only
@@ -197,7 +193,6 @@ class Migrator:
         self.copied_docs = 0
 
         self.work_index_name = None
-        self.sub_indexes = []
 
     def per_sec(self):
         return self.processed / (time.time() - self.index_start_time)
@@ -206,13 +201,15 @@ class Migrator:
         async with transaction(adopt_parent_txn=True) as txn:
             await txn.refresh(await self.index_manager.get_registry())
             next_index_name = await self.index_manager.start_migration()
-        if await self.conn.indices.exists(next_index_name):
-            if self.force:
-                # delete and recreate
-                self.response.write("Clearing index")
-                resp = await self.conn.indices.delete(next_index_name)
-                assert resp["acknowledged"]
-        await self.utility.create_index(next_index_name, self.index_manager)
+            # The index is created in the same transaction the registry is updated
+            # to prevent another process from accessing the 'next_index' and not finding it
+            if await self.conn.indices.exists(next_index_name):
+                if self.force:
+                    # delete and recreate
+                    self.response.write("Clearing index")
+                    resp = await self.conn.indices.delete(next_index_name)
+                    assert resp["acknowledged"]
+            await self.utility.create_index(next_index_name, self.index_manager)
         return next_index_name
 
     async def copy_to_next_index(self):
@@ -341,18 +338,15 @@ class Migrator:
         await self.index_object(ob, full=full)
         self.processed += 1
 
-        if IIndexActive.providedBy(ob):
-            self.sub_indexes.append(ob)
-        else:
-            if IFolder.providedBy(ob):
-                await self.process_folder(ob)
+        if IFolder.providedBy(ob):
+            await self.process_folder(ob)
 
-            if not IContainer.providedBy(ob):
-                try:
-                    del self.container.__gannotations__
-                except AttributeError:
-                    del self.container.__annotations__
-            del ob
+        if not IContainer.providedBy(ob):
+            try:
+                del self.container.__gannotations__
+            except AttributeError:
+                del self.container.__annotations__
+        del ob
 
     async def index_object(self, ob, full=False):
         batch_type = "update"
@@ -383,11 +377,6 @@ class Migrator:
             data["tid"] = ob.__serial__
         self.indexed += 1
         self.batch[ob.uuid] = {"action": batch_type, "data": data}
-
-        if self.lookup_index:
-            im = find_index_manager(ob)
-            if im:
-                self.batch[ob.uuid]["__index__"] = await im.get_index_name()
 
         if self.log_details:
             self.response.write(
@@ -620,24 +609,3 @@ class Migrator:
             self.response.write("Old index deleted")
         except elasticsearch.exceptions.NotFoundError:
             pass
-
-        if len(self.sub_indexes) > 0:
-            self.response.write(f"Migrating sub indexes: {len(self.sub_indexes)}")
-            for ob in self.sub_indexes:
-                im = get_adapter(ob, IIndexManager)
-                migrator = Migrator(
-                    self.utility,
-                    ob,
-                    response=self.response,
-                    force=self.force,
-                    log_details=self.log_details,
-                    memory_tracking=self.memory_tracking,
-                    bulk_size=self.bulk_size,
-                    full=self.full,
-                    reindex_security=self.reindex_security,
-                    mapping_only=self.mapping_only,
-                    index_manager=im,
-                    children_only=True,
-                )
-                self.response.write(f"Migrating index for: {ob}")
-                await migrator.run_migration()
