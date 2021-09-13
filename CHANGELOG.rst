@@ -12,6 +12,12 @@
   [masipcat]
 - ElasticSearchUtility: removed unused internal method _get_type_query()
   [masipcat]
+- Solving bug when searching within the same context that starts by
+  the same path. ej: /container/folder/type_one and /container/folder/type.
+  [nilbacardit26]
+- Enlarging the max time to wait for the ES docker container. Useful
+  when passing test with xdist with multiple threads.
+  [nilbacardit26]
 
 
 7.0.0a5 (2021-07-30)

@@ -234,7 +234,7 @@ async def test_context_search(es_requester):
         resp, status = await requester(
             "POST",
             "/db/guillotina/",
-            data=json.dumps({"@type": "Folder", "title": "Folder1", "id": "folder1"}),
+            data=json.dumps({"@type": "Folder", "title": "Folder1", "id": "folder"}),
             headers={"X-Wait": "10"},
         )
         assert status == 201
@@ -250,7 +250,7 @@ async def test_context_search(es_requester):
 
         resp, status = await requester(
             "POST",
-            "/db/guillotina/folder1",
+            "/db/guillotina/folder",
             data=json.dumps({"@type": "Item", "title": "Item1", "id": "foo_item"}),
             headers={"X-Wait": "10"},
         )
@@ -266,7 +266,7 @@ async def test_context_search(es_requester):
         await asyncio.sleep(2)
 
         # Should only have found one result
-        resp, status = await requester("GET", "/db/guillotina/folder1/@search")
+        resp, status = await requester("GET", "/db/guillotina/folder/@search")
         assert resp["items_total"] == 1
         assert resp["items"][0]["parent_uuid"] == parent_uuid
         assert resp["items"][0]["id"] == "foo_item"

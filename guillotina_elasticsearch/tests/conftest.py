@@ -7,6 +7,7 @@ images.configure(
     "elasticsearch",
     "docker.elastic.co/elasticsearch/elasticsearch",
     image_version,
+    max_wait_s=90,
     env={
         "xpack.security.enabled": None,  # unset
         "discovery.type": "single-node",
