@@ -1,4 +1,4 @@
-7.0.0a7 (unreleased)
+7.0.0a7 (2021-09-14)
 --------------------
 
 - Fix guillotina_elasticserach 7.0.0a6 doesn't load catalog automatically as before
