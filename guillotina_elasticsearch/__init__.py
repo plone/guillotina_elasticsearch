@@ -5,6 +5,10 @@ from guillotina.component import get_utilities_for
 from guillotina.content import IResourceFactory
 from guillotina.utils import get_dotted_name
 
+# This is a workaround to force to load the catalog
+import guillotina.catalog.catalog  # noqa
+import guillotina.catalog.index  # noqa
+
 
 def default_refresh():
     return False
