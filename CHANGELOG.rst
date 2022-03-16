@@ -1,7 +1,8 @@
 7.0.0a8 (unreleased)
 --------------------
 
-- Nothing changed yet.
+- Adapt guillotina_elasticserach code to guillotina 6.4 breaking changes
+  [masipcat]
 
 
 7.0.0a7 (2021-09-14)
