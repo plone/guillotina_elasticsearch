@@ -530,6 +530,10 @@ class Migrator:
         )
         self.response.write(f"Caculated mapping diff: {diff}")
 
+        if not self.mapping_diff:
+            self.response.write("Mapping not changed. Nothing to migrate")
+            return
+
         if not self.full:
             # if full, we're reindexing everything does not matter what
             # anyways, so skip

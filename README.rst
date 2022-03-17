@@ -3,18 +3,20 @@
 GUILLOTINA_ELASTICSEARCH
 ========================
 
-.. image:: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch.svg?branch=master
-   :target: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch
-
 Elasticsearch integration for guillotina.
 
+Compatibility table
+-------------------
 
-Installation
-------------
+==========================  =======  =======
+                            ES 6.x   ES 7.x
+==========================  =======  =======
+Guillotina Elasticsearch 7  N        Y
+Guillotina Elasticsearch 6  Y*       Y
+Guillotina Elasticsearch 3  Y        N
+==========================  =======  =======
 
-`pip install guillotina_elasticsearch` defaults to Elasticsearch 7.x
-support. Pin `aioelasticsearch<0.6.0` to enable support for
-Elasticsearch 6.x.
+* Pin `aioelasticsearch<0.6.0` to enable support for Elasticsearch 6.x.
 
 
 Configuration
