@@ -6,11 +6,12 @@ from setuptools import setup
 test_requires = [
     "async_asgi_testclient",
     "pytest>=5.0",
-    "pytest-asyncio",
+    "pytest-asyncio==0.18.3",
     "coverage",
     "pytest-cov",
     "pytest-docker-fixtures[pg]>=1.3.0",
     "prometheus-client>=0.9.0",  # TODO: remove
+    "docker>=5.0.0,<6.0.0"
 ]
 
 

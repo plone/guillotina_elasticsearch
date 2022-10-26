@@ -1,7 +1,8 @@
 7.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Being able to build mappings properties with analyzers
+  [nilbacardit26]
 
 
 7.0.0 (2022-03-16)
