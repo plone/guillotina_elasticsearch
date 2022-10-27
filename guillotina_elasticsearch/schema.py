@@ -74,6 +74,8 @@ def get_mappings(schemas=None, schema_info=False):
                 field_mapping = CATALOG_TYPES[catalog_type].copy()
             if "store" in catalog_info:
                 field_mapping["store"] = catalog_info["store"]
+            if "analyzer" in catalog_info:
+                field_mapping["analyzer"] = catalog_info["analyzer"]
             if schema_info:
                 if "_schemas" not in field_mapping:
                     field_mapping["_schemas"] = []
