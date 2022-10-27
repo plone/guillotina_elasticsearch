@@ -1,6 +1,9 @@
 7.0.1 (unreleased)
 ------------------
 
+- Fix potential indexing bug when full=True and reindex_security=True
+  [masipcat]
+
 - Being able to build mappings properties with analyzers
   [nilbacardit26]
 
