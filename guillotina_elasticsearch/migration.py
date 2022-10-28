@@ -351,19 +351,19 @@ class Migrator:
 
     async def index_object(self, ob, full=False):
         batch_type = "update"
-        if self.reindex_security:
-            try:
-                data = await apply_coroutine(ISecurityInfo(ob))
-            except TypeError:
-                self.response.write(f"Could not index {ob}")
-                return
-        elif full or self.full:
+        if full or self.full:
             try:
                 data = await ICatalogDataAdapter(ob)()
             except TypeError:
                 self.response.write(f"Could not index {ob}")
                 return
             batch_type = "index"
+        elif self.reindex_security:
+            try:
+                data = await apply_coroutine(ISecurityInfo(ob))
+            except TypeError:
+                self.response.write(f"Could not index {ob}")
+                return
         else:
             data = {
                 # always need these...
