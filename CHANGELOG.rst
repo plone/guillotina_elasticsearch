@@ -1,4 +1,4 @@
-7.0.1 (unreleased)
+7.0.1 (2022-10-28)
 ------------------
 
 - Fix potential indexing bug when full=True and reindex_security=True
