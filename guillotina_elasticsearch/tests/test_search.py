@@ -315,3 +315,58 @@ async def test_or_search(es_requester):
         assert results["items_total"] == 2
         for item in results["items"]:
             assert item["@type"] in ["Item", "Example"]
+
+
+@pytest.mark.app_settings(
+    {
+        "applications": [
+            "guillotina",
+            "guillotina_elasticsearch",
+            "guillotina_elasticsearch.tests.test_package",
+        ]
+    }
+)
+async def test_normalizer_analyzers_search(es_requester):
+    async with es_requester as requester:
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item",
+                    "item_keyword": "foo_kéyword",
+                    "item_text": "foo_item",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(2)
+        # Testing normalizer is working: We can search foo_keyword without the accent
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?item_keyword=foo_keyword&_metadata=item_keyword",
+            headers={"X-Wait": "10"},
+        )
+        assert status == 200
+        assert resp["items_total"] == 1
+        assert resp["items"][0]["item_keyword"] == "foo_keyword"
+
+        # and with the accent aswell
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?item_keyword=foo_kéyword&_metadata=item_keyword",
+            headers={"X-Wait": "10"},
+        )
+        assert status == 200
+        assert resp["items_total"] == 1
+        assert resp["items"][0]["item_keyword"] == "foo_keyword"
+
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?item_keyword__in=foo_&_metadata=item_text",
+            headers={"X-Wait": "10"},
+        )
+        assert status == 200

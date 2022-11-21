@@ -30,6 +30,15 @@ async def test_boolean_field(es_requester):
         assert qq[2]["term"]["foo_bool"] == "true"
 
 
+@pytest.mark.app_settings(
+    {
+        "applications": [
+            "guillotina",
+            "guillotina_elasticsearch",
+            "guillotina_elasticsearch.tests.test_package",
+        ]
+    }
+)
 async def test_es_field_date_parser(dummy_guillotina):
     content = test_utils.create_content()
     parser = Parser(None, content)
@@ -43,7 +52,7 @@ async def test_es_field_date_parser(dummy_guillotina):
         }
     )
     qq = parsed["query"]["bool"]["must"]
-    assert len(qq[-2]["bool"]["should"]) == 4
+    assert len(qq[-2]["bool"]["should"]) == 5
 
     assert "range" in qq[0]
     assert "modification_date" in qq[0]["range"]

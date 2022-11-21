@@ -4,10 +4,33 @@ from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import ContainerRequesterAsyncContextManager
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
+from guillotina_elasticsearch.manager import default_settings
 from guillotina_elasticsearch.tests.utils import cleanup_es
 
 import os
 import pytest
+
+
+def elastic_search_analyzers_normalizers():
+    settings_es = default_settings()
+
+    common_analyzer = {
+        "common_analyzer": {
+            "tokenizer": "standard",
+            "char_filter": ["html_strip"],
+            "filter": ["lowercase", "asciifolding"],
+        }
+    }
+    common_normalizer = {
+        "common_normalizer": {
+            "type": "custom",
+            "char_filter": [],
+            "filter": ["lowercase", "asciifolding"],
+        }
+    }
+    settings_es["analysis"]["analyzer"].update(common_analyzer)
+    settings_es["analysis"]["normalizer"] = common_normalizer
+    return settings_es
 
 
 def base_settings_configurator(settings):
@@ -25,6 +48,7 @@ def base_settings_configurator(settings):
 
     settings["elasticsearch"] = {
         "index_name_prefix": "guillotina-",
+        "index": elastic_search_analyzers_normalizers(),
         "connection_settings": {
             "hosts": [
                 "{}:{}".format(

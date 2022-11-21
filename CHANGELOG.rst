@@ -1,7 +1,8 @@
 7.0.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Being able to build mappings properties with normalizers
+  [nilbacardit26]
 
 
 7.0.1 (2022-10-28)
