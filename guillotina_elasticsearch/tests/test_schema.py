@@ -2,6 +2,7 @@ from guillotina.directives import index_field
 from guillotina.schema import Float
 from guillotina.schema import Int
 from guillotina_elasticsearch.schema import get_mappings
+from guillotina_elasticsearch.tests.test_package import IFooContent
 from zope.interface import Interface
 
 import pytest
@@ -39,3 +40,19 @@ async def test_get_mappings_nofails(es_requester):
         get_mappings(schemas=[IB, IC])
     except Exception:
         pytest.fail("get_mappings() shouldn't fail " "if 'field_mapping' are the same")
+
+
+async def test_get_mappings_analyzers_normalizers(es_requester):
+    mappings = get_mappings(schemas=[IFooContent])
+    assert mappings["properties"]["item_keyword"] == {
+        "index": True,
+        "normalizer": "common_normalizer",
+        "type": "keyword",
+        "store": True,
+    }
+    assert mappings["properties"]["item_text"] == {
+        "index": True,
+        "analyzer": "common_analyzer",
+        "type": "text",
+        "store": True,
+    }
