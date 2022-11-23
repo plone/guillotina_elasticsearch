@@ -1,4 +1,4 @@
-7.0.2 (unreleased)
+7.0.2 (2022-11-23)
 ------------------
 
 - Being able to build mappings properties with normalizers
