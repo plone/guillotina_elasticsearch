@@ -146,6 +146,41 @@ class ElasticSearchUtility(DefaultSearchUtility):
         await conn.indices.put_alias(name=index_name, index=real_index_name)
         await conn.cluster.health(wait_for_status="yellow")  # pylint: disable=E1123
 
+    async def update_catalog(self, container, payload={}):
+        if not self.enabled:
+            return
+        index_manager = get_adapter(container, IIndexManager)
+        real_index_name = await index_manager.get_real_index_name()
+        await self.update_mappings_settings(
+            real_index_name=real_index_name,
+            index_manager=index_manager,
+            settings=payload.get("settings", {}),
+            mappings=payload.get("mappings", {}),
+        )
+
+    async def update_mappings_settings(
+        self, real_index_name, index_manager, settings={}, mappings={}
+    ):
+        if ":" in real_index_name:
+            raise Exception(f"Ivalid character ':' in index name: {real_index_name}")
+        index_settings = await index_manager.get_index_settings()
+        mappings_schema = await index_manager.get_mappings()
+        index_settings = {"index": index_settings}
+        index_settings.update(settings)
+        mappings_schema.update(mappings)
+        conn = self.get_connection()
+        await conn.indices.close(index=real_index_name)
+        exception = False
+        try:
+            await conn.indices.put_settings(body=index_settings, index=real_index_name)
+            await conn.indices.put_mapping(body=mappings_schema, index=real_index_name)
+        except Exception as e:
+            exception = e
+        finally:
+            await conn.indices.open(index=real_index_name)
+        if exception is not False:
+            raise exception
+
     async def create_index(
         self, real_index_name, index_manager, settings=None, mappings=None
     ):
