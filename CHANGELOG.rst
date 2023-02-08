@@ -1,7 +1,9 @@
 7.0.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Adding multifields functionality, mutlifields param can be passed to
+  index_field. Useful when wanting to index the same field in
+  different ways
 
 
 7.0.2 (2022-11-23)

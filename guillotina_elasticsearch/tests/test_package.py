@@ -23,6 +23,7 @@ class IFooContent(IResource):
         analyzer="common_analyzer",
         field="item_text",
         store=True,
+        multifields={"raw": {"type": "keyword"}},
     )
     item_text = TextLine()
 
