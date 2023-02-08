@@ -370,3 +370,26 @@ async def test_normalizer_analyzers_search(es_requester):
             headers={"X-Wait": "10"},
         )
         assert status == 200
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item2",
+                    "item_keyword": "foo_kéyword",
+                    "item_text": "another_text",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        await asyncio.sleep(2)
+        # We can sort by the new multi field raw of item_text which is a keyword
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_sort_asc=item_text.raw&_metadata=item_text",
+            headers={"X-Wait": "10"},
+        )
+        assert resp["items_total"] == 2
+        assert resp["items"][0]["item_text"] == "another_text"

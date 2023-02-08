@@ -55,4 +55,5 @@ async def test_get_mappings_analyzers_normalizers(es_requester):
         "analyzer": "common_analyzer",
         "type": "text",
         "store": True,
+        "fields": {"raw": {"type": "keyword"}},
     }
