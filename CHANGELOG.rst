@@ -1,4 +1,4 @@
-7.0.3 (unreleased)
+7.0.3 (2023-02-08)
 ------------------
 
 - Adding multifields functionality, mutlifields param can be passed to
