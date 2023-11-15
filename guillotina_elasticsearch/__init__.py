@@ -15,6 +15,7 @@ def default_refresh():
 
 
 app_settings = {
+    "applications": ["guillotina_elasticsearch"],
     "elasticsearch": {
         "bulk_size": 50,
         "refresh": "guillotina_elasticsearch.default_refresh",
