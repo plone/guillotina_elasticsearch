@@ -165,7 +165,10 @@ def process_field(field, value):
     elif modifier == "starts":
         value_to_search = f"{value}*"
         if value != "/":
-            value_to_search = f"{value}/*"
+            if value.endswith("/"):
+                value_to_search = f"{value}*"
+            else:
+                value_to_search = f"{value}/*"
         return match_type, {"wildcard": {field: value_to_search}}
     else:
         logger.warn(
@@ -194,7 +197,6 @@ def process_query_level(params):
 class Parser(BaseParser):
     def __call__(self, params: typing.Dict) -> ParsedQueryInfo:
         query_info = super().__call__(params)
-
         metadata = query_info.get("metadata", [])
         if metadata:
             search_data = SEARCH_DATA_FIELDS + metadata
