@@ -1,7 +1,8 @@
 7.0.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Not adding a slash in the __start modifier of the parser if it is
+  already included from the base parser.
 
 
 7.0.3 (2023-02-08)
