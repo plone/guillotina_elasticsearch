@@ -1,4 +1,4 @@
-7.0.4 (unreleased)
+7.0.4 (2023-12-15)
 ------------------
 
 - Not adding a slash in the __start modifier of the parser if it is
