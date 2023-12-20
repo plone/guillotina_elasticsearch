@@ -1,4 +1,4 @@
-7.0.5 (unreleased)
+7.0.5 (2023-12-20)
 ------------------
 
 - Fixing applications in __init__.py: Removing
