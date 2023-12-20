@@ -1,7 +1,8 @@
 7.0.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Fixing applications in __init__.py: Removing
+  guillotina_elasticsearch from it
 
 
 7.0.4 (2023-12-15)
