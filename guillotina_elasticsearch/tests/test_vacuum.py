@@ -152,7 +152,7 @@ async def test_reindexes_moved_content(es_requester):
         async def _test():
             assert await search.get_doc_count(container) == 3
             result = await search.get_connection().get(
-                index=index_name, doc_type="_all", id=resp3["@uid"]
+                index=index_name, id=resp3["@uid"]
             )
             assert result is not None
 
@@ -183,14 +183,12 @@ async def test_reindexes_moved_content(es_requester):
         async def _test():
             result = await search.get_connection().get(
                 index=index_name,
-                doc_type="_all",
                 id=resp3["@uid"],
                 stored_fields="path",
             )
             assert result["fields"]["path"] == ["/moved-foobar/foobar/foobar"]
             result = await search.get_connection().get(
                 index=index_name,
-                doc_type="_all",
                 id=resp1["@uid"],
                 stored_fields="path,parent_uuid",
             )
@@ -213,14 +211,12 @@ async def test_reindexes_moved_content(es_requester):
         async def __test():
             result = await search.get_connection().get(
                 index=index_name,
-                doc_type="_all",
                 id=resp3["@uid"],
                 stored_fields="path,parent_uuid",
             )
             assert result["fields"]["path"] == ["/foobar/foobar/foobar"]
             result = await search.get_connection().get(
                 index=index_name,
-                doc_type="_all",
                 id=resp1["@uid"],
                 stored_fields="path,parent_uuid",
             )
@@ -237,7 +233,6 @@ async def test_reindexes_moved_content(es_requester):
 @pytest.mark.skipif(DATABASE == "DUMMY", reason="Not for dummy db")
 async def test_vacuum_with_multiple_containers(es_requester):
     async with es_requester as requester:
-
         # create another container, force to iterate differently
         _, status = await requester(
             "POST", "/db", data=json.dumps({"@type": "Container", "id": "foobar"})

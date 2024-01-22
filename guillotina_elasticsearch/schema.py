@@ -53,7 +53,6 @@ def _addon_index(ob):
 
 
 def get_mappings(schemas=None, schema_info=False):
-
     if schemas is None:
         schemas = []
         for name, _ in get_utilities_for(IResourceFactory):

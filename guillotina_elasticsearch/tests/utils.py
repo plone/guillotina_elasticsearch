@@ -90,8 +90,8 @@ async def cleanup_es(es_host, prefix=""):
             continue
         if name.startswith(prefix):
             try:
-                await conn.indices.delete_alias(index, name)
-                await conn.indices.delete(index)
+                await conn.indices.delete_alias(index=index, name=name)
+                await conn.indices.delete(index=index)
             except (
                 elasticsearch.exceptions.AuthorizationException,
                 elasticsearch.exceptions.NotFoundError,
@@ -104,6 +104,6 @@ async def cleanup_es(es_host, prefix=""):
             continue
         if index_name.startswith(prefix):
             try:
-                await conn.indices.delete(index_name)
+                await conn.indices.delete(index=index_name)
             except elasticsearch.exceptions.AuthorizationException:
                 pass

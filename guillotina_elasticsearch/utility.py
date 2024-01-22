@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from elastic_transport import ObjectApiResponse
 from elasticsearch import AsyncElasticsearch
 from guillotina import app_settings
 from guillotina import configure
@@ -55,7 +56,6 @@ class DefaultConnnectionFactoryUtility:
     def get(self, loop=None):
         if self._conn is None:
             self._conn = AsyncElasticsearch(
-                loop=loop,
                 **app_settings.get("elasticsearch", {}).get("connection_settings"),
             )
         return self._conn
@@ -70,7 +70,6 @@ class DefaultConnnectionFactoryUtility:
 
 
 class ElasticSearchUtility(DefaultSearchUtility):
-
     index_count = 0
 
     def __init__(self, settings={}, loop=None):
@@ -118,20 +117,28 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if self._conn_util is not None:
             await self._conn_util.close()
 
+    async def enable_id_field_data_access(self):
+        connection = self.get_connection()
+        settings = {"persistent": {"indices.id_field_data.enabled": True}}
+        await connection.cluster.put_settings(body=settings)
+
     async def check_supported_version(self):
         try:
             connection = self.get_connection()
             info = await connection.info()
         except Exception:
             logger.warning(
-                "Could not check current es version. " "Only 6.x and 7.x are supported"
+                "Could not check current es version. " "Only 7.x and 8.x are supported"
             )
             return
 
         es_version = info["version"]["number"]
-
-        if not es_version.startswith("7"):
+        major_number_release = es_version.split(".")[0]
+        if major_number_release not in ("7", "8"):
             raise Exception(f"ES cluster version not supported: {es_version}")
+        if major_number_release == "8":
+            # If in version 8, we need to enable indices.id_field_data.enabled
+            await self.enable_id_field_data_access()
 
     async def initialize_catalog(self, container):
         if not self.enabled:
@@ -150,7 +157,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         self, real_index_name, index_manager, settings=None, mappings=None
     ):
         if ":" in real_index_name:
-            raise Exception(f"Ivalid character ':' in index name: {real_index_name}")
+            raise Exception(f"Invalid character ':' in index name: {real_index_name}")
 
         if settings is None:
             settings = await index_manager.get_index_settings()
@@ -160,18 +167,20 @@ class ElasticSearchUtility(DefaultSearchUtility):
         settings = {"settings": settings, "mappings": mappings}
 
         conn = self.get_connection()
-        await conn.indices.create(real_index_name, settings)
+        await conn.indices.create(index=real_index_name, body=settings)
 
     async def _delete_index(self, im):
         index_name = await im.get_index_name()
         real_index_name = await im.get_real_index_name()
         conn = self.get_connection()
-        await safe_es_call(conn.indices.delete_alias, real_index_name, index_name)
-        await safe_es_call(conn.indices.delete, real_index_name)
-        await safe_es_call(conn.indices.delete, index_name)
+        await safe_es_call(
+            conn.indices.delete_alias, index=real_index_name, name=index_name
+        )
+        await safe_es_call(conn.indices.delete, index=real_index_name)
+        await safe_es_call(conn.indices.delete, index=index_name)
         migration_index = await im.get_migration_index_name()
         if migration_index:
-            await safe_es_call(conn.indices.delete, migration_index)
+            await safe_es_call(conn.indices.delete, index=migration_index)
 
     async def remove_catalog(self, container):
         if not self.enabled:
@@ -272,8 +281,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         logger.debug("Generated query %s", json.dumps(query))
         conn = self.get_connection()
-
-        result = await conn.search(index=index, **q)
+        if "size" in q["body"] and "size" in q:
+            # ValueError: Received multiple values for 'size', specify parameters using either body or parameters, not both.
+            del q["size"]
+        result: ObjectApiResponse = await conn.search(index=index, **q)
         if result.get("_shards", {}).get("failed", 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
             error_message = "Unknown"
@@ -350,7 +361,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
     async def _delete_by_query(self, path_query, index_name):
         conn = self.get_connection()
         result = await conn.delete_by_query(
-            index_name,
+            index=index_name,
             body=path_query,
             ignore_unavailable="true",
             conflicts="proceed",
@@ -363,7 +374,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         else:
             self.log_result(result, "Deletion of children")
 
-    async def update_by_query(self, query, context=None, indexes=None):
+    async def update_by_query(
+        self, query, context=None, indexes=None
+    ) -> ObjectApiResponse:
         if indexes is None:
             container = get_current_container()
             indexes = await self.get_current_indexes(container)
@@ -375,10 +388,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
         interval=1,
         max_tries=5,
     )
-    async def _update_by_query(self, query, index_name):
+    async def _update_by_query(self, query, index_name) -> ObjectApiResponse:
         conn = self.get_connection()
         result = await conn.update_by_query(
-            index_name,
+            index=index_name,
             body=query,
             ignore_unavailable="true",
             conflicts="proceed",
@@ -532,7 +545,8 @@ class ElasticSearchUtility(DefaultSearchUtility):
             self.log_result(result)
             return result
 
-    def log_result(self, result, label="ES Query"):
+    def log_result(self, result: ObjectApiResponse, label="ES Query"):
+        result = result.body
         if "errors" in result and result["errors"]:
             try:
                 if result["error"]["caused_by"]["type"] in (

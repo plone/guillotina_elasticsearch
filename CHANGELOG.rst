@@ -1,7 +1,12 @@
-7.0.6 (unreleased)
+8.0.0 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Support for elasticsearch 8.
+- Changing ES fixture to bitnami version 8. Tests passing for both
+  versions
+- Removing deprecated doc_type argument from get calls.
+- Dropping support for elastic search 6.x
+  [nilbacardit26]
 
 
 7.0.5 (2023-12-20)
