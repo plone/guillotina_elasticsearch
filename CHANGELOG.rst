@@ -1,4 +1,4 @@
-8.0.0 (unreleased)
+8.0.0 (2024-01-23)
 ------------------
 
 - Support for elasticsearch 8.
