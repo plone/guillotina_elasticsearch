@@ -203,7 +203,7 @@ class Migrator:
             next_index_name = await self.index_manager.start_migration()
             # The index is created in the same transaction the registry is updated
             # to prevent another process from accessing the 'next_index' and not finding it
-            if await self.conn.indices.exists(next_index_name):
+            if await self.conn.indices.exists(index=next_index_name):
                 if self.force:
                     # delete and recreate
                     self.response.write("Clearing index")
@@ -215,17 +215,15 @@ class Migrator:
     async def copy_to_next_index(self):
         real_index_name = await self.index_manager.get_index_name()
         data = await self.conn.reindex(
-            {
-                "source": {"index": real_index_name, "size": 100},
-                "dest": {"index": self.work_index_name},
-            },
-            params={"wait_for_completion": "false"},
+            source={"index": real_index_name, "size": 100},
+            dest={"index": self.work_index_name},
+            wait_for_completion=False,
         )
         self.active_task_id = task_id = data["task"]
         task_completed = False
         while not task_completed:
             await asyncio.sleep(10)
-            data = await self.conn.tasks.get(task_id)
+            data = await self.conn.tasks.get(task_id=task_id)
             task_completed = data["completed"]
             if task_completed:
                 break
@@ -282,12 +280,14 @@ class Migrator:
         all we care about is new fields...
         Missing ones are ignored and we don't care about it.
         """
-        next_mappings = await self.conn.indices.get_mapping(self.work_index_name)
+        next_mappings = await self.conn.indices.get_mapping(index=self.work_index_name)
         next_mappings = next_mappings[self.work_index_name]["mappings"]["properties"]
 
         existing_index_name = await self.index_manager.get_real_index_name()
         try:
-            existing_mappings = await self.conn.indices.get_mapping(existing_index_name)
+            existing_mappings = await self.conn.indices.get_mapping(
+                index=existing_index_name
+            )
         except elasticsearch.exceptions.NotFoundError:
             # allows us to upgrade when no index is present yet
             return next_mappings
@@ -389,7 +389,6 @@ class Migrator:
         await self.attempt_flush()
 
     async def attempt_flush(self):
-
         if self.processed % 500 == 0:
             self.policy.invalidate_cache()
             num, _, _ = gc.get_count()
@@ -573,40 +572,35 @@ class Migrator:
 
             try:
                 await self.conn.indices.update_aliases(
-                    {
-                        "actions": [
-                            {
-                                "remove": {
-                                    "alias": alias_index_name,
-                                    "index": existing_index,
-                                }
-                            },
-                            {
-                                "add": {
-                                    "alias": alias_index_name,
-                                    "index": self.work_index_name,
-                                }
-                            },
-                        ]
-                    }
+                    actions=[
+                        {
+                            "remove": {
+                                "alias": alias_index_name,
+                                "index": existing_index,
+                            }
+                        },
+                        {
+                            "add": {
+                                "alias": alias_index_name,
+                                "index": self.work_index_name,
+                            }
+                        },
+                    ]
                 )
             except elasticsearch.exceptions.NotFoundError:
                 await self.conn.indices.update_aliases(
-                    {
-                        "actions": [
-                            {
-                                "add": {
-                                    "alias": alias_index_name,
-                                    "index": self.work_index_name,
-                                }
+                    actions=[
+                        {
+                            "add": {
+                                "alias": alias_index_name,
+                                "index": self.work_index_name,
                             }
-                        ]
-                    }
+                        }
+                    ]
                 )
-
         try:
-            await self.conn.indices.close(existing_index)
-            await self.conn.indices.delete(existing_index)
+            await self.conn.indices.close(index=existing_index)
+            await self.conn.indices.delete(index=existing_index)
             self.response.write("Old index deleted")
         except elasticsearch.exceptions.NotFoundError:
             pass

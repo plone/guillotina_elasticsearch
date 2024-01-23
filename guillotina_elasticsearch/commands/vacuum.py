@@ -1,3 +1,4 @@
+from elastic_transport import ObjectApiResponse
 from elasticsearch import AsyncElasticsearch
 from guillotina import task_vars
 from guillotina.commands import Command
@@ -76,7 +77,7 @@ class Vacuum:
         indexes = [self.index_name]
         for index_name in indexes:
             try:
-                result = await self.conn.search(
+                result: ObjectApiResponse = await self.conn.search(
                     index=index_name,
                     scroll="15m",
                     size=PAGE_SIZE,
@@ -206,7 +207,7 @@ class Vacuum:
 
                 # delete by query for orphaned keys...
                 data = await self.conn.delete_by_query(
-                    index_name, body={"query": {"terms": {"_id": orphaned}}}
+                    index=index_name, body={"query": {"terms": {"_id": orphaned}}}
                 )
                 if data["deleted"] != len(orphaned):
                     logger.warning(
@@ -233,10 +234,11 @@ class Vacuum:
         async for batch in self.iter_paged_db_keys([self.container.__uuid__]):
             oids = [r["zoid"] for r in batch]
             try:
-                results = await self.conn.search(
+                results: ObjectApiResponse = await self.conn.search(
                     index=self.index_name,
                     body={"query": {"terms": {"uuid": oids}}},
                     _source=False,
+                    fields=["tid", "parent_uuid"],
                     stored_fields="tid,parent_uuid",
                     size=PAGE_SIZE,
                 )

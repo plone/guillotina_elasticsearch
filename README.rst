@@ -6,15 +6,15 @@ GUILLOTINA_ELASTICSEARCH
 .. image:: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch.svg?branch=master
    :target: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch
 
-Elasticsearch integration for guillotina.
+Elasticsearch integration for guillotina. Supports Elastic search 7.x
+and 8.x
 
 
 Installation
 ------------
 
-`pip install guillotina_elasticsearch` defaults to Elasticsearch 7.x
-support. Pin `aioelasticsearch<0.6.0` to enable support for
-Elasticsearch 6.x.
+`pip install guillotina_elasticsearch` defaults to Elasticsearch 8.x
+support.
 
 
 Configuration
@@ -28,7 +28,7 @@ config.yaml can include elasticsearch section
       index_name_prefix: "guillotina-"
       connection_settings:
         hosts:
-          - "127.0.0.1:9200"
+          - "http://127.0.0.1:9200"
         sniffer_timeout: 0.5
         sniff_on_start: true
       security_query_builder: "guillotina_elasticsearch.queries.build_security_query"
@@ -51,6 +51,21 @@ Example custom `security_query_builder` settings:
                 }
             }
         }
+
+Development and testing
+-----------------------
+Setup your python virtual environment for version >=3,8. Tested with
+3.8, 3.9 and 3.10
+
+.. code-block:: bash
+
+   # Linux
+   pip install -e ".[test]"
+   pytest tests/
+
+By default the tests run an ES fixture with version 8. If you
+want to run the tests for ES version 7, change the image version in
+the conftest.py
 
 
 Installation on a site
@@ -83,6 +98,24 @@ New index and delete requests are performed on both indexes during live migratio
 
 It is also smart about how to migrate, doing a diff on the mapping and only
 reindexing the fields that changed.
+
+Breaking changes in 8.0.0
+-------------------------
+
+In this version, the library elasticsearch 7 has been upgraded to
+elasticsearch 8. There are some changes that need to be taken into
+account in the settings of old elasticsearch config files.
+
+- The hosts field in the guillotina's configuration file, need to
+  include the scheme: http or https
+- The sniffer_timeout in the guillotina's configureation file, can not be None
+- The doc_type has been removed. Specifying types in requests is no longer supported.
+- The include_type_name parameter is removed.
+
+The elasticsearch field of the config.yaml file is directly passed to
+instantiate AsyncElasticsearch. The class definition is the same of
+the synchronous one, to know how to configure your ES take a look at:
+https://elasticsearch-py.readthedocs.io/en/v8.12.0/api/elasticsearch.html#elasticsearch.Elasticsearch
 
 
 Breaking changes in 2.0

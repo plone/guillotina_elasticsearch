@@ -51,12 +51,11 @@ def base_settings_configurator(settings):
         "index": elastic_search_analyzers_normalizers(),
         "connection_settings": {
             "hosts": [
-                "{}:{}".format(
+                "http://{}:{}".format(
                     getattr(elasticsearch, "host", "localhost"),
                     getattr(elasticsearch, "port", "9200"),
                 )
-            ],
-            "sniffer_timeout": None,
+            ]
         },
     }
 

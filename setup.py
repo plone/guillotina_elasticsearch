@@ -11,7 +11,7 @@ test_requires = [
     "pytest-cov",
     "pytest-docker-fixtures[pg]>=1.3.0",
     "prometheus-client>=0.9.0",  # TODO: remove
-    "docker>=5.0.0,<6.0.0"
+    "docker>=6.0.0,<=6.1.3"
 ]
 
 
@@ -37,7 +37,7 @@ setup(
     packages=find_packages(exclude=["ez_setup"]),
     install_requires=[
         "guillotina>=6.0.0a16",
-        "elasticsearch[async]>=7.8.0,<8.0.0",
+        "elasticsearch[async]>=8.0.0,<=8.12.0",
         "mypy_extensions",
         "lru-dict",
         "backoff"
