@@ -1,4 +1,4 @@
-8.0.1 (unreleased)
+8.0.1 (2024-03-21)
 ------------------
 
 - Adding missing index kwarg when deleting the index in the middle
