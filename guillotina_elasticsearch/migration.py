@@ -207,7 +207,7 @@ class Migrator:
                 if self.force:
                     # delete and recreate
                     self.response.write("Clearing index")
-                    resp = await self.conn.indices.delete(next_index_name)
+                    resp = await self.conn.indices.delete(index=next_index_name)
                     assert resp["acknowledged"]
             await self.utility.create_index(next_index_name, self.index_manager)
         return next_index_name
@@ -514,7 +514,7 @@ class Migrator:
             await asyncio.sleep(5)
         if self.work_index_name:
             self.response.write("Deleting new index")
-            await self.conn.indices.delete(self.work_index_name)
+            await self.conn.indices.delete(index=self.work_index_name)
         self.response.write("Migration canceled")
 
     async def run_migration(self):

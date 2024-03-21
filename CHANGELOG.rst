@@ -1,7 +1,9 @@
 8.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Adding missing index kwarg when deleting the index in the middle
+  of a migration
+  [nilbacardit26]
 
 
 8.0.0 (2024-01-23)
