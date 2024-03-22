@@ -393,3 +393,12 @@ async def test_normalizer_analyzers_search(es_requester):
         )
         assert resp["items_total"] == 2
         assert resp["items"][0]["item_text"] == "another_text"
+
+        # We can search querying the new multi field raw of item_text which is a keyword
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&item_text.raw=another_text&_metadata=*",
+            headers={"X-Wait": "10"},
+        )
+        assert resp["items_total"] == 1
+        assert resp["items"][0]["item_text"] == "another_text"
