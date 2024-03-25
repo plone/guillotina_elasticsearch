@@ -109,9 +109,7 @@ def process_field(field, value):
         field = field[: -len("__starts")]
 
     index = get_index_definition(field)
-    if index is None:
-        if "." not in field:
-            return
+    if "." in field:
         # We came across a multifield
         multifield = field
         original_field = multifield.split(".")[0]
@@ -123,8 +121,10 @@ def process_field(field, value):
         if _type is None:
             return
         field = multifield
-    else:
+    elif index:
         _type = index["type"]
+    else:
+        return
     if not isinstance(value, list):
         value = [value]
         term_keyword = "term"
