@@ -1,7 +1,8 @@
 8.0.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Being able to search using multifields
+  [nilbacardit26]
 
 
 8.0.1 (2024-03-21)
