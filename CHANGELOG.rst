@@ -1,4 +1,4 @@
-8.0.2 (unreleased)
+8.0.2 (2024-03-25)
 ------------------
 
 - Being able to search using multifields
