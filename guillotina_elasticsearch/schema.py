@@ -79,6 +79,8 @@ def get_mappings(schemas=None, schema_info=False):
                 field_mapping["normalizer"] = catalog_info["normalizer"]
             if "multifields" in catalog_info:
                 field_mapping["fields"] = catalog_info["multifields"]
+            if "search_analyzer" in catalog_info:
+                field_mapping["search_analyzer"] = catalog_info["search_analyzer"]
             if schema_info:
                 if "_schemas" not in field_mapping:
                     field_mapping["_schemas"] = []
