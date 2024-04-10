@@ -1,4 +1,4 @@
-8.0.3 (unreleased)
+8.0.3 (2024-04-10)
 ------------------
 
 - Adding search analyzers functionality
