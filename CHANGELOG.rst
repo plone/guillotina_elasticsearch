@@ -1,7 +1,8 @@
 8.0.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Adding search analyzers functionality
+  [nilbacardit26]
 
 
 8.0.2 (2024-03-25)
