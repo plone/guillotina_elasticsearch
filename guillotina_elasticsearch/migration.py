@@ -457,7 +457,8 @@ class Migrator:
                             self.batch[_id] = batch[_id]
                             self.batch[_id]["action"] = "index"
                         else:
-                            errors.append(f'{_id}: {value["status"]}')
+                            reason = value.get("reason")
+                            errors.append(f'{_id}: {value["status"]} {reason}')
             if len(errors) > 0:
                 logger.warning(f"Error bulk putting: {errors}")
 
