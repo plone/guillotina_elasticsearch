@@ -11,7 +11,9 @@ test_requires = [
     "pytest-cov",
     "pytest-docker-fixtures[pg]>=1.3.0",
     "prometheus-client>=0.9.0",  # TODO: remove
-    "docker>=6.0.0,<=6.1.3"
+    "docker>=6.0.0,<=6.1.3",
+    # Until this is merged https://github.com/docker/docker-py/pull/3257
+    "requests==2.31.0"
 ]
 
 
