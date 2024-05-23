@@ -1,7 +1,8 @@
 8.0.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Adding the reason of the error when migrating
+  [nilbacardit26]
 
 
 8.0.3 (2024-04-10)
