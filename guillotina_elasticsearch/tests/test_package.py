@@ -28,6 +28,14 @@ class IFooContent(IResource):
     )
     item_text = TextLine()
 
+    index_field(
+        "item_bool",
+        type="boolean",
+        field="item_bool",
+        store=True,
+    )
+    item_bool = TextLine()
+
 
 @implementer(IFooContent)
 class FooContent(Resource):

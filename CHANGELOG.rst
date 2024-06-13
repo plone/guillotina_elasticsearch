@@ -1,7 +1,11 @@
 8.0.4 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Adding update_catalog coroutine to the utility to add new mappings
+  and add/update settings from catalog. Changes in the guillotina's
+  schemas when fields/mappings are added, will be added automatically
+  to the mappings.
+  [nilbacardit26]
 
 
 8.0.3 (2024-04-10)
@@ -74,7 +78,7 @@
 
 - Being able to build mappings properties with analyzers
   [nilbacardit26]
-
+  
 
 7.0.0 (2022-03-16)
 ------------------
