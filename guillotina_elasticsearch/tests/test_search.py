@@ -239,7 +239,9 @@ async def test_context_search(es_requester):
         )
         assert status == 201
         parent_uuid = resp["@uid"]
-
+        await asyncio.sleep(1)
+        search = get_utility(ICatalogUtility)
+        assert await search.get_doc_count(container, query={"type_name": "Folder"}) == 1
         resp, status = await requester(
             "POST",
             "/db/guillotina/",
@@ -255,7 +257,8 @@ async def test_context_search(es_requester):
             headers={"X-Wait": "10"},
         )
         assert status == 201
-
+        await asyncio.sleep(1)
+        assert await search.get_doc_count(container, query={"type_name": "Item"}) == 1
         resp, status = await requester(
             "POST",
             "/db/guillotina/folder2",

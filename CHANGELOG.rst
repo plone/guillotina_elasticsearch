@@ -2,6 +2,7 @@
 ------------------
 
 - Adding the reason of the error when migrating
+- Adding query parameter to the get_doc_count coroutine 
   [nilbacardit26]
 
 
