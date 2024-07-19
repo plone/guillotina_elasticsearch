@@ -1,4 +1,4 @@
-8.0.4 (unreleased)
+8.0.4 (2024-07-19)
 ------------------
 
 - Adding the reason of the error when migrating
