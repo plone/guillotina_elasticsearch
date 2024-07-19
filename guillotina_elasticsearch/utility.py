@@ -26,6 +26,7 @@ from guillotina_elasticsearch.exceptions import QueryErrorException
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility  # noqa b/w compat
 from guillotina_elasticsearch.interfaces import IIndexManager
+from guillotina_elasticsearch.parser import Parser
 from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_migration_lock
 from guillotina_elasticsearch.utils import noop_response
@@ -583,12 +584,16 @@ class ElasticSearchUtility(DefaultSearchUtility):
             conn = self.get_connection()
             await conn.bulk(body=bulk_data, refresh=self._refresh())
 
-    async def get_doc_count(self, container=None, index_name=None):
+    async def get_doc_count(self, container=None, index_name=None, query=None):
         if index_name is None:
             index_manager = get_adapter(container, IIndexManager)
             index_name = await index_manager.get_real_index_name()
         conn = self.get_connection()
-        result = await conn.count(index=index_name)
+        if query:
+            parser = Parser(None, container)
+            query = parser(query)
+            query = {"query": query["query"]}
+        result = await conn.count(index=index_name, body=query)
         return result["count"]
 
     async def refresh(self, container=None, index_name=None):
