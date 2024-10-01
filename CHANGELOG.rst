@@ -1,7 +1,7 @@
 8.0.6 (unreleased)
 ------------------
 
-- Lof results every time data is bulk_inser whrn updating
+- Log results every time data is bulk_inserted when updating
   [nilbacardit26]
 
 
