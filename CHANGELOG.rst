@@ -1,7 +1,8 @@
 8.0.5 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Do not log results if there are none to show, preventing errors
+  [nilbacardit26]
 
 
 8.0.4 (2024-07-19)

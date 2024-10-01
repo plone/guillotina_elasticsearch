@@ -488,8 +488,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
         if len(bulk_data) > 0:
             result = await self.bulk_insert(bulk_data, idents, response=response)
-
-        self.log_result(result)
+            self.log_result(result)
 
         return result
 
@@ -543,7 +542,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
 
             if len(bulk_data) > 0:
                 result = await self.bulk_insert(bulk_data, idents, response=response)
-            self.log_result(result)
+                self.log_result(result)
             return result
 
     def log_result(self, result: ObjectApiResponse, label="ES Query"):
