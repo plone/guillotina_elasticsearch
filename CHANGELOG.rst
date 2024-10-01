@@ -1,4 +1,4 @@
-8.0.6 (unreleased)
+8.0.6 (2024-10-01)
 ------------------
 
 - Log results every time data is bulk_inserted when updating
