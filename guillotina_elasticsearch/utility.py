@@ -483,6 +483,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             idents.append(ident)
             if not flush_all and len(bulk_data) % (self.bulk_size * 2) == 0:
                 result = await self.bulk_insert(bulk_data, idents, response=response)
+                self.log_result(result)
                 idents = []
                 bulk_data = []
 
@@ -537,6 +538,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
                     result = await self.bulk_insert(
                         bulk_data, idents, response=response
                     )
+                    self.log_result(result)
                     idents = []
                     bulk_data = []
 
