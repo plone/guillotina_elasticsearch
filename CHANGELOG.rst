@@ -1,7 +1,8 @@
 8.0.6 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Lof results every time data is bulk_inser whrn updating
+  [nilbacardit26]
 
 
 8.0.5 (2024-10-01)
