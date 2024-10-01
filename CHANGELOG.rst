@@ -1,4 +1,4 @@
-8.0.5 (unreleased)
+8.0.5 (2024-10-01)
 ------------------
 
 - Do not log results if there are none to show, preventing errors
