@@ -285,9 +285,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if "size" in q["body"] and "size" in q:
             # ValueError: Received multiple values for 'size', specify parameters using either body or parameters, not both.
             del q["size"]
-        count = await conn.count(
-            index=index, body={"query": q["body"]["query"]}
-        )
+        count = await conn.count(index=index, body={"query": q["body"]["query"]})
         result: ObjectApiResponse = await conn.search(index=index, **q)
         if result.get("_shards", {}).get("failed", 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
