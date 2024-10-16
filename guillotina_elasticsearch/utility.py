@@ -285,7 +285,6 @@ class ElasticSearchUtility(DefaultSearchUtility):
         if "size" in q["body"] and "size" in q:
             # ValueError: Received multiple values for 'size', specify parameters using either body or parameters, not both.
             del q["size"]
-        count = await conn.count(index=index, body={"query": q["body"]["query"]})
         result: ObjectApiResponse = await conn.search(index=index, **q)
         if result.get("_shards", {}).get("failed", 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
@@ -294,7 +293,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 error_message = failure["reason"]
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
-        items_total = count["count"]
+        items_total = result["hits"]["total"]["value"]
+        if items_total > 10000:
+            count = await conn.count(index=index, body={"query": q["body"]["query"]})
+            items_total = count["count"]
         final = {"items_total": items_total, "items": items}
 
         if "aggregations" in result:
