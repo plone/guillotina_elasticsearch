@@ -1,4 +1,4 @@
-8.0.7 (unreleased)
+8.0.7 (2024-10-17)
 ------------------
 
 - Getting items_total from conn.count instead of getting it from the
