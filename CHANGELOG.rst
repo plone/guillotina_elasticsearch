@@ -1,4 +1,4 @@
-8.0.8 (unreleased)
+8.0.8 (2024-10-17)
 ------------------
 
 - Do not raise an error when the real_index_name is not synchronize
