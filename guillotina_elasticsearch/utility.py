@@ -289,7 +289,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
         index_settings = await conn.indices.get_settings(index=index)
         index_manager = get_adapter(container, IIndexManager)
         real_index_name = await index_manager.get_real_index_name()
-        max_result_window_value = index_settings[real_index_name]["settings"]["index"].get("max_result_window", 10000)
+        max_result_window_value = index_settings[real_index_name]["settings"][
+            "index"
+        ].get("max_result_window", 10000)
         if result.get("_shards", {}).get("failed", 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
             error_message = "Unknown"
