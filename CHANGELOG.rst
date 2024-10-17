@@ -1,7 +1,10 @@
 8.0.8 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Do not raise an error when the real_index_name is not synchronize
+  with the registry when doing a search and calculating the
+  max_result_window_value
+  [nilbacardit26]
 
 
 8.0.7 (2024-10-17)
