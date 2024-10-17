@@ -1,7 +1,9 @@
 8.0.7 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Getting items_total from conn.count instead of getting it from the
+  hits of the result
+  [nilbacardit26]
 
 
 8.0.6 (2024-10-01)
