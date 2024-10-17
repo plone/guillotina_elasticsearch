@@ -286,6 +286,10 @@ class ElasticSearchUtility(DefaultSearchUtility):
             # ValueError: Received multiple values for 'size', specify parameters using either body or parameters, not both.
             del q["size"]
         result: ObjectApiResponse = await conn.search(index=index, **q)
+        index_settings = await conn.indices.get_settings(index=index)
+        index_manager = get_adapter(container, IIndexManager)
+        real_index_name = await index_manager.get_real_index_name()
+        max_result_window_value = index_settings[real_index_name]["settings"]["index"].get("max_result_window", 10000)
         if result.get("_shards", {}).get("failed", 0) > 0:
             logger.warning(f'Error running query: {result["_shards"]}')
             error_message = "Unknown"
@@ -294,7 +298,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         items_total = result["hits"]["total"]["value"]
-        if items_total == 10000:
+        if items_total == max_result_window_value:
             count = await conn.count(index=index, body={"query": q["body"]["query"]})
             items_total = count["count"]
         final = {"items_total": items_total, "items": items}
