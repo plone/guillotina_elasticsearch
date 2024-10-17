@@ -294,7 +294,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
         items_total = result["hits"]["total"]["value"]
-        if items_total > 10000:
+        if items_total == 10000:
             count = await conn.count(index=index, body={"query": q["body"]["query"]})
             items_total = count["count"]
         final = {"items_total": items_total, "items": items}
