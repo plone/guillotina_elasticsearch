@@ -1,7 +1,9 @@
 8.0.9 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Avoiding possible error when getting the index_settings in
+  search_raw
+  [nilbacardit26]
 
 
 8.0.8 (2024-10-17)
