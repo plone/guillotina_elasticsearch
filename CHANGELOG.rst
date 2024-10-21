@@ -1,4 +1,4 @@
-8.0.9 (unreleased)
+8.0.9 (2024-10-21)
 ------------------
 
 - Avoiding possible error when getting the index_settings in
