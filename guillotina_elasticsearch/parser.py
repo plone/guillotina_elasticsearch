@@ -104,6 +104,9 @@ def process_field(field, value):
     elif field.endswith("__wildcard"):
         modifier = "wildcard"
         field = field[: -len("__wildcard")]
+    elif field.endswith("__not_exists"):
+        modifier = "not_exists"
+        field = field[: -len("__not_exists")]
     elif field.endswith("__starts"):
         modifier = "starts"
         field = field[: -len("__starts")]
@@ -161,6 +164,8 @@ def process_field(field, value):
     if modifier is None:
         # Keyword we expect an exact match
         return match_type, {term_keyword: {field: value}}
+    elif modifier == "not_exists":
+        return "must_not", {"exists": {"field": field}}
     elif modifier == "not":
         # Must not be
         return "must_not", {term_keyword: {field: value}}

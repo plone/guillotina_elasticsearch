@@ -1,7 +1,8 @@
 8.0.10 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Adding {field}__not_exists query param to search documents that do
+  not contain the field
 
 
 8.0.9 (2024-10-21)
