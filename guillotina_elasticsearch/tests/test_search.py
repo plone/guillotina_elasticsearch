@@ -499,3 +499,25 @@ async def test_search_fields_not_exists(es_requester):
         assert status == 200
         assert resp["items_total"] == 1
         assert resp["items"][0]["id"] == "item3"
+        # Let's create another docuemnt without item_text
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item4",
+                    "item_keyword": "foo_keyword",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(3)
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text__not_exists&item_keyword=foo_keyword",
+        )
+        assert status == 200
+        assert resp["items_total"] == 2
