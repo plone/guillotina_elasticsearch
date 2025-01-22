@@ -1,9 +1,9 @@
 8.0.10 (unreleased)
 -------------------
 
-- Adding {field}__not_exists query param to search documents that do
+- Adding {field}__not query param without value to search documents that do
   not contain the field
-
+  [nilbacardit26]
 
 8.0.9 (2024-10-21)
 ------------------

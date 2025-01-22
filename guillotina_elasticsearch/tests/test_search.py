@@ -437,7 +437,7 @@ async def test_search_fields_not_exists(es_requester):
         # Results without the field
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_keyword__not_exists",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_keyword__not",
         )
         assert status == 200
         assert resp["items_total"] == 1
@@ -462,7 +462,7 @@ async def test_search_fields_not_exists(es_requester):
         # Only results without item_keyword should be returned
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_keyword__not_exists",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_keyword__not",
         )
         assert status == 200
         assert resp["items_total"] == 1
@@ -486,15 +486,15 @@ async def test_search_fields_not_exists(es_requester):
         # Only documents without item_text should be returned
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text__not_exists",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text__not",
         )
         assert status == 200
         assert resp["items_total"] == 1
         assert resp["items"][0]["id"] == "item3"
-        # Let's make sure the query is not broken when searching after the query param of __not_exists
+        # Let's make sure the query is not broken when searching after the query param of __not
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text__not_exists&item_keyword=foo_keyword",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text__not&item_keyword=foo_keyword",
         )
         assert status == 200
         assert resp["items_total"] == 1
@@ -517,7 +517,7 @@ async def test_search_fields_not_exists(es_requester):
         await asyncio.sleep(3)
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text__not_exists&item_keyword=foo_keyword",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text__not&item_keyword=foo_keyword",
         )
         assert status == 200
         assert resp["items_total"] == 2

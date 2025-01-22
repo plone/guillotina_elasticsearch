@@ -164,11 +164,13 @@ def process_field(field, value):
     if modifier is None:
         # Keyword we expect an exact match
         return match_type, {term_keyword: {field: value}}
-    elif modifier == "not_exists":
-        return "must_not", {"exists": {"field": field}}
     elif modifier == "not":
         # Must not be
-        return "must_not", {term_keyword: {field: value}}
+        if value:
+            return "must_not", {term_keyword: {field: value}}
+        if not value:
+            # https://github.com/plone/guillotina/blob/master/guillotina/contrib/catalog/pg/parser.py#L64
+            return "must_not", {"exists": {"field": field}}
     elif modifier == "in" and _type in ("text", "searchabletext"):
         # The value list can be inside the field
         return match_type, {"match": {field: value}}
