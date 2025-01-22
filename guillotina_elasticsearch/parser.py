@@ -104,9 +104,6 @@ def process_field(field, value):
     elif field.endswith("__wildcard"):
         modifier = "wildcard"
         field = field[: -len("__wildcard")]
-    elif field.endswith("__not_exists"):
-        modifier = "not_exists"
-        field = field[: -len("__not_exists")]
     elif field.endswith("__starts"):
         modifier = "starts"
         field = field[: -len("__starts")]
