@@ -1,4 +1,4 @@
-8.0.10 (unreleased)
+8.0.10 (2025-01-23)
 -------------------
 
 - Adding {field}__not query param without value to search documents that do
