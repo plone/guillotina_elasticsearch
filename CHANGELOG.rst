@@ -1,8 +1,9 @@
 8.0.10 (unreleased)
 -------------------
 
-- Nothing changed yet.
-
+- Adding {field}__not query param without value to search documents that do
+  not contain the field
+  [nilbacardit26]
 
 8.0.9 (2024-10-21)
 ------------------

@@ -159,11 +159,16 @@ def process_field(field, value):
         value = result_list
 
     if modifier is None:
+        if value == "null":
+            return "must_not", {"exists": {"field": field}}
         # Keyword we expect an exact match
         return match_type, {term_keyword: {field: value}}
     elif modifier == "not":
         # Must not be
-        return "must_not", {term_keyword: {field: value}}
+        if value and value != "null":
+            return "must_not", {term_keyword: {field: value}}
+        elif value == "null":
+            return "must", {"exists": {"field": field}}
     elif modifier == "in" and _type in ("text", "searchabletext"):
         # The value list can be inside the field
         return match_type, {"match": {field: value}}

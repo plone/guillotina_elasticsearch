@@ -405,3 +405,126 @@ async def test_normalizer_analyzers_search(es_requester):
         )
         assert resp["items_total"] == 1
         assert resp["items"][0]["item_text"] == "another_text"
+
+
+@pytest.mark.app_settings(
+    {
+        "applications": [
+            "guillotina",
+            "guillotina_elasticsearch",
+            "guillotina_elasticsearch.tests.test_package",
+        ]
+    }
+)
+async def test_search_fields_not_exists(es_requester):
+    async with es_requester as requester:
+        # Let's index a document without item_keyword
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item",
+                    "item_text": "foo_item",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(2)
+        # Results without the field
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_keyword=null",
+        )
+        assert status == 200
+        assert resp["items_total"] == 1
+        assert resp["items"][0]["id"] == "item"
+        # Let's create a document with item_keyword
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item2",
+                    "item_keyword": "foo_keyword",
+                    "item_text": "foo_item",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(2)
+        # Only results without item_keyword should be returned
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_keyword=null",
+        )
+        assert status == 200
+        assert resp["items_total"] == 1
+        assert resp["items"][0]["id"] == "item"
+        # Let's create a document without the field item_text
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item3",
+                    "item_keyword": "foo_keyword",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(3)
+        # Only documents without item_text should be returned
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text=null",
+        )
+        assert status == 200
+        assert resp["items_total"] == 1
+        assert resp["items"][0]["id"] == "item3"
+        # Let's make sure the query is not broken when searching after the query param of =null
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text=null&item_keyword=foo_keyword",
+        )
+        assert status == 200
+        assert resp["items_total"] == 1
+        assert resp["items"][0]["id"] == "item3"
+        # Let's create another docuemnt without item_text
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item4",
+                    "item_keyword": "foo_keyword",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(3)
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text=null&item_keyword=foo_keyword",
+        )
+        assert status == 200
+        assert resp["items_total"] == 2
+
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_keyword__not=null",
+        )
+        assert status == 200
+        assert resp["items_total"] == 3
