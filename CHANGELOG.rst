@@ -1,7 +1,7 @@
 8.0.12 (unreleased)
 -------------------
 
-- Getting the real count of documents if items_total exceeds 10000
+- Getting the real count of documents if items_total is equal 10000
   [nilbacardit26]
 
 
