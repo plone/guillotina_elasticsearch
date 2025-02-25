@@ -1,4 +1,4 @@
-8.0.12 (unreleased)
+8.0.12 (2025-02-25)
 -------------------
 
 - Getting the real count of documents if items_total is equal 10000
