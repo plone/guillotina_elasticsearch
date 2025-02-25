@@ -1,4 +1,4 @@
-8.0.11 (unreleased)
+8.0.11 (2025-02-25)
 -------------------
 
 - Casting max_result_window_value to int inside search_raw
