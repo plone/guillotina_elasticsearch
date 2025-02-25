@@ -1,7 +1,8 @@
 8.0.11 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Casting max_result_window_value to int inside search_raw
+  [nilbacardit26]
 
 
 8.0.10 (2025-01-23)

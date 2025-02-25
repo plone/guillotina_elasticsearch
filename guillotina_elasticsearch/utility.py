@@ -293,6 +293,7 @@ class ElasticSearchUtility(DefaultSearchUtility):
             max_result_window_value = index_settings[real_index_name]["settings"][
                 "index"
             ].get("max_result_window", 10000)
+            max_result_window_value = int(max_result_window_value)
         except Exception:
             max_result_window_value = 10000
         if result.get("_shards", {}).get("failed", 0) > 0:
