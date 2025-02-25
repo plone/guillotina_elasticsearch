@@ -1,7 +1,8 @@
 8.0.12 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Getting the real count of documents if items_total exceeds 10000
+  [nilbacardit26]
 
 
 8.0.11 (2025-02-25)
