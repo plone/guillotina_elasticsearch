@@ -31,6 +31,8 @@ from guillotina_elasticsearch.utils import format_hit
 from guillotina_elasticsearch.utils import get_migration_lock
 from guillotina_elasticsearch.utils import noop_response
 from guillotina_elasticsearch.utils import safe_es_call
+from guillotina_elasticsearch.utils import get_parent_by_interface
+from guillotina.interfaces import IContainer
 
 import asyncio
 import backoff
@@ -597,6 +599,20 @@ class ElasticSearchUtility(DefaultSearchUtility):
         conn = self.get_connection()
         if query:
             parser = Parser(None, container)
+            query = parser(query)
+            query = {"query": query["query"]}
+        result = await conn.count(index=index_name, body=query)
+        return result["count"]
+
+    async def count(self, context, query):
+        container = get_parent_by_interface(context, IContainer)
+        if container is None:
+            return 0
+        index_manager = get_adapter(container, IIndexManager)
+        index_name = await index_manager.get_real_index_name()
+        conn = self.get_connection()
+        if query:
+            parser = Parser(None, context)
             query = parser(query)
             query = {"query": query["query"]}
         result = await conn.count(index=index_name, body=query)
