@@ -1,7 +1,9 @@
 8.0.13 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Adding count functionality, working along with the @count endpoint
+  of guillotina
+  [nilbacardit26]
 
 
 8.0.12 (2025-02-25)

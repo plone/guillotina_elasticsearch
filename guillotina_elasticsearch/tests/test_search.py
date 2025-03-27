@@ -227,7 +227,7 @@ async def test_search_date(es_requester):
         assert results["items_total"] == 0
 
 
-async def test_context_search(es_requester):
+async def test_context_search_and_count(es_requester):
     # https://github.com/plone/guillotina_elasticsearch/issues/93
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
@@ -276,6 +276,20 @@ async def test_context_search(es_requester):
 
         resp, status = await requester("GET", "/db/guillotina/@search?type_name=Item")
         assert resp["items_total"] == 2
+        resp, status = await requester("GET", "/db/guillotina/@count?type_name=Item")
+        assert resp == 2
+        resp, status = await requester("GET", "/db/guillotina/@count?type_name=Folder")
+        assert resp == 2
+        resp, status = await requester("GET", "/db/guillotina/@count")
+        assert resp == 4
+        resp, status = await requester(
+            "GET", "/db/guillotina/folder/@count?type_name=Item"
+        )
+        assert resp == 1
+        resp, status = await requester(
+            "GET", "/db/guillotina/folder/@count?type_name=Folder"
+        )
+        assert resp == 0
 
 
 async def test_or_search(es_requester):

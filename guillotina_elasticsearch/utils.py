@@ -93,3 +93,23 @@ def format_hit(item):
             container_data = container_data[name]
         container_data[key] = val
     return data
+
+
+def get_parent_by_interface(content, interface):
+    """
+    Return the direct parent
+    """
+
+    parts = []
+    parent = getattr(content, "__parent__", None)
+    while (
+        content is not None
+        and content.__name__ is not None
+        and parent is not None
+        and not interface.providedBy(content)
+    ):
+        parts.append(content.__name__)
+        content = parent
+        parent = getattr(content, "__parent__", None)
+    if interface.providedBy(content):
+        return content
