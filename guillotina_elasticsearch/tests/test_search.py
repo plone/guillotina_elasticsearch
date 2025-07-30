@@ -538,7 +538,42 @@ async def test_search_fields_not_exists(es_requester):
 
         resp, status = await requester(
             "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_text=null&item_keyword=foo_keyword",
+        )
+        assert status == 200
+        assert resp["items_total"] == 2
+
+        resp, status = await requester(
+            "GET",
             "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_keyword__not=null",
         )
         assert status == 200
         assert resp["items_total"] == 3
+
+        # Let's create another document with item_text
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item5",
+                    "item_text": "foo_text",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(3)
+
+        # Let's user __or to test that null work as expected together with other values
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&__or=item_text=null%26item_text=foo_text",
+        )
+        assert status == 200
+        assert resp["items_total"] == 3
+        expected_results_id = ["item3", "item4", "item5"]
+        for item in resp["items"]:
+            assert item["id"] in expected_results_id

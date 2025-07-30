@@ -160,6 +160,8 @@ def process_field(field, value):
 
     if modifier is None:
         if value == "null":
+            if match_type == "should":
+                return "should", {"bool": {"must_not": {"exists": {"field": field}}}}
             return "must_not", {"exists": {"field": field}}
         # Keyword we expect an exact match
         return match_type, {term_keyword: {field: value}}
