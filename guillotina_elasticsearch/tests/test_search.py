@@ -550,7 +550,7 @@ async def test_search_fields_not_exists(es_requester):
         assert status == 200
         assert resp["items_total"] == 3
 
-        # Let's create another document without item_text
+        # Let's create another document with item_text
         resp, status = await requester(
             "POST",
             "/db/guillotina/",
