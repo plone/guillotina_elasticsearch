@@ -4,6 +4,8 @@
 - Adding count functionality, working along with the @count endpoint
   of guillotina
   [nilbacardit26]
+- Fixing __or query when using null values in fields
+  [nilbacardit26]
 
 
 8.0.12 (2025-02-25)
