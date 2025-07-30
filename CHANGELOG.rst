@@ -1,4 +1,4 @@
-8.0.13 (unreleased)
+8.0.13 (2025-07-30)
 -------------------
 
 - Adding count functionality, working along with the @count endpoint
