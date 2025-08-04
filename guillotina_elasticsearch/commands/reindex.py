@@ -6,8 +6,8 @@ from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import get_mocked_request
 from guillotina.tests.utils import login
 from guillotina.utils import get_containers
-from guillotina_elasticsearch.reindex import Reindexer
 from guillotina.utils import navigate_to
+from guillotina_elasticsearch.reindex import Reindexer
 
 import asyncio
 import logging
