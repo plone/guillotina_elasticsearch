@@ -7,6 +7,7 @@ from guillotina.tests.utils import get_mocked_request
 from guillotina.tests.utils import login
 from guillotina.utils import get_containers
 from guillotina_elasticsearch.reindex import Reindexer
+from guillotina.utils import navigate_to
 
 import asyncio
 import logging
@@ -34,6 +35,8 @@ class ReindexCommand(Command):
         parser.add_argument("--memory-tracking", action="store_true")
         parser.add_argument("--reindex-security", action="store_true")
         parser.add_argument("--mapping-only", action="store_true")
+        parser.add_argument("--container", help="Container to index")
+        parser.add_argument("--path", help="Path of the container to index")
         return parser
 
     async def reindex_all(self, arguments):
@@ -41,27 +44,34 @@ class ReindexCommand(Command):
         await asyncio.sleep(1)  # since something initialize custom types...
         async for _, tm, container in get_containers():
             try:
-                self.reindexer = Reindexer(
-                    search,
-                    container,
-                    response=printer(),
-                    log_details=arguments.log_details,
-                    memory_tracking=arguments.memory_tracking,
-                    reindex_security=arguments.reindex_security,
-                    mapping_only=arguments.mapping_only,
-                    cache=False,
-                )
-                await self.reindexer.reindex(container)
-                seconds = int(time.time() - self.reindexer.start_time)
-                logger.warning(
-                    f"""Finished reindex:
-Total Seconds: {seconds}
-Processed: {self.reindexer.processed}
-Indexed: {self.reindexer.indexed}
-Objects missing: {len(self.reindexer.missing)}
-Objects orphaned: {len(self.reindexer.orphaned)}
-"""
-                )
+                index_container = True
+                if arguments.container and container.id != arguments.container:
+                    index_container = False
+                if index_container:
+                    self.reindexer = Reindexer(
+                        search,
+                        container,
+                        response=printer(),
+                        log_details=arguments.log_details,
+                        memory_tracking=arguments.memory_tracking,
+                        reindex_security=arguments.reindex_security,
+                        mapping_only=arguments.mapping_only,
+                        cache=False,
+                    )
+                    object_to_index = container
+                    if arguments.path:
+                        object_to_index = await navigate_to(container, arguments.path)
+                    await self.reindexer.reindex(object_to_index)
+                    seconds = int(time.time() - self.reindexer.start_time)
+                    logger.warning(
+                        f"""Finished reindex:
+                        Total Seconds: {seconds}
+                        Processed: {self.reindexer.processed}
+                        Indexed: {self.reindexer.indexed}
+                        Objects missing: {len(self.reindexer.missing)}
+                        Objects orphaned: {len(self.reindexer.orphaned)}
+                        """
+                    )
             finally:
                 await tm.commit()
 
