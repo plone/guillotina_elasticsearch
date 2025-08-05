@@ -1,4 +1,4 @@
-8.0.14 (unreleased)
+8.0.14 (2025-08-05)
 -------------------
 
 - Adding container and path to the reindex command
