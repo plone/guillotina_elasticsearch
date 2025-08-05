@@ -1,7 +1,8 @@
 8.0.14 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Adding container and path to the reindex command
+  [nilbacardit26]
 
 
 8.0.13 (2025-07-30)
