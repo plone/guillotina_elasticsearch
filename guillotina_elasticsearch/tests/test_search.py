@@ -577,3 +577,63 @@ async def test_search_fields_not_exists(es_requester):
         expected_results_id = ["item3", "item4", "item5"]
         for item in resp["items"]:
             assert item["id"] in expected_results_id
+
+
+@pytest.mark.app_settings(
+    {
+        "applications": [
+            "guillotina",
+            "guillotina_elasticsearch",
+            "guillotina_elasticsearch.tests.test_package",
+        ]
+    }
+)
+async def test_search_multi_field(es_requester):
+    async with es_requester as requester:
+        # Let's index a document without item_keyword
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item",
+                    "item_text": "This is an item text",
+                    "item_text_2": "This is another text refering the item",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(2)
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.0.field=item_text%5E2&mm.1.field=item_text_2%5E3&mm.type=best_fields&mm.fuzziness=AUTO&mm.query=text%20item",
+        )
+        assert status == 200
+        assert resp["items_total"] == 1
+
+        # Fuziness auto allow two edits for texts larger than 5 characters
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.0.field=item_text%5E2&mm.1.field=item_text_2%5E3&mm.type=best_fields&mm.fuzziness=AUTO&mm.query=taxt%20atem",
+        )
+        assert status == 200
+        assert resp["items_total"] == 1
+
+        # Fuziness auto allow two edits for texts larger than 5 characters. If more edits, 0 results
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.0.field=item_text%5E2&mm.1.field=item_text_2%5E3&mm.type=best_fields&mm.fuzziness=AUTO&mm.query=tart%20atem",
+        )
+        assert status == 200
+        assert resp["items_total"] == 0
+
+        # We can use cross_fields for instance. Fuziness not allowed
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.0.field=item_text%5E2&mm.1.field=item_text_2%5E3&mm.type=cross_fields&mm.query=item",
+        )
+        assert status == 200
+        assert resp["items_total"] == 1

@@ -207,8 +207,9 @@ def _collect_mm_groups(params):
         key = parts[-1]
         if key == "field":
             groups.setdefault("field", [])
-            value = urllib.parse.unquote(v)
-            groups["field"].append(value)
+            groups["field"].append(urllib.parse.unquote(v))
+        elif key == "query":
+            groups["query"] = urllib.parse.unquote(v)
         else:
             groups[key] = v
         # Let's remove the multi match keys to not interfere the logic
@@ -295,4 +296,5 @@ class Parser(BaseParser):
         query["sort"].append({"_id": "desc"})
         query["from"] = query_info.get("_from", 0)
         query["size"] = query_info.get("size", 0)
+        __import__("pdb").set_trace()
         return typing.cast(ParsedQueryInfo, query)

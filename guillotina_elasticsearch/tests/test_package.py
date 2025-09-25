@@ -28,6 +28,17 @@ class IFooContent(IResource):
     )
     item_text = TextLine()
 
+    index_field(
+        "item_text",
+        type="text",
+        analyzer="common_analyzer",
+        field="item_text_2",
+        store=True,
+        multifields={"raw": {"type": "keyword"}},
+        search_analyzer="standard",
+    )
+    item_text_2 = TextLine()
+
 
 @implementer(IFooContent)
 class FooContent(Resource):
