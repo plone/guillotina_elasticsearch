@@ -205,9 +205,10 @@ def _collect_mm_groups(params):
             continue
         parts = k.split(".")
         key = parts[-1]
-        if key == "field":
-            groups.setdefault("field", [])
-            groups["field"].append(urllib.parse.unquote(v))
+        if key == "fields":
+            groups.setdefault("fields", [])
+            fields = urllib.parse.unquote(v)
+            groups["fields"] = fields.split(",")
         elif key == "query":
             groups["query"] = urllib.parse.unquote(v)
         else:
@@ -221,12 +222,12 @@ def _collect_mm_groups(params):
 def _mm_to_clause(g):
     mm = {
         "query": g["query"],
-        "fields": g.get("field", []),
+        "fields": g.get("fields", []),
         "type": g.get("type", "best_fields"),
         "operator": g.get("op", "and"),
     }
-    if "fuzziness" in g:
-        mm["fuzziness"] = g["fuzziness"]
+    if "fz" in g:
+        mm["fuzziness"] = g["fz"]
     if "analyzer" in g:
         mm["analyzer"] = g["analyzer"]
     if "slop" in g:
@@ -296,5 +297,4 @@ class Parser(BaseParser):
         query["sort"].append({"_id": "desc"})
         query["from"] = query_info.get("_from", 0)
         query["size"] = query_info.get("size", 0)
-        __import__("pdb").set_trace()
         return typing.cast(ParsedQueryInfo, query)

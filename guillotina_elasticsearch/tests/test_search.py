@@ -609,23 +609,22 @@ async def test_search_multi_field(es_requester):
         await asyncio.sleep(2)
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.0.field=item_text%5E2&mm.1.field=item_text_2%5E3&mm.type=best_fields&mm.fuzziness=AUTO&mm.query=text%20item",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.fields=item_text%5E2%2Citem_text_2%5E3&mm.type=best_fields&mm.fz=AUTO&mm.query=text%20item",
         )
         assert status == 200
         assert resp["items_total"] == 1
 
-        # Fuziness auto allow two edits for texts larger than 5 characters
+        # Fuziness auto allow two edits for words larger than 5 characters
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.0.field=item_text%5E2&mm.1.field=item_text_2%5E3&mm.type=best_fields&mm.fuzziness=AUTO&mm.query=taxt%20atem",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.fields=item_text%5E2%2Citem_text_2%5E3&mm.type=best_fields&mm.fz=AUTO&mm.query=taxt%20atem",
         )
         assert status == 200
         assert resp["items_total"] == 1
-
-        # Fuziness auto allow two edits for texts larger than 5 characters. If more edits, 0 results
+        # Fuziness auto allow two edits for words larger than 5 characters
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.0.field=item_text%5E2&mm.1.field=item_text_2%5E3&mm.type=best_fields&mm.fuzziness=AUTO&mm.query=tart%20atem",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.fields=item_text%5E2%2Citem_text_2%5E3&mm.type=best_fields&mm.fz=AUTO&mm.query=tart%20atem",
         )
         assert status == 200
         assert resp["items_total"] == 0
@@ -633,7 +632,7 @@ async def test_search_multi_field(es_requester):
         # We can use cross_fields for instance. Fuziness not allowed
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.0.field=item_text%5E2&mm.1.field=item_text_2%5E3&mm.type=cross_fields&mm.query=item",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&mm.fields=item_text%5E2%2Citem_text_2%5E3&mm.type=cross_fields&mm.query=item",
         )
         assert status == 200
         assert resp["items_total"] == 1
