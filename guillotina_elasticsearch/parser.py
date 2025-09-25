@@ -197,8 +197,53 @@ def process_field(field, value):
         )
 
 
+def _collect_mm_groups(params):
+    # Collect the multi match groups
+    groups = {}
+    for k, v in list(params.items()):
+        if not k.startswith("mm"):
+            continue
+        parts = k.split(".")
+        key = parts[-1]
+        if key == "field":
+            groups.setdefault("field", [])
+            value = urllib.parse.unquote(v)
+            groups["field"].append(value)
+        else:
+            groups[key] = v
+        # Let's remove the multi match keys to not interfere the logic
+        # of process_fields function
+        params.pop(k, None)
+    return groups
+
+
+def _mm_to_clause(g):
+    mm = {
+        "query": g["query"],
+        "fields": g.get("field", []),
+        "type": g.get("type", "best_fields"),
+        "operator": g.get("op", "and"),
+    }
+    if "fuzziness" in g:
+        mm["fuzziness"] = g["fuzziness"]
+    if "analyzer" in g:
+        mm["analyzer"] = g["analyzer"]
+    if "slop" in g:
+        mm["slop"] = int(g["slop"])
+    if "tie" in g:
+        mm["tie_breaker"] = float(g["tie"])
+    if "boost" in g:
+        mm["boost"] = float(g["boost"])
+    return {"multi_match": mm}, g.get("mode", "must")
+
+
 def process_query_level(params):
-    query = {"must": [], "should": [], "minimum_should_match": 1, "must_not": []}
+    query = {
+        "must": [],
+        "should": [],
+        "minimum_should_match": 1,
+        "must_not": [],
+    }
     for field, value in params.items():
         result = process_field(field, value)
         if result is not None:
@@ -222,9 +267,25 @@ class Parser(BaseParser):
             search_data = SEARCH_DATA_FIELDS + metadata
         else:
             search_data = SEARCH_DATA_FIELDS
+        groups = _collect_mm_groups(query_info["params"])
+        bool_q = {"must": [], "should": [], "must_not": [], "minimum_should_match": 1}
+        bool_q.update(
+            process_query_level(query_info["params"])
+        )  # your existing builder
+
+        if groups != {}:
+            clause, mode = _mm_to_clause(groups)
+            if mode == "should":
+                bool_q["should"].append(clause)
+            else:
+                bool_q["must"].append(clause)
+        if not bool_q["should"]:
+            bool_q.pop("should", None)
+            bool_q.pop("minimum_should_match", None)
+
         query = {
             "stored_fields": search_data,
-            "query": {"bool": process_query_level(query_info["params"])},
+            "query": {"bool": bool_q},
             "sort": [],
         }
         if query_info["sort_on"]:
