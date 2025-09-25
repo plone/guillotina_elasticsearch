@@ -588,7 +588,7 @@ async def test_search_fields_not_exists(es_requester):
         ]
     }
 )
-async def test_search_multi_field(es_requester):
+async def test_search_multi_match(es_requester):
     async with es_requester as requester:
         # Let's index a document without item_keyword
         resp, status = await requester(
