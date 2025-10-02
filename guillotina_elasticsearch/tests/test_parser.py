@@ -119,3 +119,55 @@ async def test_parser_or_operator(es_requester):
             headers={"X-Wait": "10"},
         )
         assert resp["items_total"] == 2
+
+
+async def test_es_multi_match_parser(dummy_guillotina):
+    content = test_utils.create_content()
+    parser = Parser(None, content)
+    params = {
+        "type_name": "FooContent",
+        "_metadata": "*",
+        "mm.fields": "item_text%5E2%2Citem_text_2%5E3",
+        "mm.type": "best_fields",
+        "mm.fz": "AUTO",
+        "mm.query": "text%20item",
+    }
+    query = parser(params)
+    assert query == {
+        "from": 0,
+        "query": {
+            "bool": {
+                "must": [
+                    {"term": {"type_name": "FooContent"}},
+                    {"range": {"depth": {"gte": 1}}},
+                    {"wildcard": {"path": "/*"}},
+                    {
+                        "multi_match": {
+                            "fields": ["item_text^2", "item_text_2^3"],
+                            "fuzziness": "AUTO",
+                            "operator": "and",
+                            "query": "text item",
+                            "type": "best_fields",
+                        }
+                    },
+                ],
+                "must_not": [],
+            }
+        },
+        "size": 20,
+        "sort": [{"_id": "desc"}],
+        "stored_fields": [
+            "contributors",
+            "creation_date",
+            "creators",
+            "id",
+            "modification_date",
+            "parent_uuid",
+            "path",
+            "tags",
+            "title",
+            "type_name",
+            "uuid",
+            "*",
+        ],
+    }

@@ -1,7 +1,7 @@
 8.0.15 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Adding Multi match functionality. See test_search_multi_match for examples.
 
 
 8.0.14 (2025-08-05)
