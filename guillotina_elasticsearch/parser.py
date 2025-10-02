@@ -270,21 +270,13 @@ class Parser(BaseParser):
         else:
             search_data = SEARCH_DATA_FIELDS
         groups = _collect_mm_groups(query_info["params"])
-        bool_q = {"must": [], "should": [], "must_not": [], "minimum_should_match": 1}
-        bool_q.update(
-            process_query_level(query_info["params"])
-        )  # your existing builder
-
+        bool_q = process_query_level(query_info["params"])
         if groups != {}:
             clause, mode = _mm_to_clause(groups)
             if mode == "should":
-                bool_q["should"].append(clause)
+                bool_q.setdefault("should", []).append(clause)
             else:
-                bool_q["must"].append(clause)
-        if not bool_q["should"]:
-            bool_q.pop("should", None)
-            bool_q.pop("minimum_should_match", None)
-
+                bool_q.setdefault("must", []).append(clause)
         query = {
             "stored_fields": search_data,
             "query": {"bool": bool_q},
