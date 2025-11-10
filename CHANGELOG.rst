@@ -1,7 +1,7 @@
 8.0.16 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Fixing search by null values in date fields.
 
 
 8.0.15 (2025-10-02)

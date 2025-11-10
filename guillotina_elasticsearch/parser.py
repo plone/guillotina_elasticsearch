@@ -1,5 +1,6 @@
 # https://docs.google.com/document/d/1xooubzJKBnUzVlsa2f0GSwvuE1oir9hUdWUf1SU9S6E/edit
 from dateutil.parser import parse
+from dateutil.parser import ParserError
 from guillotina import configure
 from guillotina.catalog.parser import BaseParser
 from guillotina.catalog.utils import get_index_definition
@@ -142,7 +143,11 @@ def process_field(field, value):
             except ValueError:
                 pass
         elif _type == "date":
-            value_cast = parse(value_list).isoformat()
+            try:
+                value_cast = parse(value_list).isoformat()
+            except ParserError as e:
+                if value_list != "null":
+                    raise e
 
         elif _type == "boolean":
             if value_list in ("true", "True", "yes", True):
