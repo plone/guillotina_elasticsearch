@@ -3,6 +3,7 @@ from guillotina.content import Resource
 from guillotina.directives import index_field
 from guillotina.interfaces import IContainer
 from guillotina.interfaces import IResource
+from guillotina.schema import Date
 from guillotina.schema import TextLine
 from zope.interface import implementer
 
@@ -16,6 +17,9 @@ class IFooContent(IResource):
         store=True,
     )
     item_keyword = TextLine()
+
+    index_field("item_date", type="date", store=True)
+    item_date = Date(title="Date Field", required=False)
 
     index_field(
         "item_text",

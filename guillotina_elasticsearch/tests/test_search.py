@@ -578,6 +578,22 @@ async def test_search_fields_not_exists(es_requester):
         for item in resp["items"]:
             assert item["id"] in expected_results_id
 
+        # Let's check we can search by a field type date that it is not indexed
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&item_date=null",
+        )
+        assert status == 200
+        assert resp["items_total"] == 5
+
+        # Let's check we can combine different fields too with the item_date
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&__or=item_text=null%26item_text=foo_text&item_date=null",
+        )
+        assert status == 200
+        assert resp["items_total"] == 3
+
 
 @pytest.mark.app_settings(
     {
