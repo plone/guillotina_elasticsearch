@@ -1,4 +1,4 @@
-8.0.16 (unreleased)
+8.0.16 (2025-11-10)
 -------------------
 
 - Fixing search by null values in date fields.
