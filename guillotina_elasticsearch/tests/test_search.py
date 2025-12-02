@@ -334,6 +334,36 @@ async def test_or_search(es_requester):
             assert item["@type"] in ["Item", "Example"]
 
 
+async def test_search_endpoint_or_clause_with_not_null(es_requester):
+    async with es_requester as requester:
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Item", "title": "Aff", "id": "aff-target"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Item", "id": "plain-target"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(2)
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=Item&__or=type_name__not=null%26title=null&_metadata=*",
+            headers={"X-Wait": "10"},
+        )
+        assert status == 200
+        assert resp["items_total"] == 2
+        assert {item["@name"] for item in resp["items"]} == {
+            "aff-target",
+            "plain-target",
+        }
+
+
 @pytest.mark.app_settings(
     {
         "applications": [

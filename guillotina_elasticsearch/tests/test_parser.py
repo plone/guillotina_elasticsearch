@@ -83,6 +83,42 @@ async def test_parser_term_and_terms(dummy_guillotina):
     assert query["size"] == 10
 
 
+async def test_parser_or_clause_with_not_null_uses_should(dummy_guillotina):
+    content = test_utils.create_content()
+    parser = Parser(None, content)
+    query = parser({"type_name": "Person", "__or": "type_name__not=null%26id=null"})
+    bool_query = query["query"]["bool"]
+    or_clause = next(
+        item["bool"]
+        for item in bool_query["must"]
+        if isinstance(item, dict)
+        and "bool" in item
+        and item["bool"].get("minimum_should_match") == 1
+        and item["bool"].get("should")
+    )
+    assert {"exists": {"field": "type_name"}} in or_clause["should"]
+    assert {"exists": {"field": "type_name"}} not in or_clause.get("must", [])
+
+
+async def test_parser_or_clause_ignores_unknown_fields(dummy_guillotina):
+    content = test_utils.create_content()
+    parser = Parser(None, content)
+    query = parser(
+        {"type_name": "Person", "__or": "type_name__not=null%26ghost_field=null"}
+    )
+    bool_query = query["query"]["bool"]
+    or_clause = next(
+        item["bool"]
+        for item in bool_query["must"]
+        if isinstance(item, dict)
+        and "bool" in item
+        and item["bool"].get("minimum_should_match") == 1
+        and item["bool"].get("should")
+    )
+    assert {"exists": {"field": "type_name"}} in or_clause["should"]
+    assert len(or_clause["should"]) == 1
+
+
 async def test_parser_or_operator(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)  # noqa

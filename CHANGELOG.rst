@@ -1,7 +1,10 @@
 8.0.17 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Using and fixing match_type in __not=null clauses.
+- Do not fail with a 500 if a field in an __or cluase is not indexed
+  [nilbacardit26]
+
 
 
 8.0.16 (2025-11-10)
