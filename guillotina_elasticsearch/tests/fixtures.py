@@ -94,14 +94,14 @@ class ESRequester(ContainerRequesterAsyncContextManager):
 
         if os.environ.get("TESTING", "") == "jenkins":
             if "elasticsearch" in app_settings:
-                app_settings["elasticsearch"]["connection_settings"][
-                    "hosts"
-                ] = [  # noqa
-                    "{}:{}".format(
-                        getattr(elasticsearch, "host", "localhost"),
-                        getattr(elasticsearch, "port", "9200"),
-                    )
-                ]
+                app_settings["elasticsearch"]["connection_settings"]["hosts"] = (
+                    [  # noqa
+                        "{}:{}".format(
+                            getattr(elasticsearch, "host", "localhost"),
+                            getattr(elasticsearch, "port", "9200"),
+                        )
+                    ]
+                )
         return await super().__aenter__()
 
 

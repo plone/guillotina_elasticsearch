@@ -5,7 +5,9 @@ from guillotina.auth import authenticate_user
 from guillotina.auth import set_authenticated_user
 from guillotina.auth.utils import find_user
 from guillotina.component import get_utility
+from guillotina.directives import index_field
 from guillotina.interfaces import ICatalogUtility
+from guillotina.interfaces import IResource
 from guillotina.utils import get_authenticated_user
 from guillotina_elasticsearch.parser import Parser
 from guillotina_elasticsearch.tests.utils import run_with_retries
@@ -332,6 +334,48 @@ async def test_or_search(es_requester):
         assert results["items_total"] == 2
         for item in results["items"]:
             assert item["@type"] in ["Item", "Example"]
+
+
+async def test_search_endpoint_or_clause_with_not_null(es_requester):
+    @index_field.with_accessor(IResource, "aff_field", type="keyword")
+    def aff_field(obj):
+        name = getattr(obj, "__name__", "")
+        if name.startswith("aff"):
+            return name
+
+    @index_field.with_accessor(IResource, "cb_field", type="keyword")
+    def cb_field(obj):
+        name = getattr(obj, "__name__", "")
+        if name.startswith("cb"):
+            return name
+
+    async with es_requester as requester:
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Item", "title": "Aff", "id": "aff-target"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps({"@type": "Item", "title": "Plain", "id": "plain-target"}),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(2)
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=Item&__or=aff_field__not=null%26cb_field=null",
+            headers={"X-Wait": "10"},
+        )
+        assert status == 200
+        assert resp["items_total"] == 2
+        assert {item["@name"] for item in resp["items"]} == {
+            "aff-target",
+            "plain-target",
+        }
 
 
 @pytest.mark.app_settings(

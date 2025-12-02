@@ -1,7 +1,8 @@
 8.0.17 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Using and fixing match_type in __not=null clauses.
+  [nilbacardit26]
 
 
 8.0.16 (2025-11-10)

@@ -175,7 +175,7 @@ def process_field(field, value):
         if value and value != "null":
             return "must_not", {term_keyword: {field: value}}
         elif value == "null":
-            return "must", {"exists": {"field": field}}
+            return match_type, {"exists": {"field": field}}
     elif modifier == "in" and _type in ("text", "searchabletext"):
         # The value list can be inside the field
         return match_type, {"match": {field: value}}
