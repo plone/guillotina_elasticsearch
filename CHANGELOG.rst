@@ -1,4 +1,4 @@
-8.0.17 (unreleased)
+8.0.17 (2025-12-02)
 -------------------
 
 - Using and fixing match_type in __not=null clauses.
