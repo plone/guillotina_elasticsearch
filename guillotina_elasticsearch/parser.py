@@ -56,9 +56,12 @@ def process_compound_field(field, value, operator):
     query = {"must": [], "should": [], "minimum_should_match": 1, "must_not": []}
     for kk, vv in parsed_value:
         if operator == "or":
-            match_type, sub_part = process_field(kk + "__should", vv)
+            result = process_field(kk + "__should", vv)
         else:
-            match_type, sub_part = process_field(kk, vv)
+            result = process_field(kk, vv)
+        if result is None:
+            continue
+        match_type, sub_part = result
         query[match_type].append(sub_part)
 
     if len(query["should"]) == 0:

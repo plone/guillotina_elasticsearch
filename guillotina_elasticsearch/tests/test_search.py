@@ -5,9 +5,7 @@ from guillotina.auth import authenticate_user
 from guillotina.auth import set_authenticated_user
 from guillotina.auth.utils import find_user
 from guillotina.component import get_utility
-from guillotina.directives import index_field
 from guillotina.interfaces import ICatalogUtility
-from guillotina.interfaces import IResource
 from guillotina.utils import get_authenticated_user
 from guillotina_elasticsearch.parser import Parser
 from guillotina_elasticsearch.tests.utils import run_with_retries
@@ -337,18 +335,6 @@ async def test_or_search(es_requester):
 
 
 async def test_search_endpoint_or_clause_with_not_null(es_requester):
-    @index_field.with_accessor(IResource, "aff_field", type="keyword")
-    def aff_field(obj):
-        name = getattr(obj, "__name__", "")
-        if name.startswith("aff"):
-            return name
-
-    @index_field.with_accessor(IResource, "cb_field", type="keyword")
-    def cb_field(obj):
-        name = getattr(obj, "__name__", "")
-        if name.startswith("cb"):
-            return name
-
     async with es_requester as requester:
         resp, status = await requester(
             "POST",
@@ -360,14 +346,14 @@ async def test_search_endpoint_or_clause_with_not_null(es_requester):
         resp, status = await requester(
             "POST",
             "/db/guillotina/",
-            data=json.dumps({"@type": "Item", "title": "Plain", "id": "plain-target"}),
+            data=json.dumps({"@type": "Item", "id": "plain-target"}),
             headers={"X-Wait": "10"},
         )
         assert status == 201
         await asyncio.sleep(2)
         resp, status = await requester(
             "GET",
-            "/db/guillotina/@search?type_name=Item&__or=aff_field__not=null%26cb_field=null",
+            "/db/guillotina/@search?type_name=Item&__or=type_name__not=null%26title=null&_metadata=*",
             headers={"X-Wait": "10"},
         )
         assert status == 200
