@@ -1,7 +1,11 @@
 8.0.18 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Adding boost in fields ouside of multi match clauses. The we can by the score with _sore_des=score like this:
+  @search?__or=item_text%5E3=foo_item_text%26item_text%5E2=foo_item_text_2&_sort_des=_score"
+  The result will return the score in the sort key of the payload like this:
+  'sort': [4.261763, '717|83b0a792d9f842b8ad9c5d1c5cac7c90']
+  [nilbacardit26]
 
 
 8.0.17 (2025-12-02)
