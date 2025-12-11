@@ -1,4 +1,4 @@
-8.0.18 (unreleased)
+8.0.18 (2025-12-11)
 -------------------
 
 - Adding boost in fields ouside of multi match clauses. Score can be sort with _sort_des=score:
