@@ -81,9 +81,12 @@ def process_field(field, value):
     modifier = None
 
     match_type = "must"
-    if field.endswith("__should"):
+    if "__should" in field:
         match_type = "should"
-        field = field[: -len("__should")]
+        field = field.replace("__should", "")
+    field, _, boost = urllib.parse.unquote(field).partition("^")
+    boost = float(boost) if boost else None
+
     if field.endswith("__not"):
         modifier = "not"
         field = field[: -len("__not")]
@@ -172,6 +175,8 @@ def process_field(field, value):
                 return "should", {"bool": {"must_not": {"exists": {"field": field}}}}
             return "must_not", {"exists": {"field": field}}
         # Keyword we expect an exact match
+        if boost:
+            return match_type, {term_keyword: {field: {"value": value, "boost": boost}}}
         return match_type, {term_keyword: {field: value}}
     elif modifier == "not":
         # Must not be
@@ -181,14 +186,22 @@ def process_field(field, value):
             return match_type, {"exists": {"field": field}}
     elif modifier == "in" and _type in ("text", "searchabletext"):
         # The value list can be inside the field
+        if boost:
+            return match_type, {"match": {field: {"query": value, "boost": boost}}}
         return match_type, {"match": {field: value}}
     elif modifier == "eq":
         # The sentence must appear as is it
         value = " ".join(value)
+        if boost:
+            return match_type, {"match": {field: {"query": value, "boost": boost}}}
         return match_type, {"match": {field: value}}
     elif modifier in ("gte", "lte", "gt", "lt"):
+        if boost:
+            return match_type, {"range": {field: {modifier: value, "boost": boost}}}
         return match_type, {"range": {field: {modifier: value}}}
     elif modifier == "wildcard":
+        if boost:
+            return match_type, {"wildcard": {field: {"value": value, "boost": boost}}}
         return match_type, {"wildcard": {field: value}}
     elif modifier == "starts":
         value_to_search = f"{value}*"
@@ -197,6 +210,10 @@ def process_field(field, value):
                 value_to_search = f"{value}*"
             else:
                 value_to_search = f"{value}/*"
+        if boost:
+            return match_type, {
+                "wildcard": {field: {"value": value_to_search, "boost": boost}}
+            }
         return match_type, {"wildcard": {field: value_to_search}}
     else:
         logger.warn(

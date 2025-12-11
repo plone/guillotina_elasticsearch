@@ -682,3 +682,58 @@ async def test_search_multi_match(es_requester):
         )
         assert status == 200
         assert resp["items_total"] == 1
+
+
+@pytest.mark.app_settings(
+    {
+        "applications": [
+            "guillotina",
+            "guillotina_elasticsearch",
+            "guillotina_elasticsearch.tests.test_package",
+        ]
+    }
+)
+async def test_search_boost(es_requester):
+    async with es_requester as requester:
+        # Let's index a document without item_keyword
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item",
+                    "item_text": "foo_item_text",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(2)
+        resp, status = await requester(
+            "POST",
+            "/db/guillotina/",
+            data=json.dumps(
+                {
+                    "@type": "FooContent",
+                    "title": "Item",
+                    "id": "item2",
+                    "item_text": "foo_item_text_2",
+                }
+            ),
+            headers={"X-Wait": "10"},
+        )
+        assert status == 201
+        await asyncio.sleep(2)
+
+        resp, status = await requester(
+            "GET",
+            "/db/guillotina/@search?type_name=FooContent&_metadata=*&__or=item_text%5E3=foo_item_text%26item_text%5E2=foo_item_text_2&_sort_des=_score",
+        )
+        assert status == 200
+        assert resp["items_total"] == 2
+        score_1 = resp["items"][0]["sort"][0]
+        score_2 = resp["items"][1]["sort"][0]
+        assert score_1 > score_2
+        assert resp["items"][0]["id"] == "item"
