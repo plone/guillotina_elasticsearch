@@ -311,7 +311,7 @@ class Parser(BaseParser):
             query["sort"].append(
                 {query_info["sort_on"]: (query_info["sort_dir"] or "asc").lower()}
             )
-        query["sort"].append({"_id": "desc"})
+        query["sort"].append({"uuid": "desc"})
         query["from"] = query_info.get("_from", 0)
         query["size"] = query_info.get("size", 0)
         return typing.cast(ParsedQueryInfo, query)

@@ -1,7 +1,7 @@
 8.0.19 (unreleased)
 -------------------
 
-- Nothing changed yet.
+- Using uuid to sort as using _id is deprecated and will be removed.
 
 
 8.0.18 (2025-12-11)

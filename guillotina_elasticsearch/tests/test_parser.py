@@ -191,7 +191,7 @@ async def test_es_multi_match_parser(dummy_guillotina):
             }
         },
         "size": 20,
-        "sort": [{"_id": "desc"}],
+        "sort": [{"uuid": "desc"}],
         "stored_fields": [
             "contributors",
             "creation_date",
