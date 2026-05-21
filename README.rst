@@ -17,6 +17,23 @@ Installation
 Python client and supports Elasticsearch clusters 7.x, 8.x and 9.x.
 
 
+Compatibility Matrix
+--------------------
+
++-----------------------------+-------------------------+--------+
+| Python Elasticsearch client | Elasticsearch cluster   | Status |
++=============================+=========================+========+
+| 9.x                         | 7.x                     | Works  |
++-----------------------------+-------------------------+--------+
+| 9.x                         | 8.x                     | Works  |
++-----------------------------+-------------------------+--------+
+| 9.x                         | 9.x                     | Works  |
++-----------------------------+-------------------------+--------+
+
+This package uses Elasticsearch compatibility headers so the 9.x Python
+client can communicate with supported Elasticsearch 7.x and 8.x clusters.
+
+
 Configuration
 -------------
 
