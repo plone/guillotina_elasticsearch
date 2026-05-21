@@ -1,14 +1,29 @@
 from pytest_docker_fixtures import images
 
+import os
 
-image_version_8 = "8.12.0"
+
+image_version_9 = "9.4.0"
+image_version_8 = "8.12.0"  # noqa
 image_version_7 = "7.17.16"  # noqa
+
+es_major_version = os.environ.get("ES_TEST_VERSION", "9")
+image_versions = {
+    "7": image_version_7,
+    "8": image_version_8,
+    "9": image_version_9,
+}
+image_version = image_versions.get(es_major_version, es_major_version)
 
 images.configure(
     name="elasticsearch",
-    full=f"bitnamilegacy/elasticsearch:{image_version_8}",
-    max_wait_s=90,
-    env={"ELASTICSEARCH_ENABLE_SECURITY": "false", "ELASTICSEARCH_HEAP_SIZE": "1g"},
+    full=f"docker.elastic.co/elasticsearch/elasticsearch:{image_version}",
+    max_wait_s=180,
+    env={
+        "discovery.type": "single-node",
+        "xpack.security.enabled": "false",
+        "ES_JAVA_OPTS": "-Xms1g -Xmx1g",
+    },
 )
 
 

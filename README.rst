@@ -6,15 +6,15 @@ GUILLOTINA_ELASTICSEARCH
 .. image:: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch.svg?branch=master
    :target: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch
 
-Elasticsearch integration for guillotina. Supports Elastic search 7.x
-and 8.x
+Elasticsearch integration for guillotina. Supports Elastic search 7.x,
+8.x and 9.x.
 
 
 Installation
 ------------
 
-`pip install guillotina_elasticsearch` defaults to Elasticsearch 8.x
-support.
+`pip install guillotina_elasticsearch` installs the Elasticsearch 9.x
+Python client and supports Elasticsearch clusters 7.x, 8.x and 9.x.
 
 
 Configuration
@@ -54,18 +54,18 @@ Example custom `security_query_builder` settings:
 
 Development and testing
 -----------------------
-Setup your python virtual environment for version >=3,8. Tested with
-3.8, 3.9 and 3.10
+Setup your python virtual environment for version >=3.10.
 
 .. code-block:: bash
 
    # Linux
    pip install -e ".[test]"
-   pytest tests/
+   ES_TEST_VERSION=7 pytest guillotina_elasticsearch/tests
+   ES_TEST_VERSION=8 pytest guillotina_elasticsearch/tests
+   ES_TEST_VERSION=9 pytest guillotina_elasticsearch/tests
 
-By default the tests run an ES fixture with version 8. If you
-want to run the tests for ES version 7, change the image version in
-the conftest.py
+By default the tests run an ES fixture with version 9. Use
+`ES_TEST_VERSION` to select Elasticsearch 7, 8 or 9.
 
 
 Installation on a site
@@ -98,6 +98,17 @@ New index and delete requests are performed on both indexes during live migratio
 
 It is also smart about how to migrate, doing a diff on the mapping and only
 reindexing the fields that changed.
+
+Breaking changes in 8.0.19
+--------------------------
+
+- Python 3.10 or newer is required.
+- Guillotina 7.0.0 or newer is required.
+- The Python Elasticsearch client dependency is now 9.x
+  (`elasticsearch[async]>=9.0.0,<10.0.0`).
+- Elasticsearch clusters 7.x, 8.x and 9.x are supported through the
+  Elasticsearch compatibility headers used by the connection factory.
+
 
 Breaking changes in 8.0.0
 -------------------------

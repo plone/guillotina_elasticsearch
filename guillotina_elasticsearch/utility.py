@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from elastic_transport import ObjectApiResponse
-from elasticsearch import AsyncElasticsearch
 from guillotina import app_settings
 from guillotina import configure
 from guillotina.catalog.catalog import DefaultSearchUtility
@@ -21,6 +20,8 @@ from guillotina.utils import merge_dicts
 from guillotina.utils import navigate_to
 from guillotina.utils import resolve_dotted_name
 from guillotina.utils.misc import get_current_container
+from guillotina_elasticsearch.connection import AsyncElasticsearch
+from guillotina_elasticsearch.connection import get_connection_settings
 from guillotina_elasticsearch.events import SearchDoneEvent
 from guillotina_elasticsearch.exceptions import ElasticsearchConflictException
 from guillotina_elasticsearch.exceptions import QueryErrorException
@@ -58,15 +59,20 @@ class DefaultConnnectionFactoryUtility:
 
     def get(self, loop=None):
         if self._conn is None:
+            connection_settings = get_connection_settings(
+                app_settings.get("elasticsearch", {}).get("connection_settings")
+            )
             self._conn = AsyncElasticsearch(
-                **app_settings.get("elasticsearch", {}).get("connection_settings"),
+                **connection_settings,
             )
         return self._conn
 
     async def close(self, loop=None):
         if self._conn is not None:
-            if loop is not None:
-                asyncio.run_coroutine_threadsafe(self._conn.close(), loop)
+            current_loop = asyncio.get_running_loop()
+            if loop is not None and loop.is_running() and loop != current_loop:
+                future = asyncio.run_coroutine_threadsafe(self._conn.close(), loop)
+                await asyncio.wrap_future(future)
             else:
                 await self._conn.close()
             self._conn = None
@@ -131,16 +137,17 @@ class ElasticSearchUtility(DefaultSearchUtility):
             info = await connection.info()
         except Exception:
             logger.warning(
-                "Could not check current es version. " "Only 7.x and 8.x are supported"
+                "Could not check current es version. "
+                "Only 7.x, 8.x and 9.x are supported"
             )
             return
 
         es_version = info["version"]["number"]
         major_number_release = es_version.split(".")[0]
-        if major_number_release not in ("7", "8"):
+        if major_number_release not in ("7", "8", "9"):
             raise Exception(f"ES cluster version not supported: {es_version}")
-        if major_number_release == "8":
-            # If in version 8, we need to enable indices.id_field_data.enabled
+        if major_number_release in ("8", "9"):
+            # If in version 8+, we need to enable indices.id_field_data.enabled
             await self.enable_id_field_data_access()
 
     async def initialize_catalog(self, container):

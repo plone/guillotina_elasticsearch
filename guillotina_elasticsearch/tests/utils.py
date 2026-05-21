@@ -1,10 +1,11 @@
-from elasticsearch import AsyncElasticsearch
 from guillotina import app_settings
 from guillotina import task_vars
 from guillotina.component import get_utility
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests import utils
 from guillotina.tests.utils import get_container
+from guillotina_elasticsearch.connection import AsyncElasticsearch
+from guillotina_elasticsearch.connection import get_connection_settings
 
 import asyncio
 import elasticsearch.exceptions
@@ -82,28 +83,34 @@ async def run_with_retries(func, requester=None, timeout=10, retry_wait=0.5):
 
 
 async def cleanup_es(es_host, prefix=""):
-    conn = AsyncElasticsearch(**app_settings["elasticsearch"]["connection_settings"])
-    for alias in (await conn.cat.aliases()).splitlines():
-        name, index = alias.split()[:2]
-        if name[0] == "." or index[0] == ".":
-            # ignore indexes that start with .
-            continue
-        if name.startswith(prefix):
-            try:
-                await conn.indices.delete_alias(index=index, name=name)
-                await conn.indices.delete(index=index)
-            except (
-                elasticsearch.exceptions.AuthorizationException,
-                elasticsearch.exceptions.NotFoundError,
-            ):
-                pass
-    for index in (await conn.cat.indices()).splitlines():
-        _, _, index_name = index.split()[:3]
-        if index_name[0] == ".":
-            # ignore indexes that start with .
-            continue
-        if index_name.startswith(prefix):
-            try:
-                await conn.indices.delete(index=index_name)
-            except elasticsearch.exceptions.AuthorizationException:
-                pass
+    conn = AsyncElasticsearch(
+        **get_connection_settings(app_settings["elasticsearch"]["connection_settings"])
+    )
+    try:
+        for alias in await conn.cat.aliases(format="json"):
+            name = alias["alias"]
+            index = alias["index"]
+            if name[0] == "." or index[0] == ".":
+                # ignore indexes that start with .
+                continue
+            if name.startswith(prefix):
+                try:
+                    await conn.indices.delete_alias(index=index, name=name)
+                    await conn.indices.delete(index=index)
+                except (
+                    elasticsearch.exceptions.AuthorizationException,
+                    elasticsearch.exceptions.NotFoundError,
+                ):
+                    pass
+        for index in await conn.cat.indices(format="json"):
+            index_name = index["index"]
+            if index_name[0] == ".":
+                # ignore indexes that start with .
+                continue
+            if index_name.startswith(prefix):
+                try:
+                    await conn.indices.delete(index=index_name)
+                except elasticsearch.exceptions.AuthorizationException:
+                    pass
+    finally:
+        await conn.close()
