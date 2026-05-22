@@ -163,8 +163,8 @@ async def test_search_unrestricted(es_requester):
             headers={"X-Wait": "10"},
         )
         assert status == 201
-        await asyncio.sleep(2)
         utility = get_utility(ICatalogUtility)
+        await utility.refresh(container=container)
         parser = Parser(None, container)
         query = parser({"type_name": "Item"})
         user_auth = get_authenticated_user()
@@ -191,7 +191,7 @@ async def test_search_date(es_requester):
             data=json.dumps({"@type": "Example", "title": "Item1", "id": "item1"}),
             headers={"X-Wait": "10"},
         )
-        await asyncio.sleep(2)
+        await utility.refresh(container=container)
         # Test that we can filter by date, with granularity of seconds
         assert status == 201
         query = {
@@ -239,8 +239,8 @@ async def test_context_search_and_count(es_requester):
         )
         assert status == 201
         parent_uuid = resp["@uid"]
-        await asyncio.sleep(1)
         search = get_utility(ICatalogUtility)
+        await search.refresh(container=container)
         assert await search.get_doc_count(container, query={"type_name": "Folder"}) == 1
         resp, status = await requester(
             "POST",
@@ -257,7 +257,7 @@ async def test_context_search_and_count(es_requester):
             headers={"X-Wait": "10"},
         )
         assert status == 201
-        await asyncio.sleep(1)
+        await search.refresh(container=container)
         assert await search.get_doc_count(container, query={"type_name": "Item"}) == 1
         resp, status = await requester(
             "POST",
@@ -266,8 +266,7 @@ async def test_context_search_and_count(es_requester):
             headers={"X-Wait": "10"},
         )
         assert status == 201
-        await asyncio.sleep(2)
-
+        await search.refresh(container=container)
         # Should only have found one result
         resp, status = await requester("GET", "/db/guillotina/folder/@search")
         assert resp["items_total"] == 1
