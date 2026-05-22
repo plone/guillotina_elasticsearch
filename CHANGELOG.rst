@@ -8,8 +8,11 @@
 - Require Guillotina 7.0.0 or newer and Python 3.10 or newer.
   This is a breaking dependency change.
   [nilbacardit26]
-- Add an Elasticsearch fixture matrix selectable with `ES_TEST_VERSION=7`,
-  `ES_TEST_VERSION=8` or `ES_TEST_VERSION=9`.
+- Add an Elasticsearch fixture matrix selectable with `ES_TEST_VERSION=6`,
+  `ES_TEST_VERSION=7`, `ES_TEST_VERSION=8` or `ES_TEST_VERSION=9`.
+- Document package/client/cluster compatibility across Elasticsearch 6.x,
+  7.x, 8.x and 9.x release lines, and add `ES_TEST_VERSION=6` as a selectable
+  fixture target for older compatibility checks.
   [nilbacardit26]
 
 

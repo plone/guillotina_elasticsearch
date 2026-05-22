@@ -6,9 +6,12 @@ import os
 image_version_9 = "9.4.0"
 image_version_8 = "8.12.0"  # noqa
 image_version_7 = "7.17.16"  # noqa
+# Kept selectable for older release-line compatibility checks.
+image_version_6 = "6.8.23"  # noqa
 
 es_major_version = os.environ.get("ES_TEST_VERSION", "9")
 image_versions = {
+    "6": image_version_6,
     "7": image_version_7,
     "8": image_version_8,
     "9": image_version_9,

@@ -20,15 +20,43 @@ Python client and supports Elasticsearch clusters 7.x, 8.x and 9.x.
 Compatibility Matrix
 --------------------
 
-+-----------------------------+-------------------------+--------+
-| Python Elasticsearch client | Elasticsearch cluster   | Status |
-+=============================+=========================+========+
-| 9.x                         | 7.x                     | Works  |
-+-----------------------------+-------------------------+--------+
-| 9.x                         | 8.x                     | Works  |
-+-----------------------------+-------------------------+--------+
-| 9.x                         | 9.x                     | Works  |
-+-----------------------------+-------------------------+--------+
+.. list-table::
+   :header-rows: 1
+
+   * - guillotina_elasticsearch
+     - Python Elasticsearch client
+     - ES 6.x
+     - ES 7.x
+     - ES 8.x
+     - ES 9.x
+   * - 6.x
+     - aioelasticsearch 0.5/0.6
+     - Yes *
+     - Yes
+     - No
+     - No
+   * - 7.x
+     - elasticsearch-py 7.x
+     - No
+     - Yes
+     - No
+     - No
+   * - 8.x
+     - elasticsearch-py 8.x
+     - No
+     - Yes
+     - Yes
+     - No
+   * - 8.0.19+
+     - elasticsearch-py 9.x
+     - No
+     - Yes
+     - Yes
+     - Yes
+
+* Elasticsearch 6.x support in the 6.x package line required pinning
+  ``aioelasticsearch<0.6.0``. Current releases do not support Elasticsearch
+  6.x clusters.
 
 This package uses Elasticsearch compatibility headers so the 9.x Python
 client can communicate with supported Elasticsearch 7.x and 8.x clusters.
@@ -82,7 +110,9 @@ Setup your python virtual environment for version >=3.10.
    ES_TEST_VERSION=9 pytest guillotina_elasticsearch/tests
 
 By default the tests run an ES fixture with version 9. Use
-`ES_TEST_VERSION` to select Elasticsearch 7, 8 or 9.
+`ES_TEST_VERSION` to select a supported Elasticsearch cluster. The fixture
+also recognizes `ES_TEST_VERSION=6` for older release-line checks, but this
+branch does not support Elasticsearch 6.
 
 
 Installation on a site
