@@ -31,14 +31,23 @@ def get_connection_settings(settings):
 
 
 class AsyncElasticsearch(BaseAsyncElasticsearch):
-    async def _perform_request(
-        self, method, path, *, params=None, headers=None, body=None, otel_span
+    async def perform_request(
+        self,
+        method,
+        path,
+        *,
+        params=None,
+        headers=None,
+        body=None,
+        endpoint_id=None,
+        path_parts=None,
     ):
-        return await super()._perform_request(
+        return await super().perform_request(
             method,
             path,
             params=params,
             headers=apply_compatibility_headers(headers),
             body=body,
-            otel_span=otel_span,
+            endpoint_id=endpoint_id,
+            path_parts=path_parts,
         )
