@@ -16,9 +16,6 @@ import json
 import pytest
 
 
-pytestmark = [pytest.mark.asyncio]
-
-
 async def test_indexing_and_search(es_requester):
     async with es_requester as requester:
         resp, status = await requester(

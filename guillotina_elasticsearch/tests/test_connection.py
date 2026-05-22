@@ -3,8 +3,6 @@ from guillotina_elasticsearch.connection import apply_compatibility_headers
 from guillotina_elasticsearch.connection import AsyncElasticsearch
 from guillotina_elasticsearch.connection import get_connection_settings
 
-import pytest
-
 
 def test_apply_compatibility_headers_defaults():
     assert apply_compatibility_headers() == {
@@ -48,7 +46,6 @@ def test_get_connection_settings_does_not_mutate_input():
     }
 
 
-@pytest.mark.asyncio
 async def test_perform_request_applies_compatibility_headers(monkeypatch):
     calls = []
 

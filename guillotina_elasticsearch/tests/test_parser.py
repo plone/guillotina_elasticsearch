@@ -9,9 +9,6 @@ import json
 import pytest
 
 
-pytestmark = [pytest.mark.asyncio]
-
-
 async def test_boolean_field(es_requester):
     async with es_requester as requester:
 
