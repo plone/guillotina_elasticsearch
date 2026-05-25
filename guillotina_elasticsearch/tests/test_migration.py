@@ -109,14 +109,17 @@ async def test_removes_orphans(es_requester):
 
 async def test_fixes_missing(es_requester):
     async with es_requester as requester:
-        await add_content(requester, 2, 2)
+        add_count = await add_content(requester, 2, 2)
         container, request, txn, tm = await setup_txn_on_container(requester)
 
         search = get_utility(ICatalogUtility)
-        await asyncio.sleep(1)
-        await search.refresh(container)
-        await asyncio.sleep(1)
-        original_count = await search.get_doc_count(container)
+
+        async def _wait_for_initial_indexing():
+            await search.refresh(container)
+            assert await search.get_doc_count(container) == add_count
+
+        await run_with_retries(_wait_for_initial_indexing, requester)
+        original_count = add_count
 
         keys = await container.async_keys()
         key = random.choice(keys)

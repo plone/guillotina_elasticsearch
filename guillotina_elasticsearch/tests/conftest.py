@@ -31,6 +31,7 @@ images.configure(
     env={
         "discovery.type": "single-node",
         "xpack.security.enabled": "false",
+        "cluster.routing.allocation.disk.threshold_enabled": "false",
         "ES_JAVA_OPTS": "-Xms1g -Xmx1g",
     },
 )

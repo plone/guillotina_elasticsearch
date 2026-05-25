@@ -18,6 +18,7 @@ logger = logging.getLogger("guillotina_elasticsearch")
 
 def default_settings():
     return {
+        "number_of_replicas": 0,
         "analysis": {
             "analyzer": {"path_analyzer": {"tokenizer": "path_tokenizer"}},
             "tokenizer": {
@@ -25,7 +26,7 @@ def default_settings():
             },
             "filter": {},
             "char_filter": {},
-        }
+        },
     }
 
 
