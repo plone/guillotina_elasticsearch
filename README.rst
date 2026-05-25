@@ -47,7 +47,7 @@ Compatibility Matrix
      - Yes
      - Yes
      - No
-   * - 8.0.19+
+   * - 9.x
      - elasticsearch-py 9.x
      - No
      - Yes
@@ -110,11 +110,10 @@ Setup your python virtual environment for version >=3.10.
    ES_TEST_VERSION=9 pytest guillotina_elasticsearch/tests
 
 By default the tests run an ES fixture with version 9. Use
-``ES_TEST_VERSION`` to select a supported Elasticsearch cluster. Supported
-major versions are ``7``, ``8`` and ``9``; the fixture also accepts an exact
-Docker image tag, for example ``ES_TEST_VERSION=9.4.0``. The fixture also
-recognizes ``ES_TEST_VERSION=6`` for older release-line checks, but this branch
-does not support Elasticsearch 6.
+``ES_TEST_VERSION`` to select the Elasticsearch major version. Set it to
+``6``, ``7``, ``8`` or ``9``; the test fixture maps those values to the pinned
+Docker image used by this branch. ``ES_TEST_VERSION=6`` is available for older
+release-line checks, but this branch does not support Elasticsearch 6.
 
 
 Installation on a site
@@ -148,7 +147,7 @@ New index and delete requests are performed on both indexes during live migratio
 It is also smart about how to migrate, doing a diff on the mapping and only
 reindexing the fields that changed.
 
-Breaking changes in 8.0.19
+Breaking changes in 9.0.0
 --------------------------
 
 - Python 3.10 or newer is required.

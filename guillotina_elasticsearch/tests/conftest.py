@@ -16,7 +16,14 @@ image_versions = {
     "8": image_version_8,
     "9": image_version_9,
 }
-image_version = image_versions.get(es_major_version, es_major_version)
+try:
+    image_version = image_versions[es_major_version]
+except KeyError as exc:
+    versions = ", ".join(sorted(image_versions))
+    raise RuntimeError(
+        f"Unsupported ES_TEST_VERSION={es_major_version!r}. "
+        f"Use one of: {versions}."
+    ) from exc
 
 images.configure(
     name="elasticsearch",

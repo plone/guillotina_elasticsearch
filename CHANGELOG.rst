@@ -1,4 +1,4 @@
-8.0.19 (unreleased)
+9.0.0 (unreleased)
 -------------------
 
 - Upgrade the Python Elasticsearch client dependency to 9.x
