@@ -30,6 +30,7 @@ def test_apply_compatibility_headers_keeps_header_case():
 def test_get_connection_settings_does_not_mutate_input():
     settings = {
         "hosts": ["http://localhost:9200"],
+        "timeout": 30,
         "headers": {"x-opaque-id": "request-1"},
     }
 
@@ -37,13 +38,29 @@ def test_get_connection_settings_does_not_mutate_input():
 
     assert settings == {
         "hosts": ["http://localhost:9200"],
+        "timeout": 30,
         "headers": {"x-opaque-id": "request-1"},
     }
+    assert connection_settings["request_timeout"] == 30
+    assert "timeout" not in connection_settings
     assert connection_settings["headers"] == {
         "accept": "application/vnd.elasticsearch+json; compatible-with=8",
         "content-type": "application/vnd.elasticsearch+json; compatible-with=8",
         "x-opaque-id": "request-1",
     }
+
+
+def test_get_connection_settings_prefers_request_timeout():
+    settings = {
+        "hosts": ["http://localhost:9200"],
+        "timeout": 30,
+        "request_timeout": 90,
+    }
+
+    connection_settings = get_connection_settings(settings)
+
+    assert connection_settings["request_timeout"] == 90
+    assert "timeout" not in connection_settings
 
 
 async def test_perform_request_applies_compatibility_headers(monkeypatch):

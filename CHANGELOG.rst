@@ -1,7 +1,11 @@
 9.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Keep backwards compatibility with existing Guillotina Elasticsearch
+  configuration files that still use ``connection_settings.timeout`` by
+  translating it to the Elasticsearch Python client 9.x
+  ``request_timeout`` argument.
+  [nilbacardit26]
 
 
 9.0.0 (2026-05-25)
