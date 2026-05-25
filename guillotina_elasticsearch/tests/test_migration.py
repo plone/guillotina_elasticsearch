@@ -22,9 +22,6 @@ import pytest
 import random
 
 
-pytestmark = [pytest.mark.asyncio]
-
-
 async def _test_migrate_while_content_getting_added(es_requester):
     async with es_requester as requester:
         add_count = await add_content(requester)

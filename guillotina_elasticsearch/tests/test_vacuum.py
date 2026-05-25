@@ -12,9 +12,6 @@ import os
 import pytest
 
 
-pytestmark = [pytest.mark.asyncio]
-
-
 DATABASE = os.environ.get("DATABASE", "DUMMY")
 
 
@@ -80,8 +77,7 @@ async def test_updates_out_of_data_es_entries(es_requester):
             {"script": {"lang": "painless", "source": "ctx._source.tid = 0"}},
             indexes=[index_name],
         )
-
-        await asyncio.sleep(1)
+        await search.refresh(index_name=index_name)
 
         vacuum = Vacuum(txn, tm, container)
         await vacuum.setup()

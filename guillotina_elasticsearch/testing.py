@@ -1,8 +1,9 @@
-from elasticsearch import AsyncElasticsearch
 from guillotina import app_settings
 from guillotina import configure
 from guillotina import task_vars
 from guillotina.exceptions import RequestNotFound
+from guillotina_elasticsearch.connection import AsyncElasticsearch
+from guillotina_elasticsearch.connection import get_connection_settings
 from guillotina_elasticsearch.interfaces import IConnectionFactoryUtility
 from guillotina_elasticsearch.utility import DefaultConnnectionFactoryUtility
 
@@ -35,15 +36,20 @@ class CustomConnSettingsUtility(DefaultConnnectionFactoryUtility):
             return super().get(loop)
         else:
             if self._special_conn is None:
-                settings = settings.copy()
+                settings = get_connection_settings(settings)
                 settings.update(app_settings["elasticsearch"]["new_container_settings"])
-                self._special_conn = AsyncElasticsearch(loop=loop, **settings)
+                self._special_conn = AsyncElasticsearch(**settings)
             return self._special_conn
 
     async def close(self, loop=None):
         await super().close(loop)
         if self._special_conn is not None:
-            if loop is not None:
-                asyncio.run_coroutine_threadsafe(self._conn.close(), loop)
+            current_loop = asyncio.get_running_loop()
+            if loop is not None and loop.is_running() and loop != current_loop:
+                future = asyncio.run_coroutine_threadsafe(
+                    self._special_conn.close(), loop
+                )
+                await asyncio.wrap_future(future)
             else:
                 await self._special_conn.close()
+            self._special_conn = None

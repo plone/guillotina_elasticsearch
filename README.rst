@@ -6,15 +6,60 @@ GUILLOTINA_ELASTICSEARCH
 .. image:: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch.svg?branch=master
    :target: https://travis-ci.org/guillotinaweb/guillotina_elasticsearch
 
-Elasticsearch integration for guillotina. Supports Elastic search 7.x
-and 8.x
+Elasticsearch integration for guillotina. Supports Elastic search 7.x,
+8.x and 9.x.
 
 
 Installation
 ------------
 
-`pip install guillotina_elasticsearch` defaults to Elasticsearch 8.x
-support.
+`pip install guillotina_elasticsearch` installs the Elasticsearch 9.x
+Python client and supports Elasticsearch clusters 7.x, 8.x and 9.x.
+
+
+Compatibility Matrix
+--------------------
+
+.. list-table::
+   :header-rows: 1
+
+   * - guillotina_elasticsearch
+     - Python Elasticsearch client
+     - ES 6.x
+     - ES 7.x
+     - ES 8.x
+     - ES 9.x
+   * - 6.x
+     - aioelasticsearch 0.5/0.6
+     - Yes *
+     - Yes
+     - No
+     - No
+   * - 7.x
+     - elasticsearch-py 7.x
+     - No
+     - Yes
+     - No
+     - No
+   * - 8.x
+     - elasticsearch-py 8.x
+     - No
+     - Yes
+     - Yes
+     - No
+   * - 9.x
+     - elasticsearch-py 9.x
+     - No
+     - Yes
+     - Yes
+     - Yes
+
+* Elasticsearch 6.x support in the 6.x package line required pinning
+  ``aioelasticsearch<0.6.0``. Current releases do not support Elasticsearch
+  6.x clusters.
+
+This package uses Elasticsearch compatibility headers so the 9.x Python
+client can communicate with supported Elasticsearch 7.x and 8.x clusters.
 
 
 Configuration
@@ -54,18 +99,21 @@ Example custom `security_query_builder` settings:
 
 Development and testing
 -----------------------
-Setup your python virtual environment for version >=3,8. Tested with
-3.8, 3.9 and 3.10
+Setup your python virtual environment for version >=3.10.
 
 .. code-block:: bash
 
    # Linux
    pip install -e ".[test]"
-   pytest tests/
+   ES_TEST_VERSION=7 pytest guillotina_elasticsearch/tests
+   ES_TEST_VERSION=8 pytest guillotina_elasticsearch/tests
+   ES_TEST_VERSION=9 pytest guillotina_elasticsearch/tests
 
-By default the tests run an ES fixture with version 8. If you
-want to run the tests for ES version 7, change the image version in
-the conftest.py
+By default the tests run an ES fixture with version 9. Use
+``ES_TEST_VERSION`` to select the Elasticsearch major version. Set it to
+``6``, ``7``, ``8`` or ``9``; the test fixture maps those values to the pinned
+Docker image used by this branch. ``ES_TEST_VERSION=6`` is available for older
+release-line checks, but this branch does not support Elasticsearch 6.
 
 
 Installation on a site
@@ -98,6 +146,17 @@ New index and delete requests are performed on both indexes during live migratio
 
 It is also smart about how to migrate, doing a diff on the mapping and only
 reindexing the fields that changed.
+
+Breaking changes in 9.0.0
+--------------------------
+
+- Python 3.10 or newer is required.
+- Guillotina 7.0.0 or newer is required.
+- The Python Elasticsearch client dependency is now 9.x
+  (`elasticsearch[async]>=9.0.0,<10.0.0`).
+- Elasticsearch clusters 7.x, 8.x and 9.x are supported through the
+  Elasticsearch compatibility headers used by the connection factory.
+
 
 Breaking changes in 8.0.0
 -------------------------
