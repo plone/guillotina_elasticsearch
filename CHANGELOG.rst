@@ -1,4 +1,4 @@
-9.0.1 (unreleased)
+9.0.1 (2026-05-25)
 ------------------
 
 - Keep backwards compatibility with existing Guillotina Elasticsearch
