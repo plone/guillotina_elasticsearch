@@ -110,9 +110,11 @@ Setup your python virtual environment for version >=3.10.
    ES_TEST_VERSION=9 pytest guillotina_elasticsearch/tests
 
 By default the tests run an ES fixture with version 9. Use
-`ES_TEST_VERSION` to select a supported Elasticsearch cluster. The fixture
-also recognizes `ES_TEST_VERSION=6` for older release-line checks, but this
-branch does not support Elasticsearch 6.
+``ES_TEST_VERSION`` to select a supported Elasticsearch cluster. Supported
+major versions are ``7``, ``8`` and ``9``; the fixture also accepts an exact
+Docker image tag, for example ``ES_TEST_VERSION=9.4.0``. The fixture also
+recognizes ``ES_TEST_VERSION=6`` for older release-line checks, but this branch
+does not support Elasticsearch 6.
 
 
 Installation on a site
