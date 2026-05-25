@@ -21,8 +21,7 @@ try:
 except KeyError as exc:
     versions = ", ".join(sorted(image_versions))
     raise RuntimeError(
-        f"Unsupported ES_TEST_VERSION={es_major_version!r}. "
-        f"Use one of: {versions}."
+        f"Unsupported ES_TEST_VERSION={es_major_version!r}. " f"Use one of: {versions}."
     ) from exc
 
 images.configure(
