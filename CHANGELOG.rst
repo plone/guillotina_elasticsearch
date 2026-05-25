@@ -1,5 +1,5 @@
-9.0.0 (unreleased)
--------------------
+9.0.0 (2026-05-25)
+------------------
 
 - Upgrade the Python Elasticsearch client dependency to 9.x
   (`elasticsearch[async]>=9.0.0,<10.0.0`) while keeping Elasticsearch
