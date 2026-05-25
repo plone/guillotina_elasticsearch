@@ -157,6 +157,13 @@ Breaking changes in 9.0.0
 - Elasticsearch clusters 7.x, 8.x and 9.x are supported through the
   Elasticsearch compatibility headers used by the connection factory.
 
+Compatibility notes in 9.0.1
+----------------------------
+
+- Existing configuration files that still use ``connection_settings.timeout``
+  continue to work. The value is translated to the Elasticsearch Python client
+  9.x ``request_timeout`` setting before the client is created.
+
 
 Breaking changes in 8.0.0
 -------------------------

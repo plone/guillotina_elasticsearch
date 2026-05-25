@@ -24,6 +24,13 @@ def apply_compatibility_headers(headers=None):
 
 def get_connection_settings(settings):
     connection_settings = (settings or {}).copy()
+    if (
+        "timeout" in connection_settings
+        and "request_timeout" not in connection_settings
+    ):
+        connection_settings["request_timeout"] = connection_settings.pop("timeout")
+    else:
+        connection_settings.pop("timeout", None)
     connection_settings["headers"] = apply_compatibility_headers(
         connection_settings.get("headers")
     )
