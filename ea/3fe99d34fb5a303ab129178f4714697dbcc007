@@ -1,0 +1,25 @@
+REPORT.md
+  s_dfac990361207f::t_a12e8dbb9d71ed 1-57
+benchmarks/data_generator.py
+  s_dfac990361207f::t_b91dfcc9b78178 1-21
+guillotina_elasticsearch/parser.py
+  s_dfac990361207f::t_f6bdf01446c17e 297,300-321
+guillotina_elasticsearch/tests/test_context_path_filter.py
+  s_dfac990361207f::t_b06c6c0b071f9e 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "ea3fe99d34fb5a303ab129178f4714697dbcc007",
+  "prompts": {},
+  "sessions": {
+    "s_dfac990361207f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eb55d5f99ffelC7oN01LEVdCxS",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
