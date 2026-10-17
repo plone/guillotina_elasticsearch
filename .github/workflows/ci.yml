@@ -30,7 +30,7 @@ jobs:
 
           # Run commands
           flake8 guillotina_elasticsearch --config=setup.cfg
-          isort -c -rc guillotina_elasticsearch
+          isort -c guillotina_elasticsearch
           black --check --verbose guillotina_elasticsearch
 
       # Run tests
