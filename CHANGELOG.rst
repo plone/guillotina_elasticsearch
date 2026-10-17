@@ -1,7 +1,10 @@
 9.0.2 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Optimize the automatic context path filter in Elasticsearch queries: drop the
+  redundant root path wildcard filter and use an exact term query on the parent
+  path token for nested contexts instead of expensive wildcards.
+  [rboixaderg]
 
 
 9.0.1 (2026-05-25)
