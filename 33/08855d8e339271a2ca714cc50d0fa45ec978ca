@@ -1,0 +1,19 @@
+guillotina_elasticsearch/tests/test_context_path_filter.py
+  s_dec0c64adf4755::t_48cdc842753f01 1-2,14-15,21-22,28-29,40,47-48,54-55,61-62,74,82-83,89-90,103
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3308855d8e339271a2ca714cc50d0fa45ec978ca",
+  "prompts": {},
+  "sessions": {
+    "s_dec0c64adf4755": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_eb52ad757ffe6CiJ5OjO8Sf0F4",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
