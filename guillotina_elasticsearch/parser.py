@@ -294,8 +294,32 @@ class Parser(BaseParser):
             search_data = SEARCH_DATA_FIELDS + metadata
         else:
             search_data = SEARCH_DATA_FIELDS
-        groups = _collect_mm_groups(query_info["params"])
-        bool_q = process_query_level(query_info["params"])
+        params = query_info["params"]
+        groups = _collect_mm_groups(params)
+
+        # The automatic path filter used to be a wildcard ("/*", "/folder/*").
+        # A wildcard enumerates every indexed term with that prefix, which
+        # dominates query cost. Instead:
+        #   * at the container root the filter is redundant (the index is
+        #     already scoped to the container), so drop it;
+        #   * otherwise use an exact term on the parent path token, which
+        #     path_hierarchy already stores in every descendant. This is an
+        #     O(postings) lookup instead of a term enumeration.
+        path_starts = params.pop("path__starts", None)
+        if path_starts is not None:
+            normalized = path_starts.rstrip("/")
+            if normalized == "":
+                normalized = "/"
+        if path_starts is None:
+            pass
+        elif normalized == "/":
+            pass  # root: filter redundant
+        elif "path" not in params:
+            params["path"] = normalized
+        else:
+            params["path__starts"] = path_starts
+
+        bool_q = process_query_level(params)
         if groups != {}:
             clause, mode = _mm_to_clause(groups)
             if mode == "should":
