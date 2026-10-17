@@ -1,0 +1,14 @@
+guillotina_elasticsearch/tests/test_parser.py
+  h_1727aeeb492b30 1,21-24,57-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "31634de4dce5ebf832dbfe6a1535ffbde2e527bf",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
