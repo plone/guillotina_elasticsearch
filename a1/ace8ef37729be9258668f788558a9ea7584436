@@ -1,0 +1,20 @@
+CHANGELOG.rst
+  h_1727aeeb492b30 12-16
+guillotina_elasticsearch/parser.py
+  h_1727aeeb492b30 349
+guillotina_elasticsearch/tests/test_parser.py
+  h_1727aeeb492b30 198
+guillotina_elasticsearch/tests/test_search.py
+  h_1727aeeb492b30 60-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a1ace8ef37729be9258668f788558a9ea7584436",
+  "prompts": {},
+  "humans": {
+    "h_1727aeeb492b30": {
+      "author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
