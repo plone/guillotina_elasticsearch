@@ -43,6 +43,10 @@ async def context_tree(es_requester):
 @pytest.mark.parametrize(
     "url, expected",
     [
+        (
+            "@search",
+            ["/f1", "/f1/a", "/f1/deep", "/f1/deep/b", "/f10", "/f10/other"],
+        ),
         ("@search?path__starts=/f1", ["/f1/a", "/f1/deep", "/f1/deep/b"]),
         ("@search?path__starts=/f1/", ["/f1/a", "/f1/deep", "/f1/deep/b"]),
         ("@search?path__starts=/f1/deep", ["/f1/deep/b"]),

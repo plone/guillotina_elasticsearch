@@ -14,11 +14,11 @@ jobs:
       DATABASE: ${{ matrix.database }}
     steps:
       # Checkout the repository first
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # Setup the python version
       - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
