@@ -306,7 +306,11 @@ class Parser(BaseParser):
             del params["path__starts"]
         elif path_starts:
             normalized = path_starts.removesuffix("/")
-            min_depth = int(params.get("depth__gte", 0))
+            min_depth = max(
+                int(params.get("depth__gte", 0)),
+                int(params.get("depth__gt", -1)) + 1,
+                int(params.get("depth", 0)),
+            )
             # Indexed depth includes ancestors above the container; paths do not.
             context_path = get_content_path(self.context).rstrip("/")
             depth_offset = get_content_depth(self.context) - context_path.count("/")

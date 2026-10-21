@@ -99,3 +99,26 @@ async def test_default_context_queries_keep_optimized_shape(dummy_guillotina):
         {"range": {"depth": {"gte": 2}}},
         {"constant_score": {"filter": {"term": {"path": "/f1"}}}},
     ]
+
+
+@pytest.mark.parametrize(
+    "params, depth_clause, optimized",
+    [
+        ({"depth": "1"}, {"term": {"depth": 2}}, True),
+        ({"depth__gt": "0"}, {"range": {"depth": {"gt": 1}}}, True),
+        ({"depth": "0"}, {"term": {"depth": 1}}, False),
+        ({"depth__gt": "-1"}, {"range": {"depth": {"gt": "0"}}}, False),
+    ],
+)
+async def test_depth_excluding_context_uses_path_term(
+    dummy_guillotina, params, depth_clause, optimized
+):
+    root = test_utils.create_content(factory=Container, id="root")
+    folder = test_utils.create_content(factory=Folder, id="f1", parent=root)
+    path_clause = (
+        {"constant_score": {"filter": {"term": {"path": "/f1"}}}}
+        if optimized
+        else {"wildcard": {"path": "/f1/*"}}
+    )
+    query = Parser(None, folder)(params)["query"]["bool"]["must"]
+    assert sorted(query, key=str) == sorted([depth_clause, path_clause], key=str)
