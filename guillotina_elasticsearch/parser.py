@@ -6,6 +6,8 @@ from guillotina.catalog.parser import BaseParser
 from guillotina.catalog.utils import get_index_definition
 from guillotina.interfaces import IResource
 from guillotina.interfaces import ISearchParser
+from guillotina.utils import get_content_depth
+from guillotina.utils import get_content_path
 from guillotina_elasticsearch.interfaces import IElasticSearchUtility
 from guillotina_elasticsearch.interfaces import ParsedQueryInfo
 
@@ -297,29 +299,34 @@ class Parser(BaseParser):
         params = query_info["params"]
         groups = _collect_mm_groups(params)
 
-        # The automatic path filter used to be a wildcard ("/*", "/folder/*").
-        # A wildcard enumerates every indexed term with that prefix, which
-        # dominates query cost. Instead:
-        #   * at the container root the filter is redundant (the index is
-        #     already scoped to the container), so drop it;
-        #   * otherwise use an exact term on the parent path token, which
-        #     path_hierarchy already stores in every descendant. This is an
-        #     O(postings) lookup instead of a term enumeration.
-        path_starts = params.pop("path__starts", None)
-        if path_starts is not None:
-            normalized = path_starts.rstrip("/")
-            if normalized == "":
-                normalized = "/"
-        if path_starts is None:
-            pass
-        elif normalized == "/":
-            pass  # root: filter redundant
-        elif "path" not in params:
-            params["path"] = normalized
-        else:
-            params["path__starts"] = path_starts
+        path_clause = None
+        path_starts = params.get("path__starts")
+        if path_starts == "/":
+            # The index is container-scoped and valid content has absolute paths.
+            del params["path__starts"]
+        elif path_starts:
+            normalized = path_starts.removesuffix("/")
+            min_depth = int(params.get("depth__gte", 0))
+            # Indexed depth includes ancestors above the container; paths do not.
+            context_path = get_content_path(self.context).rstrip("/")
+            depth_offset = get_content_depth(self.context) - context_path.count("/")
+            path_depth = depth_offset + normalized.count("/")
+            # A hierarchy term includes the folder itself, unlike /folder/*.
+            # Rewrite only when depth already excludes it. Preserve wildcard,
+            # escape and repeated-slash syntax supplied by the caller.
+            if min_depth > path_depth and not any(
+                part in path_starts for part in ("*", "?", "\\", "//")
+            ):
+                del params["path__starts"]
+                # This clause is in bool.must: retain the wildcard's constant
+                # score rather than introducing path-length-dependent BM25.
+                path_clause = {
+                    "constant_score": {"filter": {"term": {"path": normalized}}}
+                }
 
         bool_q = process_query_level(params)
+        if path_clause is not None:
+            bool_q["must"].append(path_clause)
         if groups != {}:
             clause, mode = _mm_to_clause(groups)
             if mode == "should":

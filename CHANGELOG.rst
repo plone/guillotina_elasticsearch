@@ -3,7 +3,9 @@
 
 - Optimize the automatic context path filter in Elasticsearch queries: drop the
   redundant root path wildcard filter and use an exact term query on the parent
-  path token for nested contexts instead of expensive wildcards.
+  path token for nested contexts when depth excludes the context itself. Keep
+  wildcard semantics for explicit subpaths and custom depth constraints when
+  that exclusion is not guaranteed, and preserve constant path scoring.
   [rboixaderg]
 
 
