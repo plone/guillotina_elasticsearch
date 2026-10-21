@@ -1,0 +1,21 @@
+.github/workflows/ci.yml
+  s_60df182ca6a4c5::t_ce7df3c1a25d49 17,21
+guillotina_elasticsearch/tests/test_context_path_regressions.py
+  s_60df182ca6a4c5::t_52975d56ee5031 46-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cbf441b96d521a2c6e6521050084fc38022b16d1",
+  "prompts": {},
+  "sessions": {
+    "s_60df182ca6a4c5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ea273a3f4ffesfwpWn6E5dEVK4",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
