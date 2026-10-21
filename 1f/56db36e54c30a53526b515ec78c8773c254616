@@ -1,0 +1,21 @@
+CHANGELOG.rst
+  s_497dc1f785b36b::t_7f9981a85a8bad 6-8
+guillotina_elasticsearch/parser.py
+  s_497dc1f785b36b::t_7fa4e84779e89d 9-10,302-325,328-329
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1f56db36e54c30a53526b515ec78c8773c254616",
+  "prompts": {},
+  "sessions": {
+    "s_497dc1f785b36b": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a14b25-2537-70f9-8a81-30458eff8eec",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
