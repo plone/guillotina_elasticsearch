@@ -379,18 +379,20 @@ async def test_search_endpoint_or_clause_with_not_null(es_requester):
             headers={"X-Wait": "10"},
         )
         assert status == 201
-        await asyncio.sleep(2)
-        resp, status = await requester(
-            "GET",
-            "/db/guillotina/@search?type_name=Item&__or=type_name__not=null%26title=null&_metadata=*",
-            headers={"X-Wait": "10"},
-        )
-        assert status == 200
-        assert resp["items_total"] == 2
-        assert {item["@name"] for item in resp["items"]} == {
-            "aff-target",
-            "plain-target",
-        }
+
+        async def _test():
+            resp, status = await requester(
+                "GET",
+                "/db/guillotina/@search?type_name=Item&__or=type_name__not=null%26title=null&_metadata=*",
+            )
+            assert status == 200
+            assert resp["items_total"] == 2
+            assert {item["@name"] for item in resp["items"]} == {
+                "aff-target",
+                "plain-target",
+            }
+
+        await run_with_retries(_test, requester)
 
 
 @pytest.mark.app_settings(
