@@ -57,6 +57,39 @@ async def test_indexing_and_search(es_requester):
         await run_with_retries(_test, requester)
 
 
+@pytest.mark.parametrize("sort", ["", "&_sort_des=_score"])
+async def test_tie_break_matches_document_id_order(es_requester, sort):
+    async with es_requester as requester:
+        for idx in range(5):
+            resp, status = await requester(
+                "POST",
+                "/db/guillotina/",
+                data=json.dumps({"@type": "Example", "id": f"item{idx}"}),
+            )
+            assert status == 201
+
+        async def _test():
+            resp, status = await requester(
+                "GET", "/db/guillotina/@search?_size=3" + sort
+            )
+            assert status == 200
+            assert resp["items_total"] == 5
+            uids = [item["@uid"] for item in resp["items"]]
+            assert len(uids) == 3
+            # Same page, order and client-visible sort values as the
+            # former {"_id": "desc"} tie-break: documents use the uuid as _id.
+            catalog = get_utility(ICatalogUtility)
+            container, *_ = await setup_txn_on_container(requester)
+            result = await catalog.get_connection().search(
+                index=await catalog.get_container_index_name(container),
+                body={"sort": [{"_id": "desc"}], "size": 3, "_source": False},
+            )
+            assert uids == [hit["_id"] for hit in result["hits"]["hits"]]
+            assert [item["sort"][-1] for item in resp["items"]] == uids
+
+        await run_with_retries(_test, requester)
+
+
 async def test_removes_all_children(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)  # noqa

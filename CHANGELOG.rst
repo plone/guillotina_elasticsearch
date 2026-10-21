@@ -9,6 +9,11 @@
   constraints when that exclusion is not guaranteed, and preserve constant
   path scoring.
   [rboixaderg]
+- Break search sort ties on the ``uuid`` keyword field instead of ``_id``:
+  same order and sort values, but it uses doc values instead of the
+  deprecated ``_id`` fielddata, which was the main cost of searches with many
+  hits.
+  [rboixaderg]
 
 
 9.0.1 (2026-05-25)
