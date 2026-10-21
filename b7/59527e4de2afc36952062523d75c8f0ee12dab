@@ -1,0 +1,29 @@
+guillotina_elasticsearch/parser.py
+  s_15f45d681f7b5a::t_58f53204a80ce4 309-313
+guillotina_elasticsearch/tests/test_context_path_regressions.py
+  s_cbb48a9af020cb::t_45445395ac99f3 102-124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "b759527e4de2afc36952062523d75c8f0ee12dab",
+  "prompts": {},
+  "sessions": {
+    "s_15f45d681f7b5a": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_ea2567afcffe5FvqLSUN7AluiY",
+        "model": "unknown"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    },
+    "s_cbb48a9af020cb": {
+      "agent_id": {
+        "tool": "pi",
+        "id": "01a15d96-82c4-7265-a2c4-d5ef431cedc6",
+        "model": "deepseek-v4.1-flash"
+      },
+      "human_author": "Roger Boixader Güell <rboixaderg@gmail.com>"
+    }
+  }
+}
