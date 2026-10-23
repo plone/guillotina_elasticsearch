@@ -195,7 +195,7 @@ async def test_es_multi_match_parser(dummy_guillotina):
             }
         },
         "size": 20,
-        "sort": [{"uuid": "desc"}],
+        "sort": [{"_id": "desc"}],
         "stored_fields": [
             "contributors",
             "creation_date",
@@ -211,3 +211,24 @@ async def test_es_multi_match_parser(dummy_guillotina):
             "*",
         ],
     }
+
+
+@pytest.mark.parametrize(
+    "params, expected_sort",
+    [
+        ({}, [{"_id": "desc"}]),
+        (
+            {"_sort_asc": "modification_date"},
+            [{"modification_date": "asc"}, {"_id": "desc"}],
+        ),
+        (
+            {"_sort_des": "_score"},
+            [{"_score": "desc"}, {"_id": "desc"}],
+        ),
+    ],
+)
+async def test_parser_uses_document_id_tie_break(
+    dummy_guillotina, params, expected_sort
+):
+    content = test_utils.create_content()
+    assert Parser(None, content)(params)["sort"] == expected_sort
