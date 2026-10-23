@@ -14,11 +14,11 @@ jobs:
       DATABASE: ${{ matrix.database }}
     steps:
       # Checkout the repository first
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       # Setup the python version
       - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -26,11 +26,11 @@ jobs:
       - name: Pre-checks
         run: |
           # Install
-          pip install flake8 isort black==22.10.0
+          pip install flake8 "isort==5.12.0" black==22.10.0
 
           # Run commands
           flake8 guillotina_elasticsearch --config=setup.cfg
-          isort -c -rc guillotina_elasticsearch
+          isort -c guillotina_elasticsearch
           black --check --verbose guillotina_elasticsearch
 
       # Run tests

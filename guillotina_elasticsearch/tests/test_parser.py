@@ -1,3 +1,4 @@
+from guillotina.catalog.utils import iter_indexes
 from guillotina.directives import index_field
 from guillotina.interfaces import IContainer
 from guillotina.tests import utils as test_utils
@@ -17,6 +18,10 @@ async def test_boolean_field(es_requester):
             return True
 
         container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
+        # foo_bool is registered dynamically above: refresh guillotina's
+        # process-global index cache, which earlier tests may have populated
+        # without it (get_index_definition only reads the cache once filled).
+        [i for i in iter_indexes(invalidate=True)]  # noqa
         params = {"depth__gte": "1", "type_name": "IItem", "foo_bool": True}
         parser = Parser(None, container)
         query = parser(params)
@@ -49,7 +54,10 @@ async def test_es_field_date_parser(dummy_guillotina):
         }
     )
     qq = parsed["query"]["bool"]["must"]
-    assert len(qq[-2]["bool"]["should"]) == 5
+    # the automatic root path filter is dropped as redundant, so the
+    # SearchableText clause is now the last one (used to be second-to-last,
+    # followed by the {"wildcard": {"path": "/*"}} clause)
+    assert len(qq[-1]["bool"]["should"]) == 5
 
     assert "range" in qq[0]
     assert "modification_date" in qq[0]["range"]
@@ -173,7 +181,6 @@ async def test_es_multi_match_parser(dummy_guillotina):
                 "must": [
                     {"term": {"type_name": "FooContent"}},
                     {"range": {"depth": {"gte": 1}}},
-                    {"wildcard": {"path": "/*"}},
                     {
                         "multi_match": {
                             "fields": ["item_text^2", "item_text_2^3"],
@@ -204,3 +211,24 @@ async def test_es_multi_match_parser(dummy_guillotina):
             "*",
         ],
     }
+
+
+@pytest.mark.parametrize(
+    "params, expected_sort",
+    [
+        ({}, [{"_id": "desc"}]),
+        (
+            {"_sort_asc": "modification_date"},
+            [{"modification_date": "asc"}, {"_id": "desc"}],
+        ),
+        (
+            {"_sort_des": "_score"},
+            [{"_score": "desc"}, {"_id": "desc"}],
+        ),
+    ],
+)
+async def test_parser_uses_document_id_tie_break(
+    dummy_guillotina, params, expected_sort
+):
+    content = test_utils.create_content()
+    assert Parser(None, content)(params)["sort"] == expected_sort
