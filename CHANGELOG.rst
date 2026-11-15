@@ -1,4 +1,4 @@
-9.0.2 (unreleased)
+9.0.2 (2026-11-15)
 ------------------
 
 - Optimize the automatic context path filter in Elasticsearch queries: drop the
