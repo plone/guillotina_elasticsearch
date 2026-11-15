@@ -57,6 +57,35 @@ async def test_indexing_and_search(es_requester):
         await run_with_retries(_test, requester)
 
 
+@pytest.mark.parametrize("sort", ["", "&_sort_des=_score"])
+async def test_search_pagination_keeps_document_id_order(es_requester, sort):
+    async with es_requester as requester:
+        uids = []
+        for idx in range(5):
+            resp, status = await requester(
+                "POST",
+                "/db/guillotina/",
+                data=json.dumps({"@type": "Example", "id": f"item{idx}"}),
+            )
+            assert status == 201
+            uids.append(resp["@uid"])
+        expected_uids = sorted(uids, reverse=True)
+
+        async def _test():
+            for start in (0, 3):
+                resp, status = await requester(
+                    "GET", f"/db/guillotina/@search?_size=3&_from={start}" + sort
+                )
+                assert status == 200
+                assert resp["items_total"] == 5
+                # Documents are indexed with their UUID as the Elasticsearch _id.
+                page_uids = expected_uids[start : start + 3]
+                assert [item["@uid"] for item in resp["items"]] == page_uids
+                assert [item["sort"][-1] for item in resp["items"]] == page_uids
+
+        await run_with_retries(_test, requester)
+
+
 async def test_removes_all_children(es_requester):
     async with es_requester as requester:
         container, request, txn, tm = await setup_txn_on_container(requester)  # noqa
@@ -346,18 +375,20 @@ async def test_search_endpoint_or_clause_with_not_null(es_requester):
             headers={"X-Wait": "10"},
         )
         assert status == 201
-        await asyncio.sleep(2)
-        resp, status = await requester(
-            "GET",
-            "/db/guillotina/@search?type_name=Item&__or=type_name__not=null%26title=null&_metadata=*",
-            headers={"X-Wait": "10"},
-        )
-        assert status == 200
-        assert resp["items_total"] == 2
-        assert {item["@name"] for item in resp["items"]} == {
-            "aff-target",
-            "plain-target",
-        }
+
+        async def _test():
+            resp, status = await requester(
+                "GET",
+                "/db/guillotina/@search?type_name=Item&__or=type_name__not=null%26title=null&_metadata=*",
+            )
+            assert status == 200
+            assert resp["items_total"] == 2
+            assert {item["@name"] for item in resp["items"]} == {
+                "aff-target",
+                "plain-target",
+            }
+
+        await run_with_retries(_test, requester)
 
 
 @pytest.mark.app_settings(
