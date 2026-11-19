@@ -341,6 +341,7 @@ class Parser(BaseParser):
             "stored_fields": search_data,
             "query": {"bool": bool_q},
             "sort": [],
+            "track_total_hits": True,
         }
         if query_info["sort_on"]:
             query["sort"].append(

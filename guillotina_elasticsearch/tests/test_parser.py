@@ -210,6 +210,7 @@ async def test_es_multi_match_parser(dummy_guillotina):
             "uuid",
             "*",
         ],
+        "track_total_hits": True,
     }
 
 
