@@ -417,10 +417,12 @@ class Migrator:
             await self.flush()
 
     async def join_futures(self):
-        for future in self.reindex_futures:
-            if not future.done():
-                await asyncio.wait_for(future, None)
+        futures = self.reindex_futures
+        results = await asyncio.gather(*futures, return_exceptions=True)
         self.reindex_futures = []
+        for result in results:
+            if isinstance(result, BaseException):
+                raise result
 
     @backoff.on_exception(
         backoff.constant,
