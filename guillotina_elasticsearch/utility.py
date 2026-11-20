@@ -302,10 +302,9 @@ class ElasticSearchUtility(DefaultSearchUtility):
                 error_message = failure["reason"]
             raise QueryErrorException(reason=error_message)
         items = self._get_items_from_result(container, request, result)
-        items_total = result["hits"]["total"]["value"]
-        # Seems like items_total will be max 10k always no matter what
-        # the max_result_window_value is
-        if items_total == 10000:
+        total = result["hits"]["total"]
+        items_total = total["value"]
+        if total.get("relation") == "gte":
             count = await conn.count(index=index, body={"query": q["body"]["query"]})
             items_total = count["count"]
         final = {"items_total": items_total, "items": items}
