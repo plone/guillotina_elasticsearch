@@ -1,7 +1,8 @@
 9.0.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Wait for pending Elasticsearch bulk batches before completing a reindex, and
+  propagate errors from completed batch tasks.
 
 
 9.0.2 (2026-11-15)
