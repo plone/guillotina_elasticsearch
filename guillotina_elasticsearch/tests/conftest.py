@@ -33,6 +33,7 @@ images.configure(
         "xpack.security.enabled": "false",
         "ES_JAVA_OPTS": "-Xms1g -Xmx1g",
     },
+    options={"cap_add": ["IPC_LOCK"], "mem_limit": "2g"},
 )
 
 
