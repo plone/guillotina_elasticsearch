@@ -418,8 +418,8 @@ class Migrator:
 
     async def join_futures(self):
         futures = self.reindex_futures
-        results = await asyncio.gather(*futures, return_exceptions=True)
         self.reindex_futures = []
+        results = await asyncio.gather(*futures, return_exceptions=True)
         for result in results:
             if isinstance(result, BaseException):
                 raise result
