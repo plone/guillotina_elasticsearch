@@ -1,7 +1,8 @@
 9.0.3 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Use Elasticsearch's total-hit relation to decide whether an exact ``_count``
+  fallback is needed, and request exact totals in the default search parser.
 
 
 9.0.2 (2026-11-15)

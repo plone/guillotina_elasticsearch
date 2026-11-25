@@ -5,15 +5,107 @@ from guillotina.auth import authenticate_user
 from guillotina.auth import set_authenticated_user
 from guillotina.auth.utils import find_user
 from guillotina.component import get_utility
+from guillotina.exceptions import RequestNotFound
 from guillotina.interfaces import ICatalogUtility
 from guillotina.utils import get_authenticated_user
+from guillotina_elasticsearch import utility as utility_module
 from guillotina_elasticsearch.parser import Parser
 from guillotina_elasticsearch.tests.utils import run_with_retries
 from guillotina_elasticsearch.tests.utils import setup_txn_on_container
+from guillotina_elasticsearch.utility import ElasticSearchUtility
 
 import asyncio
 import json
 import pytest
+
+
+@pytest.mark.parametrize(
+    "query, total, expected_total, expected_count_calls",
+    [
+        (
+            {"query": {"match_all": {}}},
+            {"value": 10000, "relation": "eq"},
+            10000,
+            [],
+        ),
+        (
+            {"query": {"match_all": {}}},
+            {"value": 10000, "relation": "gte"},
+            12345,
+            [{"index": "test-index", "body": {"query": {"match_all": {}}}}],
+        ),
+        (
+            {},
+            {"value": 10000, "relation": "gte"},
+            12345,
+            [{"index": "test-index", "body": None}],
+        ),
+        (
+            {"query": {"match_all": {}}, "track_total_hits": 100},
+            {"value": 100, "relation": "gte"},
+            100,
+            [],
+        ),
+        (
+            {"size": 0, "track_total_hits": 100},
+            {"value": 100, "relation": "gte"},
+            100,
+            [],
+        ),
+    ],
+)
+async def test_search_raw_count_fallback_uses_total_relation(
+    monkeypatch, query, total, expected_total, expected_count_calls
+):
+    class FakeConnection:
+        def __init__(self):
+            self.count_calls = []
+
+        async def search(self, **kwargs):
+            return {
+                "_shards": {"failed": 0},
+                "hits": {
+                    "total": total,
+                    "hits": [],
+                },
+            }
+
+        async def count(self, **kwargs):
+            self.count_calls.append(kwargs)
+            return {"count": 12345}
+
+    context = object()
+    connection = FakeConnection()
+    utility = ElasticSearchUtility()
+    events = []
+
+    async def notify_search_done(event):
+        events.append(event)
+
+    def no_current_request():
+        raise RequestNotFound()
+
+    monkeypatch.setitem(
+        utility_module.app_settings,
+        "elasticsearch",
+        {
+            "security_query_builder": "guillotina_elasticsearch.queries.build_security_query"
+        },
+    )
+    monkeypatch.setattr(utility_module, "find_container", lambda context: object())
+    monkeypatch.setattr(utility_module, "get_current_request", no_current_request)
+    monkeypatch.setattr(utility_module, "notify", notify_search_done)
+    monkeypatch.setattr(utility, "_get_items_from_result", lambda *args: [])
+    monkeypatch.setattr(utility, "get_connection", lambda: connection)
+
+    result = await utility.search_raw(
+        context, query, index="test-index", unrestricted=True
+    )
+
+    assert result["items_total"] == expected_total
+    assert connection.count_calls == expected_count_calls
+    assert len(events) == 1
+    assert events[0].total == expected_total
 
 
 async def test_indexing_and_search(es_requester):
