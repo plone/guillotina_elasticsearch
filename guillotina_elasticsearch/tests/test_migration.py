@@ -6,6 +6,7 @@ from guillotina.event import notify
 from guillotina.events import ObjectRemovedEvent
 from guillotina.interfaces import ICatalogUtility
 from guillotina.tests.utils import create_content
+from guillotina_elasticsearch import reindex as reindex_module
 from guillotina_elasticsearch.events import IIndexProgress
 from guillotina_elasticsearch.events import IndexProgress
 from guillotina_elasticsearch.interfaces import IIndexManager
@@ -339,6 +340,148 @@ async def test_migrator_emmits_events_on_end(es_requester, event_handler):
         assert event_handler.event[0].processed == 0
         assert event_handler.event[1].completed is True
         assert event_handler.event[0].context == container
+
+
+async def test_reindex_waits_for_final_batch_before_completion(monkeypatch):
+    class FakeIndexManager:
+        async def get_index_name(self):
+            return "test-index"
+
+    container = object()
+    batch_started = asyncio.Event()
+    finish_batch = asyncio.Event()
+    events = []
+
+    async def process_object(obj):
+        pass
+
+    async def index_batch(batch):
+        batch_started.set()
+        await finish_batch.wait()
+
+    async def notify_event(event):
+        events.append(event)
+
+    monkeypatch.setattr(reindex_module, "get_current_container", lambda: container)
+    monkeypatch.setattr(
+        reindex_module, "get_adapter", lambda context, iface: FakeIndexManager()
+    )
+    monkeypatch.setattr(reindex_module, "notify", notify_event)
+
+    reindexer = object.__new__(Reindexer)
+    reindexer.context = container
+    reindexer.processed = 1
+    reindexer.request = None
+    reindexer.batch = {"uuid": {}}
+    reindexer.reindex_futures = []
+    reindexer.process_object = process_object
+    reindexer._index_batch = index_batch
+
+    task = asyncio.create_task(reindexer.reindex(object()))
+    await batch_started.wait()
+
+    assert len(events) == 1
+    assert events[0].completed is None
+
+    finish_batch.set()
+    await task
+
+    assert events[-1].completed is True
+    assert reindexer.reindex_futures == []
+
+
+async def test_join_futures_drains_all_tasks_and_propagates_errors():
+    migrator = object.__new__(Migrator)
+    finish_batch = asyncio.Event()
+    batch_finished = asyncio.Event()
+
+    async def failed_batch():
+        raise RuntimeError("bulk indexing failed")
+
+    async def pending_batch():
+        await finish_batch.wait()
+        batch_finished.set()
+
+    failed = asyncio.create_task(failed_batch())
+    pending = asyncio.create_task(pending_batch())
+    await asyncio.sleep(0)
+    assert failed.done()
+
+    migrator.reindex_futures = [failed, pending]
+    join_task = asyncio.create_task(migrator.join_futures())
+    await asyncio.sleep(0)
+    assert not join_task.done()
+
+    finish_batch.set()
+    with pytest.raises(RuntimeError, match="bulk indexing failed"):
+        await join_task
+
+    assert batch_finished.is_set()
+    assert migrator.reindex_futures == []
+
+
+async def test_join_futures_clears_futures_on_cancellation():
+    migrator = object.__new__(Migrator)
+    batch_started = asyncio.Event()
+    never_finish = asyncio.Event()
+
+    async def pending_batch():
+        batch_started.set()
+        await never_finish.wait()
+
+    pending = asyncio.create_task(pending_batch())
+    await batch_started.wait()
+
+    migrator.reindex_futures = [pending]
+    join_task = asyncio.create_task(migrator.join_futures())
+    await asyncio.sleep(0)
+
+    join_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await join_task
+
+    assert pending.cancelled()
+    assert migrator.reindex_futures == []
+
+
+async def test_reindex_propagates_batch_error_without_completion(monkeypatch):
+    class FakeIndexManager:
+        async def get_index_name(self):
+            return "test-index"
+
+    container = object()
+    events = []
+
+    async def process_object(obj):
+        pass
+
+    async def index_batch(batch):
+        raise RuntimeError("bulk indexing failed")
+
+    async def notify_event(event):
+        events.append(event)
+
+    monkeypatch.setattr(reindex_module, "get_current_container", lambda: container)
+    monkeypatch.setattr(
+        reindex_module, "get_adapter", lambda context, iface: FakeIndexManager()
+    )
+    monkeypatch.setattr(reindex_module, "notify", notify_event)
+
+    reindexer = object.__new__(Reindexer)
+    reindexer.context = container
+    reindexer.processed = 1
+    reindexer.request = None
+    reindexer.batch = {"uuid": {}}
+    reindexer.reindex_futures = []
+    reindexer.process_object = process_object
+    reindexer._index_batch = index_batch
+
+    with pytest.raises(RuntimeError, match="bulk indexing failed"):
+        await reindexer.reindex(object())
+
+    assert len(events) == 1
+    assert events[0].completed is None
+    assert reindexer.reindex_futures == []
 
 
 async def test_search_works_on_new_docs_during_migration(es_requester):
