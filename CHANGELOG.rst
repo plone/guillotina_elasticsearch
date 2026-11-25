@@ -1,4 +1,4 @@
-9.0.3 (unreleased)
+9.0.3 (2026-11-25)
 ------------------
 
 - Use Elasticsearch's total-hit relation to decide whether an exact ``_count``
