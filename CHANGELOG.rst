@@ -1,4 +1,4 @@
-9.0.4 (unreleased)
+9.0.4 (2026-11-25)
 ------------------
 
 - Wait for pending Elasticsearch bulk batches before completing a reindex, and
